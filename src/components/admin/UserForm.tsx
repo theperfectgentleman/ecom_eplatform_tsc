@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select"
 import { Account } from "@/types"
 import { AccessLevel, UserType } from "@/types"
-import { apiRequest } from "@/lib/api"
+import { useApi } from "@/lib/useApi"
 import { useToast } from "../ui/toast/useToast"
 
 const baseSchema = z.object({
@@ -73,6 +73,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
   const [subdistrictOptions, setSubdistrictOptions] = useState<string[]>([]);
   const [communityOptions, setCommunityOptions] = useState<string[]>([]);
   const isInitialMount = useRef(true);
+  const { request } = useApi();
 
   const schema = user ? updateUserSchema : createUserSchema;
 
@@ -99,125 +100,128 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
     },
   });
 
-  const { watch, setValue, getValues } = form;
+  const watchedRegion = form.watch("region");
+  const watchedDistrict = form.watch("district");
+  const watchedSubdistrict = form.watch("subdistrict");
 
   // Fetch communities on mount
   useEffect(() => {
-    apiRequest({ path: 'api/communities' })
-      .then((data) => {
+    request({ path: 'api/communities' })
+      .then(data => {
         setCommunities(data);
-        const regions = Array.from(
-          new Set(data.map((c: any) => String(c.region)).filter(Boolean))
-        ) as string[];
-        setRegionOptions(["None", ...regions]);
-
-        // Pre-populate dropdowns in edit mode
-        if (user) {
-            const { region, district, subdistrict } = user;
-            if (region) {
-                const districts = Array.from(new Set(data.filter((c:any) => c.region === region).map((c:any) => c.district).filter(Boolean))) as string[];
-                setDistrictOptions(["None", ...districts]);
-            }
-            if (district) {
-                const subdistricts = Array.from(new Set(data.filter((c:any) => c.region === region && c.district === district).map((c:any) => c.subdistrict).filter(Boolean))) as string[];
-                setSubdistrictOptions(["None", ...subdistricts]);
-            }
-            if (subdistrict) {
-                const comms = Array.from(new Set(data.filter((c:any) => c.region === region && c.district === district && c.subdistrict === subdistrict).map((c:any) => c.community_name).filter(Boolean))) as string[];
-                setCommunityOptions(["None", ...comms]);
-            }
-        }
-      })
-      .catch(() => {
-        toast({ title: 'Failed to load communities', variant: 'error' });
+        const regions = [...new Set(data.map((c: any) => c.region))].sort() as string[];
+        setRegionOptions(regions);
       });
-  }, [toast, user]);
-
-  const watchedRegion = watch('region');
-  const watchedDistrict = watch('district');
-  const watchedSubdistrict = watch('subdistrict');
+  }, [request]);
 
   // Handle region change
   useEffect(() => {
-    if (isInitialMount.current) return;
-    setValue('district', '');
-    setValue('subdistrict', '');
-    setValue('community_name', '');
-    
-    const districts = Array.from(new Set(communities.filter(c => c.region === watchedRegion).map(c => c.district).filter(Boolean))) as string[];
-    setDistrictOptions(["None", ...districts]);
-    setSubdistrictOptions([]);
-    setCommunityOptions([]);
+    if (isInitialMount.current && user) {
+      // If in edit mode, pre-fill the form with user data
+      const userRegion = user.region || '';
+      const userDistrict = user.district || '';
+      const userSubdistrict = user.subdistrict || '';
+      const userCommunity = user.community_name || '';
 
-  }, [watchedRegion, communities, setValue]);
+      if (userRegion) {
+        const districts = [...new Set(communities.filter((c: any) => c.region === userRegion).map((c: any) => c.district))].sort() as string[];
+        setDistrictOptions(districts);
+      }
+      if (userDistrict) {
+        const subdistricts = [...new Set(communities.filter((c: any) => c.district === userDistrict).map((c: any) => c.subdistrict))].sort() as string[];
+        setSubdistrictOptions(subdistricts);
+      }
+      if (userSubdistrict) {
+        const comms = [...new Set(communities.filter((c: any) => c.subdistrict === userSubdistrict).map((c: any) => c.community_name))].sort() as string[];
+        setCommunityOptions(comms);
+      }
+
+      form.reset({
+        username: user.username,
+        firstname: user.firstname,
+        lastname: user.lastname,
+        email: user.email,
+        phone: user.phone || '',
+        user_type: user.user_type,
+        access_level: user.access_level,
+        region: userRegion,
+        district: userDistrict,
+        subdistrict: userSubdistrict,
+        community_name: userCommunity,
+      });
+
+      // We need to delay this to avoid a flash of un-populated fields
+      setTimeout(() => {
+        isInitialMount.current = false;
+      }, 100);
+      return; // Prevent resetting fields on initial load for existing user
+    }
+
+    if (isInitialMount.current) return;
+
+    form.setValue("district", "");
+    form.setValue("subdistrict", "");
+    form.setValue("community_name", "");
+
+    if (watchedRegion) {
+      const districts = [...new Set(communities.filter((c: any) => c.region === watchedRegion).map((c: any) => c.district))].sort() as string[];
+      setDistrictOptions(districts);
+    } else {
+      setDistrictOptions([]);
+    }
+  }, [watchedRegion, communities, form, user, isInitialMount]);
 
   // Handle district change
   useEffect(() => {
     if (isInitialMount.current) return;
-    setValue('subdistrict', '');
-    setValue('community_name', '');
 
-    const subdistricts = Array.from(new Set(communities.filter(c => c.region === getValues('region') && c.district === watchedDistrict).map(c => c.subdistrict).filter(Boolean))) as string[];
-    setSubdistrictOptions(["None", ...subdistricts]);
-    setCommunityOptions([]);
-  }, [watchedDistrict, communities, setValue, getValues]);
+    form.setValue("subdistrict", "");
+    form.setValue("community_name", "");
+
+    if (watchedDistrict) {
+      const subdistricts = [...new Set(communities.filter((c: any) => c.district === watchedDistrict).map((c: any) => c.subdistrict))].sort() as string[];
+      setSubdistrictOptions(subdistricts);
+    } else {
+      setSubdistrictOptions([]);
+    }
+  }, [watchedDistrict, communities, form, user, isInitialMount]);
 
   // Handle subdistrict change
   useEffect(() => {
     if (isInitialMount.current) return;
-    setValue('community_name', '');
 
-    const comms = Array.from(new Set(communities.filter(c => c.region === getValues('region') && c.district === getValues('district') && c.subdistrict === watchedSubdistrict).map(c => c.community_name).filter(Boolean))) as string[];
-    setCommunityOptions(["None", ...comms]);
-  }, [watchedSubdistrict, communities, setValue, getValues]);
+    form.setValue("community_name", "");
 
-  useEffect(() => {
-      if(communities.length > 0){
-          const timer = setTimeout(() => {
-            isInitialMount.current = false;
-          }, 500); // A small delay to allow initial values to settle
-          return () => clearTimeout(timer);
-      }
-  }, [communities]);
+    if (watchedSubdistrict) {
+      const comms = [...new Set(communities.filter((c: any) => c.subdistrict === watchedSubdistrict).map((c: any) => c.community_name))].sort() as string[];
+      setCommunityOptions(comms);
+    } else {
+      setCommunityOptions([]);
+    }
+  }, [watchedSubdistrict, communities, form, user, isInitialMount]);
 
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    console.log("Form submitted with values:", values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      if (user && !user.account_id) {
-        console.error('Update attempted with missing account_id:', user);
-        toast({
-          title: 'Error: Missing account_id',
-          description: 'Cannot update account because account_id is missing.',
-          variant: 'error',
-        });
-        return;
+      const payload = { ...values };
+      // Remove confirmPassword from payload as it's not needed by the API
+      delete payload.confirmPassword;
+
+      // If password is empty, remove it from the payload for updates
+      if (!payload.password) {
+        delete payload.password;
       }
-      const apiPath = user ? `api/accounts/${user.account_id}` : 'api/accounts';
-      const apiMethod = user ? 'PUT' : 'POST';
 
-      await apiRequest({
-        method: apiMethod,
-        path: apiPath,
-        body: {
-          ...values,
-          // Remove confirmPassword from payload
-          confirmPassword: undefined,
-        },
+      await request({
+        path: user ? `api/accounts/${user.account_id}` : 'api/accounts',
+        method: user ? 'PUT' : 'POST',
+        body: payload,
       });
 
-      toast({
-        title: user ? "User updated" : "User created",
-        description: `User ${values.firstname} ${values.lastname} has been successfully ${user ? 'updated' : 'created'}.`,
-        variant: "success",
-      });
+      toast({ variant: 'success', title: user ? 'Account updated successfully' : 'Account created successfully' });
       onSuccess();
     } catch (error: any) {
-      toast({
-        title: "An error occurred.",
-        description: error.message || "Something went wrong.",
-        variant: "error",
-      });
+      console.error("Failed to submit form:", error);
+      toast({ variant: 'error', title: 'Operation Failed', description: error.message || 'An unknown error occurred.' });
     }
   }
 

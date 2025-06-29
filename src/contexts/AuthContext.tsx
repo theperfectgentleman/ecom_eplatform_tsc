@@ -46,8 +46,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Load user from localStorage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
-    if (storedUser && storedToken) {
+    // Only check for storedUser, not token
+    if (storedUser) {
       const parsedUser: Account = JSON.parse(storedUser);
       updateUserAndPermissions(parsedUser);
     }

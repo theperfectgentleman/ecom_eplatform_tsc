@@ -12,34 +12,37 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/components/ui/toast/ToastContext';
 import { ToastContainer } from '@/components/ui/toast/Toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { LoadingProvider } from '@/contexts/LoadingContext';
 import '@/index.css';
 
 const App = () => {
   return (
     <ToastProvider>
       <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route element={<ProtectedRoute />}>
-              <Route
-                path="/*"
-                element={
-                  <MainLayout>
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/referral" element={<Referral />} />
-                      <Route path="/reports" element={<Reports />} />
-                      <Route path="/address-book" element={<AddressBook />} />
-                      <Route path="/admin" element={<Admin />} />
-                    </Routes>
-                  </MainLayout>
-                }
-              />
-            </Route>
-          </Routes>
-        </Router>
-        <ToastContainer />
+        <LoadingProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route
+                  path="/*"
+                  element={
+                    <MainLayout>
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/referral" element={<Referral />} />
+                        <Route path="/reports" element={<Reports />} />
+                        <Route path="/address-book" element={<AddressBook />} />
+                        <Route path="/admin" element={<Admin />} />
+                      </Routes>
+                    </MainLayout>
+                  }
+                />
+              </Route>
+            </Routes>
+          </Router>
+          <ToastContainer />
+        </LoadingProvider>
       </AuthProvider>
     </ToastProvider>
   );

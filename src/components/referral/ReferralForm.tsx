@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,15 +10,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { apiRequest } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useApi } from "@/lib/useApi";
 
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
 const PRIORITY_OPTIONS = ["Opened", "Urgent", "Closed"];
 const BLOOD_GROUP_OPTIONS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const INSURANCE_STATUS_OPTIONS = ["Insured", "Not Insured", "Unknown"];
 
-const ReferralForm: React.FC = () => {
+const ReferralForm: React.FC<{ initialData?: any; onClear?: () => void; onCaseCreated: () => void }> = ({ initialData, onClear, onCaseCreated }) => {
   const [patients, setPatients] = useState<any[]>([]);
   const [communities, setCommunities] = useState<any[]>([]);
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
@@ -28,6 +27,7 @@ const ReferralForm: React.FC = () => {
   const [communityOptions, setCommunityOptions] = useState<string[]>([]);
   const [showReferral, setShowReferral] = useState(false);
   const [userId, setUserId] = useState("-1");
+  const { request } = useApi();
   const [formState, setFormState] = useState({
     priority_level: "Opened",
     region: "",
@@ -65,13 +65,13 @@ const ReferralForm: React.FC = () => {
 
   // Fetch patients and communities on mount
   useEffect(() => {
-    apiRequest({ path: "api/patients" }).then(setPatients);
-    apiRequest({ path: "api/communities" }).then((data) => {
+    request({ path: "api/patients" }).then(setPatients);
+    request({ path: "api/communities" }).then((data) => {
       setCommunities(data);
       const regions = Array.from(new Set(data.map((c: any) => String(c.region)).filter(Boolean))) as string[];
       setRegionOptions(["None", ...regions.filter((r: string) => r && r !== "None")]);
     });
-  }, []);
+  }, [request]);
 
   // Progressive dropdown logic (same as UserForm)
   useEffect(() => {
@@ -98,67 +98,153 @@ const ReferralForm: React.FC = () => {
     setCommunityOptions(["None", ...comms]);
   }, [formState.sub_district, communities, formState.region, formState.district]);
 
+  // Effect to populate form with initialData
   useEffect(() => {
-    if (communities.length > 0) {
-      const timer = setTimeout(() => {
-        isInitialMount.current = false;
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [communities]);
+    if (initialData) {
+      // This is complex, let's break it down
+      const { patient, ...caseData } = initialData;
 
-  // Handlers
+      // Find the full patient data from the patients state
+      const fullPatientData = patients.find(p => p.patient_id === (patient?.patient_id || caseData.patient_id));
+
+      const updatedState = {
+        ...formState, // Start with default
+        ...caseData,
+        patient_id: fullPatientData?.patient_id?.toString() || "-1",
+        name: fullPatientData?.name || "",
+        year_of_birth: fullPatientData?.year_of_birth?.toString() || "",
+        gender: fullPatientData?.gender || "",
+        region: fullPatientData?.region || "",
+        district: fullPatientData?.district || "",
+        sub_district: fullPatientData?.sub_district || "",
+        community: fullPatientData?.community || "",
+        insurance_status: fullPatientData?.insurance_status || "",
+        insurance_no: fullPatientData?.insurance_no || "",
+        present_complaints: fullPatientData?.present_complaints || "",
+        examination_findings: fullPatientData?.examination_findings || "",
+        temperature: fullPatientData?.temperature?.toString() || "",
+        weight: fullPatientData?.weight?.toString() || "",
+        blood_group: fullPatientData?.blood_group || "",
+        bp: fullPatientData?.bp || "",
+        pulse: fullPatientData?.pulse?.toString() || "",
+        treatment_given: fullPatientData?.treatment_given || "",
+        referral_reason_notes: fullPatientData?.referral_reason_notes || "",
+        referring_officer_name: fullPatientData?.referring_officer_name || "",
+        referring_officer_position: fullPatientData?.referring_officer_position || "",
+        medications_given: fullPatientData?.medications_given || "",
+        medications_on: fullPatientData?.medications_on || "",
+        referring_facility_name: fullPatientData?.referring_facility_name || "",
+        national_id: fullPatientData?.national_id || "",
+        facility_referred_to: fullPatientData?.facility_referred_to || "",
+        transportation_means: fullPatientData?.transportation_means || "",
+        other_notes: fullPatientData?.other_notes || "",
+      };
+
+      setFormState(updatedState);
+
+      // Trigger dropdown updates based on populated data
+      if (fullPatientData?.region) {
+        const districts = Array.from(new Set(communities.filter((c) => c.region === fullPatientData.region).map((c) => c.district).filter(Boolean)));
+        setDistrictOptions(["None", ...districts]);
+      }
+      if (fullPatientData?.district) {
+        const subdistricts = Array.from(new Set(communities.filter((c) => c.region === fullPatientData.region && c.district === fullPatientData.district).map((c) => c.subdistrict).filter(Boolean)));
+        setSubdistrictOptions(["None", ...subdistricts]);
+      }
+      if (fullPatientData?.sub_district) {
+        const comms = Array.from(new Set(communities.filter((c) => c.region === fullPatientData.region && c.district === fullPatientData.district && c.subdistrict === fullPatientData.sub_district).map((c) => c.community_name).filter(Boolean)));
+        setCommunityOptions(["None", ...comms]);
+      }
+
+      setShowReferral(updatedState.referral_needed);
+
+      // Mark initial mount as false after the first population
+      // Use a timeout to ensure state updates have propagated
+      setTimeout(() => {
+        isInitialMount.current = false;
+      }, 0);
+
+    } else {
+      // If no initial data, we are in "create new" mode
+      isInitialMount.current = false;
+    }
+  }, [initialData, communities, patients]);
+
+  const handlePatientChange = (patientId: string) => {
+    setUserId(patientId);
+    const selectedPatient = patients.find(p => p.patient_id === patientId);
+    if (selectedPatient) {
+      const updatedState = {
+        ...formState,
+        patient_id: patientId,
+        name: selectedPatient.name,
+        year_of_birth: selectedPatient.year_of_birth.toString(),
+        gender: selectedPatient.gender,
+        region: selectedPatient.region || "",
+        district: selectedPatient.district || "",
+        sub_district: selectedPatient.sub_district || "",
+        community: selectedPatient.community || "",
+      };
+      setFormState(updatedState);
+
+      // Trigger dropdown updates
+      const districts = Array.from(new Set(communities.filter((c) => c.region === selectedPatient.region).map((c) => c.district).filter(Boolean)));
+      setDistrictOptions(["None", ...districts]);
+      const subdistricts = Array.from(new Set(communities.filter((c) => c.region === selectedPatient.region && c.district === selectedPatient.district).map((c) => c.subdistrict).filter(Boolean)));
+      setSubdistrictOptions(["None", ...subdistricts]);
+      const comms = Array.from(new Set(communities.filter((c) => c.region === selectedPatient.region && c.district === selectedPatient.district && c.subdistrict === selectedPatient.sub_district).map((c) => c.community_name).filter(Boolean)));
+      setCommunityOptions(["None", ...comms]);
+
+    } else {
+      // Clear fields if "New Patient" is selected
+      setFormState(s => ({ ...s, name: "", year_of_birth: "", gender: "", region: "", district: "", sub_district: "", community: "" }));
+      setDistrictOptions([]);
+      setSubdistrictOptions([]);
+      setCommunityOptions([]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = { ...formState, user_id: userId };
+    try {
+      await request({ path: "api/case-files", method: "POST", body: payload });
+      alert("Referral submitted successfully!");
+      onCaseCreated(); // refetch cases
+      handleClear();
+    } catch (error) {
+      console.error("Failed to submit referral:", error);
+      alert("Failed to submit referral.");
+    }
+  };
+
+  const handleClear = () => {
+    setFormState({ ...formState, ...Object.fromEntries(Object.keys(formState).map(k => [k, ""])) });
+    setUserId("-1");
+    setShowReferral(false);
+    if (onClear) onClear();
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-    setFormState((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-    if (name === "referral_needed") setShowReferral(checked);
+    const { name, value } = e.target;
+    setFormState(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormState((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Prepare payload
-    const payload = {
-      ...formState,
-      patient_id: userId !== "-1" ? Number(userId) : undefined,
-      user_id: userId !== "-1" ? Number(userId) : undefined,
-      sub_district: formState.sub_district || formState.sub_district || "",
-      region: formState.region,
-      district: formState.district,
-      community: formState.community,
-      referral_needed: !!formState.referral_needed,
-      year_of_birth: formState.year_of_birth ? Number(formState.year_of_birth) : undefined,
-      temperature: formState.temperature ? Number(formState.temperature) : undefined,
-      weight: formState.weight ? Number(formState.weight) : undefined,
-      pulse: formState.pulse ? Number(formState.pulse) : undefined,
-    };
-    try {
-      await apiRequest({ path: "api/case-files", method: "POST", body: payload });
-      alert("Case file submitted successfully!");
-    } catch (err) {
-      alert("Submission failed. Please check your input and try again.");
-    }
+    setFormState(prev => ({ ...prev, [name]: value }));
   };
 
   // Render
   return (
-    <Card>
+    <Card className="h-full overflow-y-auto">
       <CardHeader>
         <CardTitle>Emergency Case File</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="space-y-8" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Priority Level */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Priority</h3>
+          <div className="space-y-2">
+            <label className="font-semibold">Priority</label>
             <Select value={formState.priority_level} onValueChange={(v) => handleSelectChange("priority_level", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Priority Level" />
@@ -172,14 +258,14 @@ const ReferralForm: React.FC = () => {
           </div>
 
           {/* User/Patient ID */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Patient</h3>
-            <Select value={userId} onValueChange={(v) => { setUserId(v); setFormState((prev) => ({ ...prev, patient_id: v, user_id: v })); }}>
+          <div className="space-y-2">
+            <label className="font-semibold">Patient</label>
+            <Select value={formState.patient_id} onValueChange={handlePatientChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Patient" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="-1">None</SelectItem>
+                <SelectItem value="-1">New Patient</SelectItem>
                 {patients.map((p) => (
                   <SelectItem key={p.patient_id} value={String(p.patient_id)}>
                     {p.name} ({p.patient_code || p.patient_id})
@@ -190,12 +276,12 @@ const ReferralForm: React.FC = () => {
           </div>
 
           {/* Personal Info */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input name="name" placeholder="Full Name" value={formState.name} onChange={handleChange} />
-              <Input name="year_of_birth" placeholder="Year of Birth" type="number" value={formState.year_of_birth} onChange={handleChange} />
-              <Select value={formState.gender} onValueChange={(v) => handleSelectChange("gender", v)}>
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg border-b pb-2">Personal Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              <Input name="name" placeholder="Full Name" value={formState.name} onChange={handleChange} disabled={formState.patient_id !== '-1'} />
+              <Input name="year_of_birth" placeholder="Year of Birth" type="number" value={formState.year_of_birth} onChange={handleChange} disabled={formState.patient_id !== '-1'} />
+              <Select value={formState.gender} onValueChange={(v) => handleSelectChange("gender", v)} disabled={formState.patient_id !== '-1'}>
                 <SelectTrigger>
                   <SelectValue placeholder="Gender" />
                 </SelectTrigger>
@@ -210,10 +296,10 @@ const ReferralForm: React.FC = () => {
           </div>
 
           {/* Location */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Location</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select value={formState.region} onValueChange={(v) => handleSelectChange("region", v)}>
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg border-b pb-2">Location</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <Select value={formState.region} onValueChange={(v) => handleSelectChange("region", v)} disabled={formState.patient_id !== '-1'}>
                 <SelectTrigger>
                   <SelectValue placeholder="Region" />
                 </SelectTrigger>
@@ -223,7 +309,7 @@ const ReferralForm: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={formState.district} onValueChange={(v) => handleSelectChange("district", v)} disabled={!formState.region}>
+              <Select value={formState.district} onValueChange={(v) => handleSelectChange("district", v)} disabled={!formState.region || formState.patient_id !== '-1'}>
                 <SelectTrigger>
                   <SelectValue placeholder="District" />
                 </SelectTrigger>
@@ -233,7 +319,7 @@ const ReferralForm: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={formState.sub_district} onValueChange={(v) => handleSelectChange("sub_district", v)} disabled={!formState.district}>
+              <Select value={formState.sub_district} onValueChange={(v) => handleSelectChange("sub_district", v)} disabled={!formState.district || formState.patient_id !== '-1'}>
                 <SelectTrigger>
                   <SelectValue placeholder="Subdistrict" />
                 </SelectTrigger>
@@ -243,7 +329,7 @@ const ReferralForm: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={formState.community} onValueChange={(v) => handleSelectChange("community", v)} disabled={!formState.sub_district}>
+              <Select value={formState.community} onValueChange={(v) => handleSelectChange("community", v)} disabled={!formState.sub_district || formState.patient_id !== '-1'}>
                 <SelectTrigger>
                   <SelectValue placeholder="Community" />
                 </SelectTrigger>
@@ -257,9 +343,9 @@ const ReferralForm: React.FC = () => {
           </div>
 
           {/* Insurance */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Insurance</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg border-b pb-2">Insurance</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <Select value={formState.insurance_status} onValueChange={(v) => handleSelectChange("insurance_status", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Insurance Status" />
@@ -275,9 +361,9 @@ const ReferralForm: React.FC = () => {
           </div>
 
           {/* Clinical */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Clinical</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg border-b pb-2">Clinical</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <Textarea name="present_complaints" placeholder="Present Complaints" value={formState.present_complaints} onChange={handleChange} className="min-h-[120px]" />
               <Textarea name="examination_findings" placeholder="Examination Findings" value={formState.examination_findings} onChange={handleChange} className="min-h-[120px]" />
             </div>
@@ -300,9 +386,9 @@ const ReferralForm: React.FC = () => {
           </div>
 
           {/* Treatment */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Treatment</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg border-b pb-2">Treatment</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <Textarea name="treatment_given" placeholder="Treatment Given" value={formState.treatment_given} onChange={handleChange} className="min-h-[100px]" />
               <Textarea name="medications_given" placeholder="Medications Given" value={formState.medications_given} onChange={handleChange} className="min-h-[100px]" />
               <Textarea name="medications_on" placeholder="Medications On" value={formState.medications_on} onChange={handleChange} className="min-h-[100px]" />
@@ -310,9 +396,9 @@ const ReferralForm: React.FC = () => {
           </div>
 
           {/* Referral Needed Toggle */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Referral</h3>
-            <div className="flex items-center gap-2 mb-2">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg border-b pb-2">Referral</h3>
+            <div className="flex items-center gap-2 pt-2">
               <Checkbox id="referral_needed" checked={formState.referral_needed} onCheckedChange={(checked) => {
                 setFormState((prev) => ({ ...prev, referral_needed: !!checked }));
                 setShowReferral(!!checked);
@@ -322,25 +408,25 @@ const ReferralForm: React.FC = () => {
             {showReferral && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                 <Input name="referring_facility_name" placeholder="Referring Facility Name" value={formState.referring_facility_name} onChange={handleChange} />
+                <Input name="facility_referred_to" placeholder="Facility Referred To" value={formState.facility_referred_to} onChange={handleChange} />
                 <Input name="referring_officer_name" placeholder="Referring Officer Name" value={formState.referring_officer_name} onChange={handleChange} />
                 <Input name="referring_officer_position" placeholder="Referring Officer Position" value={formState.referring_officer_position} onChange={handleChange} />
-                <Textarea name="referral_reason_notes" placeholder="Referral Reason & Notes" value={formState.referral_reason_notes} onChange={handleChange} />
-                <Input name="facility_referred_to" placeholder="Facility Referred To" value={formState.facility_referred_to} onChange={handleChange} />
                 <Input name="transportation_means" placeholder="Means of Transportation" value={formState.transportation_means} onChange={handleChange} />
+                <Textarea name="referral_reason_notes" placeholder="Referral Reason/Notes" value={formState.referral_reason_notes} onChange={handleChange} className="md:col-span-2" />
               </div>
             )}
           </div>
 
           {/* Other Notes */}
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Other Notes</h3>
-            <Textarea name="other_notes" placeholder="Other Notes" value={formState.other_notes} onChange={handleChange} />
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg border-b pb-2">Other Notes</h3>
+            <Textarea name="other_notes" placeholder="Any other notes..." value={formState.other_notes} onChange={handleChange} className="min-h-[100px]" />
           </div>
 
-          <div className="flex justify-end gap-4 pt-6">
-            <Button type="button" variant="outline" onClick={() => setFormState({ ...formState, ...Object.fromEntries(Object.keys(formState).map(k => [k, ""])) })}>Clear</Button>
-            <Button type="button" variant="secondary">Save Draft</Button>
-            <Button type="submit" className="bg-red-600 hover:bg-red-700">Submit</Button>
+          {/* Actions */}
+          <div className="flex justify-end space-x-4 pt-4">
+            <Button type="button" variant="outline" onClick={handleClear}>Clear Form</Button>
+            <Button type="submit">Submit Case</Button>
           </div>
         </form>
       </CardContent>

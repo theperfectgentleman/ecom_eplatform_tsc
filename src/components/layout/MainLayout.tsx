@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, User, Menu, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { navConfig } from '@/config/nav';
+import { useLoading } from '@/contexts/LoadingContext';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface SidebarLinkProps {
   icon: React.ComponentType<{ className?: string }>;
@@ -32,6 +34,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { isLoading } = useLoading();
 
   const handleNavigation = (href: string) => {
     navigate(href);
@@ -109,9 +112,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
                 {/* Right side navigation */}
                 <div className="flex items-center space-x-4">
-                  {/* Notifications */}
+                  {isLoading && <LoadingSpinner />}
                   <Button variant="ghost" size="icon">
-                    <Bell className="h-5 w-5" />
+                    <Bell className="h-6 w-6" />
                   </Button>
 
                   {/* User menu */}
@@ -155,7 +158,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
+          <main className="flex-1 overflow-x-hidden bg-gray-100">
             {children}
           </main>
         </div>

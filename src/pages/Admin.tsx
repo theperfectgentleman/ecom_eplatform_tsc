@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Account } from "@/types";
-import { apiRequest } from "@/lib/api";
+import { useApi } from "@/lib/useApi";
 import { getColumns } from "@/components/admin/columns";
 import { DataTable } from "@/components/admin/data-table";
 import { Button } from "@/components/ui/button";
@@ -27,10 +27,11 @@ const Admin = () => {
   const [selectedAccount, setSelectedAccount] = useState<Account | undefined>(undefined);
   const [accountToDelete, setAccountToDelete] = useState<Account | undefined>(undefined);
   const { toast } = useToast();
+  const { request } = useApi();
 
   const fetchAccounts = async () => {
     try {
-      const response = await apiRequest<Account[]>({ path: "api/accounts" });
+      const response = await request<Account[]>({ path: "api/accounts" });
       setData(normalizeAccounts(response));
     } catch (error) {
       console.error("Failed to fetch accounts:", error);
@@ -55,7 +56,7 @@ const Admin = () => {
   const confirmDelete = async () => {
     if (!accountToDelete) return;
     try {
-      await apiRequest({ path: `api/accounts/${accountToDelete.account_id}`, method: 'DELETE' });
+      await request({ path: `api/accounts/${accountToDelete.account_id}`, method: 'DELETE' });
       toast({ variant: 'success', title: 'Account deleted successfully' });
       fetchAccounts(); // Refetch accounts after deletion
     } catch (error) {
