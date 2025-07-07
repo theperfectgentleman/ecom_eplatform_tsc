@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import * as z from "zod";
+// ...existing code...
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -22,14 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Edit, Trash2 } from "lucide-react";
 
-const formSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  position: z.string().optional(),
-  email1: z.string().email({ message: "Invalid email address." }).optional(),
-  mobile1: z.string().optional(),
-  region: z.string().optional(),
-  district: z.string().optional(),
-});
+// ...existing code...
 
 const AddressBook = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);

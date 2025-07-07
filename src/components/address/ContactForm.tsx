@@ -23,12 +23,12 @@ import {
 } from "@/components/ui/select";
 
 const formSchema = z.object({
-  Name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  Position: z.string().optional(),
-  Email1: z.string().email({ message: "Invalid email address." }).optional(),
-  Mobile1: z.string().optional(),
-  Region: z.string().optional(),
-  District: z.string().optional(),
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  position: z.string().optional(),
+  email1: z.string().email({ message: "Invalid email address." }).optional(),
+  mobile1: z.string().optional(),
+  region: z.string().optional(),
+  district: z.string().optional(),
 });
 
 interface ContactFormProps {
@@ -48,20 +48,20 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
     defaultValues: contact
       ? {
           ...contact,
-          Region: contact.Region || "",
-          District: contact.District || "",
+          region: contact.region || "",
+          district: contact.district || "",
         }
       : {
-          Name: "",
-          Position: "",
-          Email1: "",
-          Mobile1: "",
-          Region: "",
-          District: "",
+          name: "",
+          position: "",
+          email1: "",
+          mobile1: "",
+          region: "",
+          district: "",
         },
   });
 
-  const watchedRegion = form.watch("Region");
+  const watchedRegion = form.watch("region");
 
   useEffect(() => {
     request({ path: "communities" }).then((data) => {
@@ -86,7 +86,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
     } else {
       setDistrictOptions([]);
     }
-    form.setValue("District", "");
+    form.setValue("district", "");
   }, [watchedRegion, communities, form]);
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -100,7 +100,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="Name"
+              name="name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Name</FormLabel>
@@ -113,7 +113,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
             />
             <FormField
               control={form.control}
-              name="Position"
+              name="position"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Position</FormLabel>
@@ -126,7 +126,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
             />
             <FormField
               control={form.control}
-              name="Email1"
+              name="email1"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Email</FormLabel>
@@ -139,7 +139,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
             />
             <FormField
               control={form.control}
-              name="Mobile1"
+              name="mobile1"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Mobile</FormLabel>
@@ -157,7 +157,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                <FormField
                 control={form.control}
-                name="Region"
+                name="region"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Region</FormLabel>
@@ -181,7 +181,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
               />
               <FormField
                 control={form.control}
-                name="District"
+                name="district"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>District</FormLabel>

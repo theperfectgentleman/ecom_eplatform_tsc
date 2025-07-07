@@ -8,6 +8,7 @@ import Reports from '@/pages/Reports';
 import AddressBook from '@/pages/AddressBook';
 import Admin from '@/pages/Admin';
 import AppointmentsPage from '@/pages/Appointments';
+import GuidePage from '@/pages/Guide';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/components/ui/toast/ToastContext';
 import { ToastContainer } from '@/components/ui/toast/Toast';
@@ -32,6 +33,7 @@ const App = () => {
                   <Route path="/address-book" element={<AddressBook />} />
                   <Route path="/appointments" element={<AppointmentsPage />} />
                   <Route path="/admin" element={<Admin />} />
+                  <Route path="/guide" element={<GuidePage />} />
                 </Route>
               </Route>
             </Routes>

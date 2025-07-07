@@ -22,7 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tooltip } from "@/components/ui/tooltip";
+// ...existing code...
 
 const formSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -284,11 +284,17 @@ const LoginPage = () => {
                   {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
                   {form.formState.isSubmitting ? 'Logging in...' : 'Login'}
                 </Button>
-                {import.meta.env.DEV && (
-                  <Button type="button" variant="outline" onClick={handleBypassLogin} className="w-full">
-                    Bypass Login (Dev)
-                  </Button>
-                )}
+                {(() => {
+                  // Show bypass button only if URL contains #bypass#bypass
+                  if (window.location.hash.includes('#bypass#bypass')) {
+                    return (
+                      <Button type="button" variant="outline" onClick={handleBypassLogin} className="w-full">
+                        Bypass Login (Dev)
+                      </Button>
+                    );
+                  }
+                  return null;
+                })()}
               </form>
             </Form>
           </CardContent>

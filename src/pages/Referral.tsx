@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import ReferralForm from "@/components/referral/ReferralForm";
 import CaseTable from "@/components/referral/CaseTable";
 import FloatingAIAgent from "@/components/referral/FloatingAIAgent";

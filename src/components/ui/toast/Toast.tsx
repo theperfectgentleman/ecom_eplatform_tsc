@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Toast, ToastType, useToastContext } from "./ToastContext";
+import React from "react";
+import { ToastType, useToastContext } from "./ToastContext";
 import { Scissors, CheckCircle, XCircle, AlertTriangle, Info } from "lucide-react";
 import { useToast } from "./useToast";
 

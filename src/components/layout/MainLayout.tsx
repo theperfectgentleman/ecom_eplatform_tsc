@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bell, User, Menu, Settings, LogOut } from 'lucide-react';
+import { Bell, User, Menu, LogOut, BookOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { navConfig } from '@/config/nav';
 import { useLoading } from '@/contexts/LoadingContext';
@@ -38,7 +38,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { isLoading } = useLoading();
-  const location = useLocation();
+  // ...existing code...
 
   const handleNavigation = (href: string) => {
     navigate(href);
@@ -154,9 +154,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Settings</span>
+                      <DropdownMenuItem onClick={() => navigate('/guide')}>
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        <span>Guide</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout}>

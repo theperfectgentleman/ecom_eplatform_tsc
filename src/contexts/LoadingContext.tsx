@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 
 interface LoadingContextType {
   isLoading: boolean;
@@ -18,8 +18,6 @@ export const useLoading = () => {
 
 export const LoadingProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
-
-  // Use a counter to handle multiple concurrent API calls
   const [requestCount, setRequestCount] = useState(0);
 
   const showLoader = () => {
