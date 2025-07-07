@@ -103,7 +103,7 @@ const mockRecentCases = [
 ];
 
 const regions = ["All Regions", "Greater Accra", "Ashanti", "Western"];
-const districtsByRegion = {
+const districtsByRegion: { [key: string]: string[] } = {
   "Greater Accra": ["All Districts", "Accra Metropolitan", "Tema Metropolitan"],
   "Ashanti": ["All Districts", "Kumasi Metropolitan", "Obuasi Municipal"],
   "Western": ["All Districts", "Sekondi-Takoradi Metropolitan", "Tarkwa-Nsuaem Municipal"],
@@ -113,7 +113,7 @@ const Dashboard = () => {
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
 
-  const handleRegionChange = (region) => {
+  const handleRegionChange = (region: string) => {
     setSelectedRegion(region);
     setSelectedDistrict("All Districts");
   };

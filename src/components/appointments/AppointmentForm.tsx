@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,8 +15,6 @@ import { Separator } from '@/components/ui/separator';
 import { User, Calendar, MapPin, FileText } from 'lucide-react';
 
 interface AppointmentFormProps {
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
   onSuccess: () => void;
   meeting: Meeting | null;
   onCancel: () => void;
@@ -38,7 +35,7 @@ const appointmentSchema = z.object({
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
-const AppointmentForm: React.FC<AppointmentFormProps> = ({ isOpen, onOpenChange, onSuccess, meeting, onCancel }) => {
+const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, onCancel }) => {
   const { user } = useAuth();
   const { request } = useApi();
   const { toast } = useToast();
@@ -73,10 +70,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ isOpen, onOpenChange,
         toast({ title: 'Error', description: 'Could not load patient or practitioner data.', variant: 'error' });
       }
     };
-    if (isOpen) {
-      fetchDropdownData();
-    }
-  }, [request, isOpen, toast]);
+    fetchDropdownData();
+  }, [request, toast]);
 
   useEffect(() => {
     if (meeting) {
@@ -101,7 +96,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ isOpen, onOpenChange,
         google_meet_link: '',
       });
     }
-  }, [meeting, form, user, isOpen]);
+  }, [meeting, form, user]);
 
   const onSubmit = async (data: AppointmentFormData) => {
     try {
@@ -128,11 +123,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ isOpen, onOpenChange,
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{meeting ? 'Edit' : 'Create'} Appointment</DialogTitle>
-        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
             
@@ -181,7 +171,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ isOpen, onOpenChange,
                         <SelectTrigger><SelectValue placeholder="Select a practitioner" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                        {practitioners.map(p => <SelectItem key={p.ContactID} value={String(p.ContactID)}>{p.Name}</SelectItem>)}
+                        {practitioners.map(p => <SelectItem key={p.contactid} value={String(p.contactid)}>{p.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                     <FormMessage />
@@ -224,24 +214,22 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ isOpen, onOpenChange,
                     </FormItem>
                 )}
                 />
-                <FormField control={form.control} name="google_meet_link" render={({ field }) => <FormItem><FormLabel>Google Meet Link</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
             </div>
 
             <div className="space-y-2">
-                <h3 className="text-lg font-medium flex items-center"><FileText className="mr-2 h-5 w-5"/> Notes</h3>
+                <h3 className="text-lg font-medium flex items-center"><FileText className="mr-2 h-5 w-5"/> Notes & Links</h3>
                 <Separator />
             </div>
 
-            <FormField control={form.control} name="notes" render={({ field }) => <FormItem className="col-span-2"><FormLabel>Notes</FormLabel><FormControl><Textarea rows={5} {...field} /></FormControl><FormMessage /></FormItem>} />
+            <FormField control={form.control} name="notes" render={({ field }) => <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>} />
+            <FormField control={form.control} name="google_meet_link" render={({ field }) => <FormItem><FormLabel>Google Meet Link</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
 
-            <DialogFooter className="col-span-full pt-4">
-              <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-              <Button type="submit">{meeting ? 'Save Changes' : 'Create Appointment'}</Button>
-            </DialogFooter>
+            <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+                <Button type="submit">{meeting ? 'Update' : 'Create'} Appointment</Button>
+            </div>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
   );
 };
 

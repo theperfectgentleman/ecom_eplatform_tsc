@@ -23,12 +23,12 @@ import { Input } from "@/components/ui/input";
 import { Edit, Trash2 } from "lucide-react";
 
 const formSchema = z.object({
-  Name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  Position: z.string().optional(),
-  Email1: z.string().email({ message: "Invalid email address." }).optional(),
-  Mobile1: z.string().optional(),
-  Region: z.string().optional(),
-  District: z.string().optional(),
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  position: z.string().optional(),
+  email1: z.string().email({ message: "Invalid email address." }).optional(),
+  mobile1: z.string().optional(),
+  region: z.string().optional(),
+  district: z.string().optional(),
 });
 
 const AddressBook = () => {
@@ -53,16 +53,25 @@ const AddressBook = () => {
     fetchContacts();
   }, []);
 
-  const handleFormSubmit = async (data: z.infer<typeof formSchema>) => {
+  const handleFormSubmit = async (data: { name: string; position?: string; email1?: string; mobile1?: string; region?: string; district?: string }) => {
     try {
+      const mappedData = {
+        name: data.name,
+        position: data.position,
+        email1: data.email1,
+        mobile1: data.mobile1,
+        region: data.region,
+        district: data.district,
+      };
+      
       if (selectedContact) {
         await request({
-          path: `contacts/${selectedContact.ContactID}`,
+          path: `contacts/${selectedContact.contactid}`,
           method: "PUT",
-          body: data,
+          body: mappedData,
         });
       } else {
-        await request({ path: "contacts", method: "POST", body: data });
+        await request({ path: "contacts", method: "POST", body: mappedData });
       }
       fetchContacts();
       setIsDialogOpen(false);

@@ -32,18 +32,18 @@ export interface Account {
 }
 
 export interface Contact {
-  ContactID: number;
-  Name: string;
-  Position?: string;
-  Description?: string;
-  Region?: string;
-  District?: string;
-  Email1?: string;
-  Email2?: string;
-  Mobile1?: string;
-  Mobile2?: string;
-  CreatedAt: string;
-  UpdatedAt: string;
+  contactid: number;
+  name: string;
+  position?: string;
+  description?: string;
+  region?: string;
+  district?: string;
+  email1?: string;
+  email2?: string;
+  mobile1?: string;
+  mobile2?: string;
+  createdat: string;
+  updatedat: string;
 }
 
 export enum MeetingStatus {

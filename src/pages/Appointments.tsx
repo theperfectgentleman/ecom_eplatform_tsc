@@ -81,8 +81,8 @@ const AppointmentsPage: React.FC = () => {
   }
 
   const findPractitionerName = (id: number) => {
-      const practitioner = practitioners.find(p => p.ContactID === id);
-      return practitioner ? practitioner.Name : `ID: ${id}`;
+      const practitioner = practitioners.find(p => p.contactid === id);
+      return practitioner ? practitioner.name : `ID: ${id}`;
   }
 
   const filteredMeetings = meetings.filter(meeting => {
