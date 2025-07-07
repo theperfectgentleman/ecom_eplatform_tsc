@@ -16,7 +16,7 @@ export function useApi() {
       }
     ): Promise<T> => {
       const { path, method = "GET", body, isPublic = false } = options;
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org';
       const url = `${apiBaseUrl}/${path}`;
 
       const headers: HeadersInit = {
