@@ -18,7 +18,7 @@ export const useLoading = () => {
 
 export const LoadingProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [requestCount, setRequestCount] = useState(0);
+  const [, setRequestCount] = useState(0);
 
   const showLoader = () => {
     setRequestCount(prev => {
