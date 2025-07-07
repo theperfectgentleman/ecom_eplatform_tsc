@@ -106,7 +106,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 
   // Fetch communities on mount
   useEffect(() => {
-    request({ path: 'api/communities' })
+    request({ path: 'communities' })
       .then(data => {
         setCommunities(data);
         const regions = [...new Set(data.map((c: any) => c.region))].sort() as string[];
@@ -212,7 +212,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
       }
 
       await request({
-        path: user ? `api/accounts/${user.account_id}` : 'api/accounts',
+        path: user ? `accounts/${user.account_id}` : 'accounts',
         method: user ? 'PUT' : 'POST',
         body: payload,
       });
@@ -231,264 +231,282 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="firstname"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>First Name</FormLabel>
-                <FormControl>
-                    <Input placeholder="John" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="lastname"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Last Name</FormLabel>
-                <FormControl>
-                    <Input placeholder="Doe" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="john.doe@example.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone Number</FormLabel>
-              <FormControl>
-                <Input placeholder="+1234567890" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="user_type"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>User Role</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+        <div className="space-y-4">
+            <h3 className="text-lg font-medium">User Information</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                control={form.control}
+                name="firstname"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>First Name</FormLabel>
                     <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
+                        <Input placeholder="John" {...field} />
                     </FormControl>
-                    <SelectContent>
-                    {Object.values(UserType).map((role) => (
-                        <SelectItem key={role} value={role}>
-                        {role.toUpperCase()}
-                        </SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="access_level"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Access Level</FormLabel>
-                <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="lastname"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Last Name</FormLabel>
                     <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select an access level" />
-                    </SelectTrigger>
+                        <Input placeholder="Doe" {...field} />
                     </FormControl>
-                    <SelectContent>
-                    {Object.keys(AccessLevel).filter(k => !isNaN(Number(k))).map((level) => (
-                        <SelectItem key={level} value={level}>
-                        {AccessLevel[Number(level)]}
-                        </SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                        <Input placeholder="john.doe@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                        <Input placeholder="+1234567890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
         </div>
+
+        <div className="space-y-4">
+            <h3 className="text-lg font-medium">Permissions & Role</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                control={form.control}
+                name="user_type"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>User Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {Object.values(UserType).map((role) => (
+                            <SelectItem key={role} value={role}>
+                            {role.toUpperCase()}
+                            </SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="access_level"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Access Level</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select an access level" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {Object.keys(AccessLevel).filter(k => !isNaN(Number(k))).map((level) => (
+                            <SelectItem key={level} value={level}>
+                            {AccessLevel[Number(level)]}
+                            </SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
+        </div>
+
         {!user && (
-            <>
+            <div className="space-y-4">
+                <h3 className="text-lg font-medium">Credentials</h3>
+                <hr />
+                <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                            <Input placeholder="Username" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <div className="relative">
-                  <FormControl>
-                    <Input type={showPassword ? "text" : "password"} placeholder="********" {...field} />
-                  </FormControl>
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400 hover:text-gray-600">
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
+                    <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <div className="relative">
+                            <FormControl>
+                                <Input type={showPassword ? "text" : "password"} placeholder="********" {...field} />
+                            </FormControl>
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400 hover:text-gray-600">
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Confirm Password</FormLabel>
+                            <div className="relative">
+                            <FormControl>
+                                <Input type={showConfirmPassword ? "text" : "password"} placeholder="********" {...field} />
+                            </FormControl>
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-gray-400 hover:text-gray-600">
+                                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                 </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="confirmPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Confirm Password</FormLabel>
-                <div className="relative">
-                  <FormControl>
-                    <Input type={showConfirmPassword ? "text" : "password"} placeholder="********" {...field} />
-                  </FormControl>
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-gray-400 hover:text-gray-600">
-                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-            </>
+            </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Username</FormLabel>
-                <FormControl>
-                    <Input placeholder="Username" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
+
+        <div className="space-y-4">
+            <h3 className="text-lg font-medium">Geographic Assignment</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                control={form.control}
+                name="region"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Region</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a region" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {regionOptions.map((region) => (
+                            <SelectItem key={region} value={region}>{region}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="district"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>District</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!watchedRegion}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a district" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {districtOptions.map((district) => (
+                            <SelectItem key={district} value={district}>{district}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                control={form.control}
+                name="subdistrict"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Subdistrict</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!watchedDistrict}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a subdistrict" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {subdistrictOptions.map((subdistrict) => (
+                            <SelectItem key={subdistrict} value={subdistrict}>{subdistrict}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="community_name"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Community</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!watchedSubdistrict}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a community" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {communityOptions.map((community) => (
+                            <SelectItem key={community} value={community}>{community}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="region"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Region</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a region" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                    {regionOptions.map((region) => (
-                        <SelectItem key={region} value={region}>{region}</SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="district"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>District</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!watchedRegion}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a district" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                    {districtOptions.map((district) => (
-                        <SelectItem key={district} value={district}>{district}</SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="subdistrict"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Subdistrict</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!watchedDistrict}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a subdistrict" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                    {subdistrictOptions.map((subdistrict) => (
-                        <SelectItem key={subdistrict} value={subdistrict}>{subdistrict}</SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="community_name"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Community</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!watchedSubdistrict}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a community" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                    {communityOptions.map((community) => (
-                        <SelectItem key={community} value={community}>{community}</SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
+
         <Button type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? 'Saving...' : (user ? 'Update User' : 'Create User')}
         </Button>

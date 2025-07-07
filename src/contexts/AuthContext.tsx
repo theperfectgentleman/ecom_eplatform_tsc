@@ -4,6 +4,7 @@ import { getPermissionsForUserType } from '../lib/permissions';
 
 interface AuthContextType {
   user: Account | null;
+  token: string | null;
   loading: boolean;
   login: (userData: Account, token: string) => void;
   logout: () => void;
@@ -29,6 +30,7 @@ const IDLE_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<Account | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
@@ -46,10 +48,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Load user from localStorage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
     // Only check for storedUser, not token
-    if (storedUser) {
-      const parsedUser: Account = JSON.parse(storedUser);
-      updateUserAndPermissions(parsedUser);
+    if (storedUser && storedUser !== 'undefined' && storedToken) {
+      try {
+        const parsedUser: Account = JSON.parse(storedUser);
+        updateUserAndPermissions(parsedUser);
+        setToken(storedToken);
+      } catch (e) {
+        // If parsing fails, clear the bad value
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        updateUserAndPermissions(null);
+        setToken(null);
+      }
     }
     setLoading(false);
   }, [updateUserAndPermissions]);
@@ -82,25 +94,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [user]);
 
   const login = useCallback((userData: Account, token: string) => {
+    console.log('AuthContext login called with:', userData, token);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('token', token);
-    updateUserAndPermissions(userData);
+    setToken(token);
+    updateUserAndPermissions(userData); // This line was missing
+    console.log('AuthContext state updated.');
   }, [updateUserAndPermissions]);
 
   const logout = useCallback(() => {
+    console.log('Logging out user.');
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     updateUserAndPermissions(null);
+    setToken(null);
   }, [updateUserAndPermissions]);
 
-  // Placeholder permission check function
-  const checkPermission = (permission: string): boolean => {
+  const checkPermission = (permission: string) => {
     return userPermissions.includes(permission);
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout, checkPermission, userPermissions }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    token,
+    loading,
+    login,
+    logout,
+    checkPermission,
+    userPermissions,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -12,7 +12,7 @@ const LoadingSpinner: React.FC = () => {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="animate-spin h-5 w-5 text-foreground"
+      className="animate-spin h-6 w-6 text-foreground"
     >
       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>

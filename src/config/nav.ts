@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Book, Users, Settings } from 'lucide-react';
+import { LayoutDashboard, Send, BarChart, Contact, Calendar, Users } from 'lucide-react';
 
 export const navConfig = [
   {
@@ -9,21 +9,26 @@ export const navConfig = [
   {
     title: 'Referral',
     href: '/referral',
-    icon: FileText,
+    icon: Send,
   },
   {
     title: 'Reports',
     href: '/reports',
-    icon: Book,
+    icon: BarChart,
   },
   {
     title: 'Address Book',
     href: '/address-book',
-    icon: Book,
+    icon: Contact,
+  },
+  {
+    title: 'Appointments',
+    href: '/appointments',
+    icon: Calendar,
   },
   {
     title: 'Admin',
     href: '/admin',
-    icon: Settings,
+    icon: Users,
   },
 ];
