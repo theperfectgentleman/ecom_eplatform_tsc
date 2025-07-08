@@ -29,6 +29,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { normalizeReferralPayload } from "@/lib/normalizeReferralPayload";
+import { useToast } from "@/components/ui/toast/useToast";
 
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
 const PRIORITY_OPTIONS = ["Opened", "Urgent", "Critical", "Closed"];
@@ -58,6 +60,7 @@ const ReferralForm: React.FC<{
   onNewCase: () => void;
 }> = ({ initialData, onCancel, onCaseCreated, isReadOnly, onNewCase }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [patientSearch, setPatientSearch] = useState("");
   const [patientSearchResults, setPatientSearchResults] = useState<Patient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -67,15 +70,15 @@ const ReferralForm: React.FC<{
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
   const [districtOptions, setDistrictOptions] = useState<string[]>([]);
   const [subdistrictOptions, setSubdistrictOptions] = useState<string[]>([]);
-  const [communityOptions, setCommunityOptions] = useState<string[]>([]);
+  // Community options removed as community does not exist in the database
   const [showReferral, setShowReferral] = useState(false);
   const { request } = useApi();
   const [formState, setFormState] = useState({
+    case_file_id: undefined as string | undefined,
     priority_level: "Opened",
     region: "",
     district: "",
     sub_district: "",
-    community: "",
     gender: "",
     referral_needed: false,
     insurance_status: "",
@@ -154,7 +157,7 @@ const ReferralForm: React.FC<{
     // Handle new case creation or manual changes to region
     if (!initialData || (initialData && !isFormDisabled)) {
       if (formState.region !== initialData?.region) {
-        setFormState((s) => ({ ...s, district: "", sub_district: "", community: "" }));
+        setFormState((s) => ({ ...s, district: "", sub_district: "" })); // community removed
       }
       
       // Update district options based on selected region
@@ -169,7 +172,7 @@ const ReferralForm: React.FC<{
       // Clear child dropdowns only for new entries or manual changes
       if (formState.region !== initialData?.region) {
         setSubdistrictOptions([]);
-        setCommunityOptions([]);
+        // setCommunityOptions removed
       }
     }
   }, [formState.region, communities, initialData, isFormDisabled]);
@@ -183,7 +186,7 @@ const ReferralForm: React.FC<{
     // Handle new case creation or manual changes to district
     if (!initialData || (initialData && !isFormDisabled)) {
       if (formState.district !== initialData?.district) {
-        setFormState((s) => ({ ...s, sub_district: "", community: "" }));
+        setFormState((s) => ({ ...s, sub_district: "" })); // community removed
       }
       
       // Update subdistrict options based on selected region and district
@@ -196,9 +199,7 @@ const ReferralForm: React.FC<{
       setSubdistrictOptions(["None", ...subdistricts]);
       
       // Clear child dropdowns only for new entries or manual changes
-      if (formState.district !== initialData?.district) {
-        setCommunityOptions([]);
-      }
+      // setCommunityOptions removed
     }
   }, [formState.district, communities, formState.region, initialData, isFormDisabled]);
 
@@ -211,21 +212,10 @@ const ReferralForm: React.FC<{
     // Handle new case creation or manual changes to sub_district
     if (!initialData || (initialData && !isFormDisabled)) {
       if (formState.sub_district !== initialData?.sub_district) {
-        setFormState((s) => ({ ...s, community: "" }));
+        // Community field removed
       }
       
-      // Update community options based on selected region, district and subdistrict
-      const comms = Array.from(
-        new Set(communities
-          .filter((c) => 
-            c.region === formState.region && 
-            c.district === formState.district && 
-            c.subdistrict === formState.sub_district
-          )
-          .map((c) => c.community_name)
-          .filter(Boolean))
-      );
-      setCommunityOptions(["None", ...comms]);
+      // Community dropdown removed
     }
   }, [formState.sub_district, communities, formState.region, formState.district, initialData, isFormDisabled]);
 
@@ -274,21 +264,7 @@ const ReferralForm: React.FC<{
         console.log(`LOCATION DEBUG - Subdistricts for district '${fullPatientData.district}':`, subdistricts);
       }
       
-      // Load community options based on subdistrict
-      if (fullPatientData.region && fullPatientData.district && fullPatientData.sub_district) {
-        const comms = Array.from(new Set(
-          communities
-            .filter(c => 
-              c.region === fullPatientData.region && 
-              c.district === fullPatientData.district && 
-              c.subdistrict === fullPatientData.sub_district
-            )
-            .map(c => c.community_name)
-            .filter(Boolean))
-        );
-        setCommunityOptions(["None", ...comms]);
-        console.log(`LOCATION DEBUG - Communities for subdistrict '${fullPatientData.sub_district}':`, comms);
-      }
+      // Community dropdown removed
     }
   }, [initialData, communities]);
 
@@ -302,10 +278,10 @@ const ReferralForm: React.FC<{
 
       if (fullPatientData) {
         console.log("Setting form state with data:", fullPatientData);
-        
         const updatedState = {
           ...formState,
           ...caseData,
+          case_file_id: caseData.case_file_id || initialData.case_file_id || undefined,
           patient_id: fullPatientData?.patient_id?.toString() || "-1",
           name: fullPatientData?.name || "",
           year_of_birth: fullPatientData?.year_of_birth?.toString() || "",
@@ -313,10 +289,11 @@ const ReferralForm: React.FC<{
           region: fullPatientData?.region || "",
           district: fullPatientData?.district || "",
           sub_district: fullPatientData?.sub_district || "",
-          community: fullPatientData?.community || "",
+          // community removed
           insurance_status: fullPatientData?.insurance_status || "",
           insurance_no: fullPatientData?.insurance_no || "",
-          present_complaints: caseData?.present_complaints || fullPatientData?.present_complaints || "",
+          // Fix typo: present_complaints (frontend) <-> present_compliants (backend)
+          present_complaints: caseData?.present_complaints || caseData?.present_compliants || fullPatientData?.present_complaints || fullPatientData?.present_compliants || "",
           examination_findings: caseData?.examination_findings || fullPatientData?.examination_findings || "",
           temperature: caseData?.temperature?.toString() || fullPatientData?.temperature?.toString() || "",
           weight: caseData?.weight?.toString() || fullPatientData?.weight?.toString() || "",
@@ -339,7 +316,6 @@ const ReferralForm: React.FC<{
         setFormState(updatedState);
         setPatientSearch(fullPatientData.name ? `${fullPatientData.name} (${fullPatientData.patient_code || fullPatientData.patient_id})` : "");
         setShowReferral(updatedState.referral_needed);
-        
         // Keep initialMount true for a bit to prevent cascading effects from clearing values
         setTimeout(() => {
           console.log("Setting isInitialMount to false");
@@ -362,7 +338,7 @@ const ReferralForm: React.FC<{
       region: "",
       district: "",
       sub_district: "",
-      community: "",
+      // community removed
       national_id: "",
       insurance_status: "",
       insurance_no: "",
@@ -373,7 +349,7 @@ const ReferralForm: React.FC<{
     setOpen(false);
     setDistrictOptions([]);
     setSubdistrictOptions([]);
-    setCommunityOptions([]);
+    // setCommunityOptions removed
   };
 
   const handlePatientSelect = (selectedPatient: Patient) => {
@@ -386,7 +362,7 @@ const ReferralForm: React.FC<{
       region: selectedPatient.region || "",
       district: selectedPatient.district || "",
       sub_district: selectedPatient.sub_district || "",
-      community: selectedPatient.community || "",
+      // community removed
       national_id: selectedPatient.national_id || "",
       insurance_status: selectedPatient.insurance_status || "",
       insurance_no: selectedPatient.insurance_no || "",
@@ -404,10 +380,7 @@ const ReferralForm: React.FC<{
       const subdistricts = Array.from(new Set(communities.filter((c) => c.region === selectedPatient.region && c.district === selectedPatient.district).map((c) => c.subdistrict).filter(Boolean)));
       setSubdistrictOptions(["None", ...subdistricts]);
     }
-    if (selectedPatient.sub_district) {
-      const comms = Array.from(new Set(communities.filter((c) => c.region === selectedPatient.region && c.district === selectedPatient.district && c.subdistrict === selectedPatient.sub_district).map((c) => c.community_name).filter(Boolean)));
-      setCommunityOptions(["None", ...comms]);
-    }
+    // No community dropdown
   };
 
   const handleNewPatient = () => {
@@ -418,28 +391,74 @@ const ReferralForm: React.FC<{
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      alert("You must be logged in to submit a case.");
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to submit a case.",
+        variant: "error",
+      });
       return;
     }
-    const payload = { ...formState, user_id: user.account_id };
+    // Use the normalization utility to map frontend fields to backend fields
+    const payload = normalizeReferralPayload({ ...formState, user_id: user.account_id });
+    
+    // If we're creating a new case and a patient_id was generated, update the form state
+    const needsNewPatientId = !formState.patient_id || 
+                             formState.patient_id === "-1" || 
+                             formState.patient_id === "0" || 
+                             String(formState.patient_id).trim() === "";
+    
+    if (!formState.case_file_id && needsNewPatientId && payload.patient_id) {
+      setFormState((prev) => ({ ...prev, patient_id: payload.patient_id }));
+    }
     try {
-      await request({ path: "case-files", method: "POST", body: payload });
-      alert("Referral submitted successfully!");
-      onCaseCreated();
-      handleClear();
+      if (formState.case_file_id) {
+        // Update existing case
+        await request({ path: `case-files/${formState.case_file_id}`, method: "PUT", body: payload });
+        toast({
+          title: "Success",
+          description: "Referral updated successfully!",
+          variant: "success",
+        });
+        onCaseCreated();
+        handleClear();
+      } else {
+        // Create new case
+        const created = await request({ path: "case-files", method: "POST", body: payload });
+        if (created && created.case_file_id) {
+          setFormState((prev) => ({ 
+            ...prev, 
+            case_file_id: created.case_file_id,
+            // Update patient_id if it was generated by the backend
+            patient_id: created.patient_id || prev.patient_id
+          }));
+        }
+        toast({
+          title: "Success",
+          description: "Referral submitted successfully!",
+          variant: "success",
+        });
+        onCaseCreated();
+        // Optionally, do not clear the form so user can edit the new record
+        // handleClear();
+      }
     } catch (error) {
       console.error("Failed to submit referral:", error);
-      alert("Failed to submit referral.");
+      toast({
+        title: "Error",
+        description: "Failed to submit referral.",
+        variant: "error",
+      });
     }
   };
 
   const handleClear = () => {
     const initialFormState = {
+      case_file_id: undefined as string | undefined,
       priority_level: "Opened",
       region: "",
       district: "",
       sub_district: "",
-      community: "",
+      // community removed
       gender: "",
       referral_needed: false,
       insurance_status: "",
@@ -619,10 +638,7 @@ const ReferralForm: React.FC<{
                   <label className="text-xs text-gray-500">Subdistrict</label>
                   <div className="border p-2 rounded-md bg-gray-50">{formState.sub_district || "—"}</div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Community</label>
-                  <div className="border p-2 rounded-md bg-gray-50">{formState.community || "—"}</div>
-                </div>
+                {/* Community field removed as it does not exist in the database */}
               </div>
             ) : initialData ? (
               // Edit mode for existing cases - reset to full dropdown controls with cascading
@@ -657,16 +673,7 @@ const ReferralForm: React.FC<{
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={formState.community} onValueChange={(v) => handleSelectChange("community", v)} disabled={!formState.sub_district}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Community" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {communityOptions.map((comm) => (
-                      <SelectItem key={comm} value={comm}>{comm}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Community dropdown removed as it does not exist in the database */}
               </div>
             ) : (
               // New case creation - use normal cascading dropdowns
@@ -701,16 +708,7 @@ const ReferralForm: React.FC<{
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={formState.community} onValueChange={(v) => handleSelectChange("community", v)} disabled={isFormDisabled || !formState.sub_district || formState.patient_id !== '-1'}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Community" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {communityOptions.map((community) => (
-                      <SelectItem key={community} value={community}>{community}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Community dropdown removed as it does not exist in the database */}
               </div>
             )}
           </div>
