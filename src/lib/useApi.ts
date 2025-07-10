@@ -17,7 +17,10 @@ export function useApi() {
     ): Promise<T> => {
       const { path, method = "GET", body, isPublic = false } = options;
       const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org/api').replace(/\/$/, '');
-      const url = `${apiBaseUrl}/${path}`;
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+      const url = `${apiBaseUrl}/${cleanPath}`;
+
+      console.log('API Request Debug:', { method, url, body }); // Debug log
 
       const headers: HeadersInit = {
         "Content-Type": "application/json",
@@ -50,12 +53,30 @@ export function useApi() {
           const errorData = await response
             .json()
             .catch(() => ({ message: response.statusText }));
+          // Always log the error details for debugging
+          console.error('API Error Details:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData,
+            url,
+            method,
+            body,
+            fullResponse: errorData
+          });
+          // Also log the errorData as a separate object for easy copy-paste
+          console.error('API errorData:', errorData);
           throw new Error(
             errorData.message || `Request failed with status ${response.status}`
           );
         }
 
-        responseData = await response.json();
+        // Handle empty responses (e.g., 204 No Content for DELETE operations)
+        const contentType = response.headers.get("content-type");
+        if (response.status === 204 || !contentType || !contentType.includes("application/json")) {
+          responseData = {} as T;
+        } else {
+          responseData = await response.json();
+        }
       } catch (error: any) {
         console.error(`API request to ${path} failed:`, error);
         toast({ variant: "error", title: "API Error", description: error.message });

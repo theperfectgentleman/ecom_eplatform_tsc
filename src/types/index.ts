@@ -53,19 +53,26 @@ export enum MeetingStatus {
 }
 
 export interface Meeting {
-  meeting_id: number;
+  meetingid: number;
   title: string;
   description?: string;
   start_time: string;
   end_time: string;
   patient_id: number;
-  practitioner_id: number;
+  practitioner_id: number | string;
   created_by: number;
-  status: MeetingStatus;
-  notes?: string;
+  status: MeetingStatus | string;
+  notes_for_attendees?: string;
   region: string;
   district: string;
-  google_meet_link?: string;
+  meetinglink?: string;
+  createdat?: string;
+  updatedat?: string;
+  // Backend/DB fields
+  patient_name?: string;
+  practitioner?: string;
+  date?: string;
+  time?: string;
 }
 
 export interface Patient {

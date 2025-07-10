@@ -46,17 +46,17 @@ const AddressBook = () => {
     fetchContacts();
   }, []);
 
-  const handleFormSubmit = async (data: { name: string; position?: string; email1?: string; mobile1?: string; region?: string; district?: string }) => {
+  const handleFormSubmit = async (data: { name: string; position?: string | null; email1?: string; mobile1?: string; region?: string; district?: string }) => {
     try {
       const mappedData = {
         name: data.name,
-        position: data.position,
+        // Convert null to undefined for position
+        position: data.position == null ? undefined : data.position,
         email1: data.email1,
         mobile1: data.mobile1,
         region: data.region,
         district: data.district,
       };
-      
       if (selectedContact) {
         await request({
           path: `contacts/${selectedContact.contactid}`,
@@ -114,7 +114,7 @@ const AddressBook = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">Position</TableHead>
+                <TableHead className="hidden md:table-cell">Role</TableHead>
                 <TableHead className="hidden lg:table-cell">Region</TableHead>
                 <TableHead className="hidden lg:table-cell">District</TableHead>
                 <TableHead className="hidden sm:table-cell">Email</TableHead>
@@ -174,7 +174,7 @@ const AddressBook = () => {
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[625px]">
+          <DialogContent className="sm:max-w-[750px]">
             <DialogHeader>
               <DialogTitle>
                 {selectedContact ? "Edit Contact" : "Create Contact"}
