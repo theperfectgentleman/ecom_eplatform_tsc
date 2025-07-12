@@ -66,6 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(false);
   }, [updateUserAndPermissions]);
 
+
   // Idle timeout logic
   useEffect(() => {
     const resetTimer = () => {
@@ -92,6 +93,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
     // eslint-disable-next-line
   }, [user]);
+
+  // Sync auth state across tabs/windows
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'user' || event.key === 'token') {
+        const storedUser = localStorage.getItem('user');
+        const storedToken = localStorage.getItem('token');
+        if (storedUser && storedUser !== 'undefined' && storedToken) {
+          try {
+            const parsedUser: Account = JSON.parse(storedUser);
+            updateUserAndPermissions(parsedUser);
+            setToken(storedToken);
+          } catch {
+            updateUserAndPermissions(null);
+            setToken(null);
+          }
+        } else {
+          updateUserAndPermissions(null);
+          setToken(null);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [updateUserAndPermissions]);
 
   const login = useCallback((userData: Account, token: string) => {
     console.log('AuthContext login called with:', userData, token);
