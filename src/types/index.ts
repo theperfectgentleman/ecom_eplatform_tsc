@@ -17,7 +17,8 @@ export enum AccessLevel {
 }
 
 export interface Account {
-  account_id: string;
+  account_id?: string; // For backward compatibility
+  user_id?: number; // Actual API field
   username: string;
   firstname: string;
   lastname: string;
@@ -32,18 +33,30 @@ export interface Account {
 }
 
 export interface Contact {
-  contactid: number;
-  name: string;
+  contactid?: number; // For backward compatibility
+  ContactID?: number; // Actual API field (uppercase)
+  name?: string; // For backward compatibility
+  Name?: string; // Actual API field (uppercase)
   position?: string;
+  Position?: string;
   description?: string;
+  Description?: string;
   region?: string;
+  Region?: string;
   district?: string;
+  District?: string;
   email1?: string;
+  Email1?: string;
   email2?: string;
+  Email2?: string;
   mobile1?: string;
+  Mobile1?: string;
   mobile2?: string;
-  createdat: string;
-  updatedat: string;
+  Mobile2?: string;
+  createdat?: string;
+  CreatedAt?: string;
+  updatedat?: string;
+  UpdatedAt?: string;
 }
 
 export enum MeetingStatus {
@@ -58,7 +71,8 @@ export interface Meeting {
   description?: string;
   start_time: string;
   end_time: string;
-  patient_id: number;
+  patient_id: number; // Legacy field, kept for backward compatibility
+  case_file_id?: number; // New field for case file reference
   practitioner_id: number | string;
   created_by: number;
   status: MeetingStatus | string;

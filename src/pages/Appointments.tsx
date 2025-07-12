@@ -113,13 +113,13 @@ const AppointmentsPage: React.FC = () => {
   };
 
   const findPatientName = (id: number) => {
-    const patient = patients.find(p => p.account_id === String(id));
+    const patient = patients.find(p => (p.account_id === String(id)) || (p.user_id === id));
     return patient ? `${patient.firstname} ${patient.lastname}` : `ID: ${id}`;
   }
 
   const findPractitionerName = (id: number) => {
-      const practitioner = practitioners.find(p => p.contactid === id);
-      return practitioner ? practitioner.name : `ID: ${id}`;
+      const practitioner = practitioners.find(p => (p.contactid === id) || (p.ContactID === id));
+      return practitioner ? (practitioner.name || practitioner.Name) : `ID: ${id}`;
   }
 
   const filteredMeetings = meetings.filter(meeting => {

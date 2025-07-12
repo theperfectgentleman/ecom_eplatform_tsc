@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast/useToast";
 import { useCallback } from "react";
+// Types RequestInit and HeadersInit are available globally in the DOM lib for browsers/React
 
 export function useApi() {
   const { token, logout } = useAuth();

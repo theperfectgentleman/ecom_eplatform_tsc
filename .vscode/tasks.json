@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Lint (ESLint)",
+			"command": "npx eslint \"src/**/*.{js,jsx,ts,tsx}\" --max-warnings=0",
+			"group": "test",
+			"problemMatcher": [
+				"$eslint-stylish"
+			]
+		}
+	]
+}

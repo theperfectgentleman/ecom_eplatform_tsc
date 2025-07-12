@@ -26,7 +26,7 @@ const GuidePage: React.FC = () => {
       <ol className="list-decimal pl-8 space-y-3 my-6" {...props} />
     ),
     img: ({ node, ...props }) => (
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       <img
         className="max-w-full md:max-w-[70%] block mx-auto rounded-lg shadow-lg my-8 border"
         {...(props as any)}

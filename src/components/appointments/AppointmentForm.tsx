@@ -6,17 +6,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, Tab, Switch, FormControlLabel } from '@mui/material';
+import { Tabs, Tab } from '@mui/material';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { useApi } from '@/lib/useApi';
 import { useToast } from '@/components/ui/toast/useToast';
-import { Meeting, MeetingStatus, Account, Contact } from '@/types';
+import { Meeting, MeetingStatus, Contact } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { Separator } from '@/components/ui/separator';
-import { User, Calendar, MapPin, FileText, Copy, RefreshCcw } from 'lucide-react';
+import { Copy, RefreshCcw } from 'lucide-react';
 
 interface AppointmentFormProps {
   onSuccess: () => void;
@@ -27,8 +26,8 @@ interface AppointmentFormProps {
 
 const appointmentSchema = z.object({
   title: z.string().optional(),
-  patient_source: z.enum(['patient', 'case_file']).optional(),
-  patient_id: z.string().optional(),
+  case_file_id: z.string().optional(), // Primary field for case file selection
+  patient_id: z.string().optional(), // Kept for backward compatibility, but not used in new submissions
   patient_name: z.string().optional(),
   practitioner_id: z.string().optional(),
   start_time: z.string().optional(),
@@ -38,6 +37,8 @@ const appointmentSchema = z.object({
   region: z.string().optional(),
   district: z.string().optional(),
   meetinglink: z.string().optional(),
+  appointment_date: z.string().optional(),
+  appointment_time: z.string().optional(),
 });
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
@@ -57,12 +58,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
     console.log('======================');
   }, [user]);
 
-  const [patients, setPatients] = useState<Account[]>([]);
   const [caseFiles, setCaseFiles] = useState<any[]>([]);
   const [practitioners, setPractitioners] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [patientsLoaded, setPatientsLoaded] = useState(false);
-  const [caseFilesLoaded, setCaseFilesLoaded] = useState(false);
   const [tabIndex, setTabIndex] = useState(0);
   // Removed patientSearchOpen state, not needed for MUI Autocomplete
 
@@ -110,7 +108,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
     shouldFocusError: false, // Don't auto-focus on errors
     defaultValues: {
         title: '',
-        patient_source: 'case_file', // default to case files
+        case_file_id: '',
         patient_id: '',
         patient_name: '',
         practitioner_id: '',
@@ -118,8 +116,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
         end_time: '',
         status: MeetingStatus.SCHEDULED,
         notes_for_attendees: '',
-        region: user?.region || '',
-        district: user?.district || '',
+        region: '',
+        district: '',
         meetinglink: '',
     }
   });
@@ -127,11 +125,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        // Always fetch practitioners first
+        // Fetch practitioners and case files
         const practitionerRes = await request<Contact[]>({ path: '/contacts', method: 'GET' });
         setPractitioners(practitionerRes || []);
-        // Always load patients (no account_id check)
-        await fetchPatients();
+        await fetchCaseFiles();
       } catch (error) {
         console.error("Failed to fetch initial data", error);
         toast({ title: 'Error', description: 'Could not load practitioner data.', variant: 'error' });
@@ -143,75 +140,29 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
     }
   }, [request, toast, user]);
 
-  // Fetch patients based on user's access level
-  // Fetch all patients (no account_id check)
-  const fetchPatients = async () => {
-    try {
-      console.log('Fetching all patients...');
-      const patientsRes = await request<any[]>({ path: '/patients', method: 'GET' });
-      console.log('Raw patients response:', patientsRes);
-
-      if (!patientsRes || !Array.isArray(patientsRes)) {
-        console.warn('Invalid patients response:', patientsRes);
-        setPatients([]);
-        setPatientsLoaded(true);
-        return;
-      }
-
-      // Transform the patient data to match our needs
-      const transformedPatients = patientsRes.map(patient => ({
-        account_id: patient.patient_id?.toString() || patient.id?.toString() || '',
-        firstname: patient.name || patient.firstname || 'Unknown',
-        lastname: patient.lastname || '',
-        region: patient.region || '',
-        district: patient.district || '',
-        // Keep original data for reference
-        patient_id: patient.patient_id || patient.id,
-        name: patient.name || `${patient.firstname || ''} ${patient.lastname || ''}`.trim(),
-        ...patient
-      }));
-
-      console.log('Transformed patients:', transformedPatients);
-      setPatients(transformedPatients);
-      setPatientsLoaded(true);
-
-      toast({
-        title: 'Success',
-        description: `Loaded ${transformedPatients.length} patients.`,
-        variant: 'success'
-      });
-    } catch (error) {
-      console.error("Failed to fetch patients", error);
-      setPatientsLoaded(true); // Mark as loaded even on error to prevent retries
-      toast({ title: 'Error', description: 'Could not load patients. Please try the refresh button.', variant: 'error' });
-    }
-  };
-
   // Fetch case files
   const fetchCaseFiles = async () => {
     try {
       console.log('Fetching case files...');
       const caseFilesRes = await request<any[]>({ path: '/case-files', method: 'GET' });
       console.log('Raw case files response:', caseFilesRes);
+      console.log('Number of case files:', caseFilesRes?.length || 0);
+      console.log('Sample case file:', caseFilesRes?.[0]);
       
       if (!caseFilesRes || !Array.isArray(caseFilesRes)) {
         console.warn('Invalid case files response:', caseFilesRes);
         setCaseFiles([]);
-        setCaseFilesLoaded(true);
         return;
       }
       
-      setCaseFiles(caseFilesRes);
-      setCaseFilesLoaded(true);
+      // Log the structure of the first case file to understand the data
+      if (caseFilesRes.length > 0) {
+        console.log('Case file fields available:', Object.keys(caseFilesRes[0]));
+      }
       
-      toast({ 
-        title: 'Success', 
-        description: `Loaded ${caseFilesRes.length} case files.`, 
-        variant: 'success' 
-      });
+      setCaseFiles(caseFilesRes);
     } catch (error) {
       console.error("Failed to fetch case files", error);
-      setCaseFilesLoaded(true); // Mark as loaded even on error
       toast({ title: 'Error', description: 'Could not load case files. Please try the refresh button.', variant: 'error' });
     }
   };
@@ -221,31 +172,31 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
   useEffect(() => {
     if (meeting) {
       try {
+        const startDate = meeting.date ? new Date(meeting.date) : null;
+        const timeParts = meeting.time ? meeting.time.split(':') : [];
+        
+        if(startDate && timeParts.length >= 2) {
+          startDate.setHours(parseInt(timeParts[0], 10));
+          startDate.setMinutes(parseInt(timeParts[1], 10));
+        }
+
+        const statusValue = (meeting.status?.toLowerCase() as MeetingStatus) || MeetingStatus.SCHEDULED;
+
         const safeReset = {
           title: meeting.title ?? '',
-          patient_source: 'patient',
+          case_file_id: meeting.case_file_id !== undefined && meeting.case_file_id !== null ? String(meeting.case_file_id) : '',
           patient_id: meeting.patient_id !== undefined && meeting.patient_id !== null ? String(meeting.patient_id) : '',
-          patient_name: '', // Will be populated from patient data
+          patient_name: meeting.patient_name ?? '',
           practitioner_id: meeting.practitioner_id !== undefined && meeting.practitioner_id !== null ? String(meeting.practitioner_id) : '',
-          start_time: meeting.start_time ? new Date(meeting.start_time).toISOString().slice(0, 16) : '',
-          end_time: meeting.end_time ? new Date(meeting.end_time).toISOString().slice(0, 16) : '',
-          status: meeting.status ?? MeetingStatus.SCHEDULED,
+          appointment_date: meeting.date ? meeting.date.slice(0,10) : '',
+          appointment_time: meeting.time ? meeting.time.slice(0,5) : '',
+          status: statusValue,
           notes_for_attendees: meeting.notes_for_attendees ?? '',
-          region: meeting.region ?? user?.region ?? '',
-          district: meeting.district ?? user?.district ?? '',
+          region: meeting.region ?? '',
+          district: meeting.district ?? '',
           meetinglink: meeting.meetinglink ?? '',
         } as AppointmentFormData;
         form.reset(safeReset);
-        
-        // Find and set patient name for existing meeting
-        if (meeting.patient_id) {
-          const patient = patients.find(p => p.account_id === String(meeting.patient_id));
-          if (patient) {
-            const patientData = patient as any;
-            const patientName = patientData.name || `${patient.firstname} ${patient.lastname}`.trim();
-            form.setValue('patient_name', patientName);
-          }
-        }
       } catch (error) {
         console.error('Error initializing form with meeting data:', error);
         toast({ 
@@ -257,7 +208,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
     } else {
       form.reset({
         title: '',
-        patient_source: 'case_file', // default to case files
+        case_file_id: '',
         patient_id: '',
         patient_name: '',
         practitioner_id: '',
@@ -265,12 +216,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
         end_time: '',
         status: MeetingStatus.SCHEDULED,
         notes_for_attendees: '',
-        region: user?.region || '',
-        district: user?.district || '',
+        region: '',
+        district: '',
         meetinglink: '',
       });
     }
-  }, [meeting, form, user, toast, patients]);
+  }, [meeting, form, user, toast]);
 
   // Generate meeting URL for new appointments
   useEffect(() => {
@@ -280,67 +231,42 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
     }
   }, [meeting, form]);
 
-  // Handle patient selection from either source
-  const handlePatientSelection = (patientId: string, source: 'patient' | 'case_file') => {
-    console.log('handlePatientSelection called:', { patientId, source });
+  // Automatically sync end_time with start_time
+  const watchedStartTime = form.watch('start_time');
+  useEffect(() => {
+    if (watchedStartTime) {
+      form.setValue('end_time', watchedStartTime);
+    }
+  }, [watchedStartTime, form]);
+
+  // Handle case file selection
+  const handleCaseFileSelection = (caseFileId: string) => {
+    console.log('handleCaseFileSelection called:', { caseFileId });
     
-    if (source === 'patient') {
-      const patient = patients.find(p => p.account_id === patientId);
-      console.log('Found patient:', patient);
-      if (patient) {
-        form.setValue('patient_id', patientId);
-        // Use the name field directly from the API
-        const patientData = patient as any;
-        const patientName = patientData.name || `${patient.firstname} ${patient.lastname}`.trim();
-        form.setValue('patient_name', patientName);
-        form.setValue('region', patient.region || user?.region || '');
-        form.setValue('district', patient.district || user?.district || '');
-      }
-    } else if (source === 'case_file') {
-      const caseFile = caseFiles.find(cf => cf.case_file_id.toString() === patientId);
-      if (caseFile) {
-        // Use the actual patient_id from the case file, not the case_file_id
-        form.setValue('patient_id', String(caseFile.patient_id || ''));
-        form.setValue('patient_name', caseFile.name || 'Unknown Patient');
-        form.setValue('region', caseFile.region || user?.region || '');
-        form.setValue('district', caseFile.district || user?.district || '');
-      }
+    const caseFile = caseFiles.find(cf => cf.case_file_id.toString() === caseFileId);
+    console.log('Found case file:', caseFile);
+    
+    if (caseFile) {
+      console.log('Case file fields:', Object.keys(caseFile));
+      // Set the case_file_id for dropdown matching
+      form.setValue('case_file_id', caseFileId);
+      // Use the actual patient_id from the case file, not the case_file_id
+      form.setValue('patient_id', String(caseFile.patient_id || ''));
+      form.setValue('patient_name', caseFile.name || 'Unknown Patient');
+      form.setValue('region', caseFile.region || '');
+      form.setValue('district', caseFile.district || '');
+      
+      console.log('Set form values:', {
+        case_file_id: caseFileId,
+        patient_id: caseFile.patient_id,
+        patient_name: caseFile.name,
+        region: caseFile.region,
+        district: caseFile.district
+      });
     }
   };
 
-  // Watch patient source to clear patient selection when switching
-  const patientSource = form.watch('patient_source');
-  useEffect(() => {
-    // Clear current selection when switching sources
-    form.setValue('patient_id', '');
-    form.setValue('patient_name', '');
-    form.setValue('region', user?.region || '');
-    form.setValue('district', user?.district || '');
-    
-    // Load data when switching sources if not already loaded
-    if (patientSource === 'patient' && !patientsLoaded && user?.account_id) {
-      fetchPatients();
-    } else if (patientSource === 'case_file' && !caseFilesLoaded) {
-      fetchCaseFiles();
-    }
-  }, [patientSource, form, user, patientsLoaded, caseFilesLoaded]);
-
   const onSubmit = async (data: AppointmentFormData) => {
-    // Recursively remove all undefined, null, and empty string values from an object
-    function deepClean(obj: any): any {
-      if (Array.isArray(obj)) {
-        return obj
-          .map(deepClean)
-          .filter((v) => v !== undefined && v !== null && v !== '');
-      } else if (obj && typeof obj === 'object') {
-        return Object.fromEntries(
-          Object.entries(obj)
-            .filter(([_, v]) => v !== undefined && v !== null && v !== '')
-            .map(([k, v]) => [k, deepClean(v)])
-        );
-      }
-      return obj;
-    }
     if (isLoading) return;
     
     setIsLoading(true);
@@ -356,20 +282,20 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
         return;
       }
 
-      if (!data.practitioner_id || data.practitioner_id.trim() === '') {
+      if (!data.practitioner_id || data.practitioner_id.trim() === '' || isNaN(parseInt(data.practitioner_id, 10)) || parseInt(data.practitioner_id, 10) <= 0) {
         toast({ 
           title: 'Error', 
-          description: 'Please select a practitioner.', 
+          description: 'Please select a valid practitioner.', 
           variant: 'error' 
         });
         setIsLoading(false);
         return;
       }
 
-      if (!data.patient_id || data.patient_id.trim() === '') {
+      if (!data.case_file_id || data.case_file_id.trim() === '') {
         toast({ 
           title: 'Error', 
-          description: 'Please select a patient.', 
+          description: 'Please select a valid case file.', 
           variant: 'error' 
         });
         setIsLoading(false);
@@ -379,27 +305,17 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
       if (!data.patient_name || data.patient_name.trim() === '') {
         toast({ 
           title: 'Error', 
-          description: 'Patient information is missing. Please reselect the patient.', 
+          description: 'Patient information is missing. Please reselect the case file.', 
           variant: 'error' 
         });
         setIsLoading(false);
         return;
       }
 
-      if (!data.start_time || data.start_time.trim() === '') {
+      if (!data.appointment_date || !data.appointment_time) {
         toast({ 
           title: 'Error', 
-          description: 'Please select a start time.', 
-          variant: 'error' 
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (!data.end_time || data.end_time.trim() === '') {
-        toast({ 
-          title: 'Error', 
-          description: 'Please select an end time.', 
+          description: 'Please select a date and time.', 
           variant: 'error' 
         });
         setIsLoading(false);
@@ -407,10 +323,20 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
       }
 
       // Prepare fields for backend
-      // Split start_time into date and time
-      const startDateObj = data.start_time ? new Date(data.start_time) : null;
-      const date = startDateObj ? startDateObj.toISOString().slice(0, 10) : undefined;
-      const time = startDateObj ? startDateObj.toISOString().slice(11, 19) : undefined;
+      const date = data.appointment_date;
+      const time = data.appointment_time;
+
+      const selectedCaseFile = caseFiles.find(cf => cf.case_file_id.toString() === data.case_file_id);
+
+      if (!selectedCaseFile) {
+        toast({ 
+          title: 'Error', 
+          description: 'Could not find the selected case file. Please select it again.', 
+          variant: 'error' 
+        });
+        setIsLoading(false);
+        return;
+      }
 
       // Status should be capitalized (Scheduled)
       const status = data.status ?
@@ -420,39 +346,53 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
       // Practitioner fields: save both ID (number) and name (string)
       const practitioner_id = data.practitioner_id ? parseInt(data.practitioner_id, 10) : 0;
       let practitioner = '';
-      if (practitioner_id && practitioners.length > 0) {
-        const found = practitioners.find(p => String(p.contactid) === String(practitioner_id));
-        practitioner = found ? found.name : String(practitioner_id);
-      } else if (data.practitioner_id) {
-        practitioner = data.practitioner_id;
+      if (practitioner_id && practitioner_id > 0 && practitioners.length > 0) {
+        const found = practitioners.find(p => String(p.contactid || p.ContactID) === String(practitioner_id));
+        practitioner = found ? (found.name || found.Name || '') : '';
       }
 
-      // Always include all DB fields, defaulting to empty string for varchar/text fields
+      // Validate practitioner_id before payload construction
+      if (!practitioner_id || practitioner_id <= 0) {
+        toast({ 
+          title: 'Error', 
+          description: 'Please select a valid practitioner.', 
+          variant: 'error' 
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Always include all DB fields, defaulting to empty string for varchar/text fields and proper defaults for other types
       const payload = {
         title: data.title || '',
-        patient_id: parseInt(data.patient_id, 10),
+        case_file_id: data.case_file_id || '', // Keep as string, don't parse as int
+        patient_id: selectedCaseFile?.patient_id || 0, // Add patient_id from the selected case
         notes_for_attendees: data.notes_for_attendees || '',
         date: date || '',
         time: time || '',
         region: data.region || '',
         district: data.district || '',
-        status: status || '',
+        status: status || 'Scheduled',
         practitioner: practitioner || '',
-        practitioner_id: practitioner_id || '',
+        practitioner_id: practitioner_id, // This will be a valid number > 0
         meetinglink: data.meetinglink || '',
         patient_name: data.patient_name || '',
+        // Add created_by from user context
+        created_by: user?.user_id || 0, // Use user's user_id as created_by
       };
 
-      // Remove only undefined/null values (not empty string)
+      // Clean payload to remove only undefined/null values (keep empty strings)
       function cleanForBackend(obj: any): any {
         if (Array.isArray(obj)) {
           return obj.map(cleanForBackend).filter((v) => v !== undefined && v !== null);
         } else if (obj && typeof obj === 'object') {
-          return Object.fromEntries(
-            Object.entries(obj)
-              .filter(([_, v]) => v !== undefined && v !== null)
-              .map(([k, v]) => [k, cleanForBackend(v)])
-          );
+          const cleaned: any = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined && value !== null) {
+              cleaned[key] = cleanForBackend(value);
+            }
+          }
+          return cleaned;
         }
         return obj;
       }
@@ -466,38 +406,57 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
       console.log('Clean payload:', cleanPayload);
       console.log('Payload types:', {
         title: typeof cleanPayload.title,
-        patient_id: typeof cleanPayload.patient_id,
+        case_file_id: typeof cleanPayload.case_file_id,
         practitioner_id: typeof cleanPayload.practitioner_id,
         created_by: typeof cleanPayload.created_by,
         start_time: typeof cleanPayload.start_time,
         end_time: typeof cleanPayload.end_time,
         status: typeof cleanPayload.status
       });
+      console.log('Form practitioners array:', practitioners);
+      console.log('Selected practitioner from form:', data.practitioner_id);
+      console.log('Found practitioner:', practitioners.find(p => String(p.contactid || p.ContactID) === String(data.practitioner_id)));
       console.log('================================');
 
       // Validate required fields and data types
-      if (isNaN(cleanPayload.patient_id as number) || !cleanPayload.practitioner) {
+      // Check if case_file_id is valid (must be a non-empty string)
+      if (!cleanPayload.case_file_id || cleanPayload.case_file_id.trim() === '') {
+        console.log('Invalid case_file_id:', cleanPayload.case_file_id);
         toast({ 
           title: 'Error', 
-          description: 'Invalid patient or practitioner selection.', 
+          description: 'Invalid case file selection. Please select a valid case file.', 
           variant: 'error' 
         });
         setIsLoading(false);
         return;
       }
 
-      if (cleanPayload.created_by && isNaN(cleanPayload.created_by as number)) {
+      // Check if practitioner_id is a valid number (must be > 0, 0 is NOT valid per database schema)
+      if (cleanPayload.practitioner_id === null || cleanPayload.practitioner_id === undefined || isNaN(cleanPayload.practitioner_id as number) || cleanPayload.practitioner_id <= 0) {
+        console.log('Invalid practitioner_id:', cleanPayload.practitioner_id);
         toast({ 
           title: 'Error', 
-          description: 'Invalid user account ID.', 
+          description: 'Invalid practitioner selection. Please select a valid practitioner.', 
           variant: 'error' 
         });
         setIsLoading(false);
         return;
       }
 
-      // Debug: Log the patient/practitioner IDs and payload before validation
-      console.log('DEBUG: patient_id:', data.patient_id, 'practitioner_id:', data.practitioner_id, 'patient_source:', data.patient_source);
+      // Validate created_by is a valid number (must be > 0)
+      if (!cleanPayload.created_by || isNaN(cleanPayload.created_by as number) || cleanPayload.created_by <= 0) {
+        console.log('Invalid created_by:', cleanPayload.created_by);
+        toast({ 
+          title: 'Error', 
+          description: 'User authentication error. Please log in again.', 
+          variant: 'error' 
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Debug: Log the case_file_id/practitioner IDs and payload before validation
+      console.log('DEBUG: case_file_id:', data.case_file_id, 'practitioner_id:', data.practitioner_id);
       console.log('DEBUG: Cleaned payload:', cleanPayload);
 
       if (meeting) {
@@ -527,7 +486,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-        {/* Buttons at top */}
+        {/* Buttons at top (no edit button here) */}
         <div className="flex justify-between items-center pb-4 border-b">
           <Tabs value={tabIndex} onChange={(_, v) => setTabIndex(v)}>
             <Tab label="Details" value={0} />
@@ -537,299 +496,244 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
             <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            {/* Removed edit button from the form. Only submit button remains. */}
+            <Button type="submit" disabled={isLoading || readOnly}>
               {isLoading ? 'Saving...' : `${meeting ? 'Update' : 'Create'} Appointment`}
             </Button>
           </div>
         </div>
-        
+        {/* ...existing code... */}
         {tabIndex === 0 && (
           <div className="space-y-6">
-            {/* Appointment Details, Participants, Patient, Schedule, Status */}
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium flex items-center"><Calendar className="mr-2 h-5 w-5" /> Appointment Details</h3>
-              <Separator />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="title" render={({ field }) => <FormItem className="col-span-2"><FormLabel>Title</FormLabel><FormControl><Input {...field} disabled={readOnly} /></FormControl><FormMessage /></FormItem>} />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium flex items-center"><User className="mr-2 h-5 w-5"/> Participants</h3>
-              <Separator />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="practitioner_id"
-                render={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Practitioner</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger disabled={readOnly}><SelectValue placeholder="Select a practitioner" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {practitioners.map(p => <SelectItem key={p.contactid} value={String(p.contactid)}>{p.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="space-y-4">
-              {/* Patient Source Toggle */}
-              <FormField
-                control={form.control}
-                name="patient_source"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Patient Source</FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        {field.value === 'patient' ? 'Loading from Patient Table' : 'Loading from Case Files'}
-                      </div>
-                    </div>
-                    <FormControl>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={field.value === 'case_file'}
-                            onChange={(e) => field.onChange(e.target.checked ? 'case_file' : 'patient')}
-                            color="primary"
-                            disabled={true}
-                          />
-                        }
-                        label={field.value === 'case_file' ? 'Case Files' : 'Patients'}
-                        labelPlacement="start"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              {/* Patient/Case File Selection - Now Full Width */}
-              <FormField
-                control={form.control}
-                name="patient_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center justify-between">
-                      <span>{form.watch('patient_source') === 'patient' ? 'Select Patient' : 'Select Case File'}</span>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => {
-                          if (form.watch('patient_source') === 'patient') {
-                            setPatientsLoaded(false);
-                            fetchPatients();
-                          } else {
-                            setCaseFilesLoaded(false);
-                            fetchCaseFiles();
-                          }
-                        }}
-                        className="h-6 px-2 text-xs"
-                        disabled={isLoading}
-                      >
-                        <RefreshCcw className="h-3 w-3 mr-1" />
-                        Refresh
-                      </Button>
-                    </FormLabel>
-                    <FormControl>
-                      <Autocomplete
-                        disablePortal
-                        options={form.watch('patient_source') === 'patient' ? patients : caseFiles}
-                        getOptionLabel={option => {
-                          if (form.watch('patient_source') === 'patient') {
-                            const patient = option as any;
-                            return patient.name || `${patient.firstname || ''} ${patient.lastname || ''}`.trim() || 'Unknown';
-                          } else {
-                            const caseFile = option as any;
-                            const caseDate = caseFile.date_created ? new Date(caseFile.date_created).toLocaleDateString() : 'No date';
-                            return `${caseFile.name || 'Unknown'} (${caseDate})`;
-                          }
-                        }}
-                        isOptionEqualToValue={(option, value) => {
-                          if (form.watch('patient_source') === 'patient') {
-                            return option.account_id === value.account_id;
-                          } else {
-                            return String(option.case_file_id) === String(value.case_file_id);
-                          }
-                        }}
-                        value={(() => {
-                          if (!field.value) return null;
-                          if (form.watch('patient_source') === 'patient') {
-                            return patients.find(p => p.account_id === field.value) || null;
-                          } else {
-                            return caseFiles.find(cf => String(cf.case_file_id) === String(field.value)) || null;
-                          }
-                        })()}
-                        onChange={readOnly ? undefined : ((_, newValue) => {
-                          if (!newValue) {
-                            field.onChange('');
-                            form.setValue('patient_name', '');
-                            return;
-                          }
-                          if (form.watch('patient_source') === 'patient') {
-                            field.onChange(newValue.account_id);
-                            handlePatientSelection(newValue.account_id, 'patient');
-                          } else {
-                            field.onChange(String(newValue.case_file_id));
-                            handlePatientSelection(String(newValue.case_file_id), 'case_file');
-                          }
-                        })}
-                        renderInput={params => (
-                          <TextField 
-                            {...params} 
-                            label={`Select a ${form.watch('patient_source') === 'patient' ? 'patient' : 'case file'}`} 
-                            size="small"
-                            placeholder={`Search ${form.watch('patient_source') === 'patient' ? 'patients' : 'case files'}...`}
-                            disabled={readOnly}
-                          />
-                        )}
-                        fullWidth
-                        sx={{ background: 'white', borderRadius: 1 }}
-                        loading={form.watch('patient_source') === 'patient' ? !patientsLoaded : !caseFilesLoaded}
-                        loadingText={`Loading ${form.watch('patient_source') === 'patient' ? 'patients' : 'case files'}...`}
-                        noOptionsText={`No ${form.watch('patient_source') === 'patient' ? 'patients' : 'case files'} found`}
-                        disabled={readOnly}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                    {/* Status info */}
-                    <div className="text-xs text-gray-500 mt-1">
-                      {form.watch('patient_source') === 'patient' ? 
-                        (patientsLoaded ? `${patients.length} patients loaded` : 'Loading patients...') : 
-                        (caseFilesLoaded ? `${caseFiles.length} case files loaded` : 'Loading case files...')
-                      }
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-            {/* Auto-populated Patient Information */}
-            {form.watch('patient_name') && (
-              <div className="space-y-2">
-                <h4 className="text-md font-medium text-gray-700">Patient Information (Auto-populated)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
-                  <FormField
-                    control={form.control}
-                    name="patient_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Patient Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} disabled className="bg-white" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="region"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Patient Region</FormLabel>
-                        <FormControl>
-                          <Input {...field} disabled className="bg-white" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="district"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Patient District</FormLabel>
-                        <FormControl>
-                          <Input {...field} disabled className="bg-white" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-            )}
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium flex items-center"><Calendar className="mr-2 h-5 w-5"/> Schedule</h3>
-              <Separator />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="start_time" render={({ field }) => <FormItem><FormLabel>Start Time</FormLabel><FormControl><Input type="datetime-local" {...field} disabled={readOnly} /></FormControl><FormMessage /></FormItem>} />
-              <FormField control={form.control} name="end_time" render={({ field }) => <FormItem><FormLabel>End Time</FormLabel><FormControl><Input type="datetime-local" {...field} disabled={readOnly} /></FormControl><FormMessage /></FormItem>} />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium flex items-center"><MapPin className="mr-2 h-5 w-5"/> Status</h3>
-              <Separator />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger disabled={readOnly}><SelectValue placeholder="Select status" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.values(MeetingStatus).map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        )}
-        
-        {tabIndex === 1 && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium flex items-center"><FileText className="mr-2 h-5 w-5"/> Notes & Links</h3>
-              <Separator />
-            </div>
+            {/* Appointment Title */}
             <FormField
               control={form.control}
-              name="notes_for_attendees"
+              name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes for Attendees</FormLabel>
+                  <FormLabel>Appointment Title</FormLabel>
                   <FormControl>
-                    <ReactQuill
-                      theme="snow"
-                      value={field.value || ''}
-                      onChange={readOnly ? () => {} : field.onChange}
-                      style={{ minHeight: 200, background: 'white' }}
-                      readOnly={readOnly}
+                    <Input placeholder="Enter appointment title" {...field} disabled={readOnly} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Case File Selection */}
+            <div className="space-y-4">
+              <FormLabel>Case File Selection</FormLabel>
+              <Autocomplete
+                options={caseFiles}
+                getOptionLabel={(option) => {
+                  // Format: "Case ID - Patient Name (Date)"
+                  const caseId = option.case_file_id || 'Unknown ID';
+                  const patientName = option.name || 'Unknown Patient';
+                  const dateCreated = option.date_created ? new Date(option.date_created).toLocaleDateString() : '';
+                  
+                  return `Case ${caseId} - ${patientName}${dateCreated ? ` (${dateCreated})` : ''}`;
+                }}
+                renderOption={(props, option) => (
+                  <li {...props}>
+                    <div className="flex flex-col w-full">
+                      <div className="font-medium text-gray-900">
+                        Case {option.case_file_id || 'Unknown ID'}
+                      </div>
+                      <div className="text-sm text-gray-600 flex items-center gap-2">
+                        <span>Patient: {option.name || 'Unknown'}</span>
+                        {option.date_created && (
+                          <span className="text-xs text-gray-500">
+                            • {new Date(option.date_created).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      {option.priority_level && (
+                        <div className="text-xs text-gray-500">
+                          Priority: {option.priority_level}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                )}
+                value={caseFiles.find(cf => cf.case_file_id.toString() === form.watch('case_file_id')) || null}
+                onChange={(_, newValue) => {
+                  if (newValue) {
+                    handleCaseFileSelection(newValue.case_file_id.toString());
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    label="Select Case File" 
+                    variant="outlined" 
+                    size="small" 
+                    disabled={readOnly}
+                    helperText="Cases are displayed as: Case ID - Patient Name (Date Created)"
+                  />
+                )}
+                disabled={readOnly}
+              />
+              
+              {/* Region and District - Read-only */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="region"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Region</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="Region" 
+                          disabled={true}
+                          className="bg-gray-50"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="district"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>District</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="District" 
+                          disabled={true}
+                          className="bg-gray-50"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Practitioner Selection */}
+            <FormField
+              control={form.control}
+              name="practitioner_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Practitioner</FormLabel>
+                  <FormControl>
+                    <Autocomplete
+                      options={practitioners}
+                      getOptionLabel={(option) => (option.name || option.Name) || 'Unknown Practitioner'}
+                      value={practitioners.find(p => (p.contactid || p.ContactID)?.toString() === field.value) || null}
+                      onChange={(_, newValue) => {
+                        field.onChange((newValue?.contactid || newValue?.ContactID)?.toString() || '');
+                      }}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Select Practitioner" 
+                          variant="outlined" 
+                          size="small" 
+                          disabled={readOnly}
+                        />
+                      )}
+                      disabled={readOnly}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField 
-              control={form.control} 
-              name="meetinglink" 
+
+            {/* Date and Time */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="appointment_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} disabled={readOnly} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="appointment_time"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Time</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} disabled={readOnly} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Status */}
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <FormControl>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={MeetingStatus.SCHEDULED}>Scheduled</SelectItem>
+                        <SelectItem value={MeetingStatus.COMPLETED}>Completed</SelectItem>
+                        <SelectItem value={MeetingStatus.CANCELLED}>Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Meeting Link */}
+            <FormField
+              control={form.control}
+              name="meetinglink"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Meeting Link</FormLabel>
                   <FormControl>
                     <div className="flex gap-2">
-                      <Input {...field} disabled className="bg-gray-50" />
-                      <Button
-                        type="button"
-                        variant="outline"
+                      <Input 
+                        placeholder="Meeting URL" 
+                        {...field} 
+                        readOnly={true}
+                        className="bg-gray-50"
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => field.onChange(generateMeetingUrl())}
+                        disabled={readOnly}
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
                         size="sm"
                         onClick={copyMeetingUrl}
-                        className="px-3"
                         disabled={!field.value}
                       >
                         <Copy className="h-4 w-4" />
@@ -838,16 +742,46 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
                   </FormControl>
                   <FormMessage />
                 </FormItem>
-              )} 
+              )}
             />
           </div>
         )}
-        
-        {/* Buttons outside tabs */}
+        {tabIndex === 1 && (
+          <div className="space-y-6">
+            {/* Notes */}
+            <FormField
+              control={form.control}
+              name="notes_for_attendees"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes for Attendees</FormLabel>
+                  <FormControl>
+                    <ReactQuill
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      readOnly={readOnly}
+                      modules={{
+                        toolbar: [
+                          ['bold', 'italic', 'underline'],
+                          ['link'],
+                          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                          ['clean']
+                        ]
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
+        {/* Buttons outside tabs (no edit button here) */}
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancel
           </Button>
+          {/* Removed edit button from the form. Only submit button remains. */}
           <Button type="submit" disabled={isLoading || readOnly}>
             {isLoading ? 'Saving...' : `${meeting ? 'Update' : 'Create'} Appointment`}
           </Button>

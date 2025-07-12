@@ -1,6 +1,7 @@
 // Centralized API connection manager for Encompas E-Platform
 // Handles REST API requests and can be extended for permissions, auth, etc.
 
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';

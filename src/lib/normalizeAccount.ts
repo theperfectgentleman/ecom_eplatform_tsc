@@ -2,7 +2,8 @@
 export function normalizeAccount(raw: any) {
   return {
     ...raw,
-    account_id: raw.account_id || raw.user_id,
+    account_id: raw.account_id || raw.user_id?.toString(),
+    user_id: raw.user_id || parseInt(raw.account_id),
   };
 }
 

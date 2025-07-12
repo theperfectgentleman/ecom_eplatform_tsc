@@ -26,20 +26,26 @@ import TextField from "@mui/material/TextField";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  position: z.string().nullable().optional(),
+  position: z.string().min(2, { message: "Role is required." }),
+  mobile1: z.string().min(5, { message: "Mobile is required." }),
   email1: z.string().email({ message: "Invalid email address." }).optional(),
-  mobile1: z.string().optional(),
-  region: z.string().optional(),
-  district: z.string().optional(),
+  email2: z.string().optional(),
+  region: z.string().min(2, { message: "Region is required." }),
+  district: z.string().min(2, { message: "District is required." }),
+  description: z.string().optional(), // always present, default ""
+  // Hide community from UI, but keep in schema for payload
+  community: z.string().optional(),
+  mobile2: z.string().optional(),
 });
 
 interface ContactFormProps {
   contact?: Contact;
-  onSubmit: (data: z.infer<typeof formSchema>) => Promise<void> | void;
+  onSubmit: (data: any) => Promise<void> | void;
   onCancel: () => void;
+  readOnly?: boolean;
 }
 
-const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
+const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false }: ContactFormProps) => {
   // Role options, sorted alphabetically
   const roleOptions = [
     "Community Health Nurse",
@@ -69,7 +75,8 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
   ].sort((a, b) => a.localeCompare(b));
   
   const { request } = useApi();
-  const [communities, setCommunities] = useState<any[]>([]);
+  // Store full community objects for region/district mapping
+  const [communityObjects, setCommunityObjects] = useState<any[]>([]);
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
   const [districtOptions, setDistrictOptions] = useState<string[]>([]);
 
@@ -80,48 +87,117 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
           ...contact,
           region: contact.region || "",
           district: contact.district || "",
-          position: contact.position || null,
+          position: contact.position || "",
+          community: "",
+          description: contact.description || "",
         }
       : {
           name: "",
-          position: null,
+          position: "",
           email1: "",
           mobile1: "",
           region: "",
           district: "",
+          community: "",
+          description: "",
         },
   });
+
+  // Add this effect to update form values when contact changes
+  useEffect(() => {
+    if (contact) {
+      form.reset({
+        ...contact,
+        region: contact.region || "",
+        district: contact.district || "",
+        position: contact.position || "",
+        community: "",
+        description: contact.description || "",
+      });
+    } else {
+      form.reset({
+        name: "",
+        position: "",
+        email1: "",
+        mobile1: "",
+        region: "",
+        district: "",
+        community: "",
+        description: "",
+      });
+    }
+  }, [contact, form]);
 
   const watchedRegion = form.watch("region");
 
   useEffect(() => {
-    request({ path: "communities" }).then((data) => {
-      setCommunities(data);
+    request({ path: "communities" }).then((data: any[]) => {
+      setCommunityObjects(data);
+      // Region dropdown: unique, sorted
       const regions = [
-        ...new Set(data.map((c: any) => c.region)),
+        ...new Set(data.map((c: any) => c.region).filter(Boolean)),
       ].sort() as string[];
       setRegionOptions(regions);
+      
+      // If we have a selected region, populate districts immediately
+      const currentRegion = form.getValues("region");
+      if (currentRegion) {
+        const districts = [
+          ...new Set(
+            data
+              .filter((c: any) => c.region === currentRegion)
+              .map((c: any) => c.district)
+          ),
+        ].sort() as string[];
+        setDistrictOptions(districts);
+      }
     });
-  }, [request]);
+    // request is stable from useApi, but add for exhaustive-deps
+  }, [request, form]);
 
   useEffect(() => {
-    if (watchedRegion) {
+    if (watchedRegion && communityObjects.length > 0) {
+      // Find districts for selected region from communityObjects
       const districts = [
         ...new Set(
-          communities
+          communityObjects
             .filter((c: any) => c.region === watchedRegion)
             .map((c: any) => c.district)
         ),
       ].sort() as string[];
       setDistrictOptions(districts);
-    } else {
+      
+      // Only reset district if we're not loading an existing contact
+      // or if the current district is not valid for the selected region
+      const currentDistrict = form.getValues("district");
+      if (!contact || !districts.includes(currentDistrict)) {
+        form.setValue("district", "");
+      }
+    } else if (!watchedRegion) {
       setDistrictOptions([]);
+      form.setValue("district", "");
     }
-    form.setValue("district", "");
-  }, [watchedRegion, communities, form]);
+  }, [watchedRegion, communityObjects, form, contact]);
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
-    onSubmit(values);
+    // Map frontend form data to backend expected format
+    const now = new Date().toISOString();
+    const mappedData = {
+      ContactID: Math.floor(10000000 + Math.random() * 90000000), // Random 8-digit number
+      Name: values.name || "",
+      Position: values.position || "",
+      Description: values.description || "",
+      Region: values.region || "",
+      District: values.district || "",
+      Email1: values.email1 || "",
+      Email2: values.email2 || "",
+      Mobile1: values.mobile1 || "",
+      Mobile2: values.mobile2 || "",
+      CreatedAt: now,
+      UpdatedAt: now,
+    };
+    
+    onSubmit(mappedData);
   };
 
   return (
@@ -136,7 +212,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input placeholder="John Doe" {...field} disabled={readOnly} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -145,39 +221,33 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
             <FormField
               control={form.control}
               name="position"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <FormControl>
-                    <Autocomplete
-                      options={roleOptions}
-                      value={field.value || null}
-                      onChange={(event, newValue) => {
-                        field.onChange(newValue);
-                      }}
-                      onBlur={field.onBlur}
-                      renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          label="Select a role" 
-                          variant="outlined" 
-                          size="small"
-                          error={!!form.formState.errors.position}
-                          helperText={form.formState.errors.position?.message}
-                        />
-                      )}
-                      isOptionEqualToValue={(option, value) => option === value}
-                      getOptionLabel={(option) => option || ""}
-                      fullWidth
-                      disableClearable={false}
-                      clearOnBlur={false}
-                      selectOnFocus
-                      handleHomeEndKeys
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                // Debug: log value and options
+                console.log('Role Autocomplete value:', field.value, typeof field.value);
+                console.log('Role Autocomplete options:', roleOptions);
+                return (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <FormControl>
+                      <Autocomplete
+                        options={roleOptions}
+                        value={typeof field.value === 'string' ? field.value : null}
+                        onChange={readOnly ? undefined : ((_, newValue) => {
+                          console.log('Autocomplete onChange newValue:', newValue, typeof newValue);
+                          field.onChange(typeof newValue === 'string' ? newValue : null);
+                        })}
+                        renderInput={(params) => (
+                          <TextField {...params} label="Select a role" variant="outlined" size="small" disabled={readOnly} />
+                        )}
+                        fullWidth
+                        disablePortal
+                        disabled={readOnly}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             <FormField
               control={form.control}
@@ -186,7 +256,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="user@example.com" {...field} />
+                    <Input placeholder="user@example.com" {...field} disabled={readOnly} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -199,7 +269,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
                 <FormItem>
                   <FormLabel>Mobile</FormLabel>
                   <FormControl>
-                    <Input placeholder="+1234567890" {...field} />
+                    <Input placeholder="+1234567890" {...field} disabled={readOnly} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -218,7 +288,8 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
                     <FormLabel>Region</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
+                      disabled={readOnly}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -246,7 +317,7 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
-                      disabled={!watchedRegion}
+                      disabled={!watchedRegion || readOnly}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -267,6 +338,47 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
               />
             </div>
           </div>
+
+          {/* Additional Info and optional fields */}
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Additional Info</FormLabel>
+                <FormControl>
+                  <Input placeholder="Additional info or notes" {...field} disabled={readOnly} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email2"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Alternate Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="Alternate email" {...field} disabled={readOnly} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="mobile2"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Alternate Mobile</FormLabel>
+                <FormControl>
+                  <Input placeholder="Alternate mobile" {...field} disabled={readOnly} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
@@ -293,25 +405,27 @@ const ContactForm = ({ contact, onSubmit, onCancel }: ContactFormProps) => {
             </svg>
             Cancel
           </Button>
-          <Button type="submit" className="flex items-center gap-1">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-save"
-            >
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
-            Submit
-          </Button>
+          {!readOnly && (
+            <Button type="submit" className="flex items-center gap-1">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-save"
+              >
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              Submit
+            </Button>
+          )}
         </div>
       </form>
     </Form>
