@@ -154,6 +154,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/feedback')}>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      <span>Feedback</span>
+                    </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate('/guide')}>
                         <BookOpen className="mr-2 h-4 w-4" />
                         <span>Guide</span>
