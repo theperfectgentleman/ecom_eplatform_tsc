@@ -1,0 +1,9 @@
+{
+  "latestVersion": "1.0.0",
+  "latestVersionCode": 1,
+  "url": "https://app.encompas.org/public/apk/pregapp.apk",
+  "releaseNotes": [
+    "- Initial release with update feature",
+    "- Version display added"
+  ]
+}
