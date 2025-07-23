@@ -156,3 +156,11 @@ To permanently remove a user from the system, click the **Delete** button (trash
 **For further assistance, please contact the Encompass IT support team at:**
 -   **Email**: support@encompas.org
 -   **Phone**: 0244847831
+
+
+### Downloading the Preg App
+
+To download the mobile application, please visit the download page.
+
+[Download Preg App](/download)
+

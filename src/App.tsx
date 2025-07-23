@@ -10,6 +10,7 @@ import Admin from '@/pages/Admin';
 import AppointmentsPage from '@/pages/Appointments';
 import GuidePage from '@/pages/Guide';
 import FeedbackPage from '@/pages/Feedback';
+import DownloadPage from '@/pages/Download';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/components/ui/toast/ToastContext';
 import { ToastContainer } from '@/components/ui/toast/Toast';
@@ -25,6 +26,7 @@ const App = () => {
           <Router>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/download" element={<DownloadPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
