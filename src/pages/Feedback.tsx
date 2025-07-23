@@ -3,8 +3,6 @@ import { apiRequest } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Select } from '../components/ui/select';
 import { Textarea } from '../components/ui/textarea';
 import { Table } from '../components/ui/table';
 import { useForm } from 'react-hook-form';
@@ -30,7 +28,7 @@ const FeedbackPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { register, handleSubmit, reset, setValue, getValues } = useForm<Feedback>();
+  const { register, handleSubmit, reset, setValue } = useForm<Feedback>();
   const { user } = useAuth();
 
   // Fetch feedbacks (replace with real API call)
