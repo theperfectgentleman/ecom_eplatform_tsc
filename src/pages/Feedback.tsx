@@ -20,7 +20,7 @@ type Feedback = {
 };
 
 const categories = ['suggestion', 'bug', 'comment'];
-const statuses = ['Posted', 'Review', 'In Progress', 'Closed'];
+const statuses = ['posted', 'review', 'in_progress', 'closed'];
 
 const FeedbackPage: React.FC = () => {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
@@ -28,24 +28,39 @@ const FeedbackPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, reset, setValue } = useForm<Feedback>();
   const { user } = useAuth();
 
-  // Fetch feedbacks (replace with real API call)
   // Fetch feedbacks from API
   useEffect(() => {
     const fetchFeedbacks = async () => {
+      setLoading(true);
+      setError(null);
       let query = '';
       if (filter.category) query += `category=${encodeURIComponent(filter.category)}&`;
       if (filter.status) query += `status=${encodeURIComponent(filter.status)}&`;
       query += `page=${page}`;
+      
       try {
-        const data = await apiRequest<Feedback[]>({ method: 'GET', path: `feedback?${query}` });
-        setFeedbacks(data);
-        // TODO: setTotalPages from API if available
-        setTotalPages(1);
+        const response = await apiRequest<{ data: Feedback[], total?: number, pages?: number }>({ 
+          method: 'GET', 
+          path: `feedback?${query}` 
+        });
+        
+        // Handle both array response and object response with data property
+        if (Array.isArray(response)) {
+          setFeedbacks(response);
+        } else {
+          setFeedbacks(response.data || []);
+          if (response.pages) setTotalPages(response.pages);
+        }
       } catch (e) {
+        setError('Failed to fetch feedbacks');
         setFeedbacks([]);
+      } finally {
+        setLoading(false);
       }
     };
     fetchFeedbacks();
@@ -53,10 +68,21 @@ const FeedbackPage: React.FC = () => {
 
   // Create or update feedback
   const onSubmit = async (data: Feedback) => {
+    setLoading(true);
+    setError(null);
+    
     try {
       if (selectedId) {
-        // Update status only (PATCH)
-        await apiRequest({ method: 'PATCH', path: `feedback/${selectedId}`, body: { status: data.status } });
+        // Update feedback (PATCH) - can update both status and message
+        await apiRequest({ 
+          method: 'PATCH', 
+          path: `feedback/${selectedId}`, 
+          body: { 
+            status: data.status,
+            message: data.message,
+            modified_at: new Date().toISOString()
+          } 
+        });
       } else {
         // Create new feedback (POST)
         await apiRequest({
@@ -67,7 +93,7 @@ const FeedbackPage: React.FC = () => {
             username: user?.username,
             message: data.message,
             category: data.category,
-            status: 'Posted',
+            status: 'posted',
             submitted_at: new Date().toISOString(),
             modified_at: new Date().toISOString(),
           },
@@ -79,37 +105,84 @@ const FeedbackPage: React.FC = () => {
       setPage(1);
       setFilter({ ...filter });
     } catch (e) {
-      // Handle error
+      setError(selectedId ? 'Failed to update feedback' : 'Failed to submit feedback');
+    } finally {
+      setLoading(false);
     }
   };
 
   // Handle row click to populate form for editing status
   const handleRowClick = (fb: Feedback) => {
-    setSelectedId(fb.id);
-    setValue('category', fb.category || '');
-    setValue('status', fb.status || 'Posted');
-    setValue('message', fb.message || '');
+    // Only allow editing if current user is the owner of the feedback
+    if (user?.user_id && fb.user_id && String(user.user_id) === String(fb.user_id)) {
+      setSelectedId(fb.id);
+      setValue('category', fb.category || '');
+      setValue('status', fb.status || 'posted');
+      setValue('message', fb.message || '');
+    } else {
+      setError('You can only edit your own feedback');
+    }
   };
 
   // Delete feedback
   const handleDelete = async () => {
     if (!selectedId) return;
+    
+    // Find the selected feedback to check ownership
+    const selectedFeedback = feedbacks.find(fb => fb.id === selectedId);
+    if (!selectedFeedback || !user?.user_id || String(selectedFeedback.user_id) !== String(user.user_id)) {
+      setError('You can only delete your own feedback');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
     try {
       await apiRequest({ method: 'DELETE', path: `feedback/${selectedId}` });
       setSelectedId(null);
       reset();
       setPage(1);
       setFilter({ ...filter });
-    } catch (e) {
-      // Handle error
+    } catch (e: any) {
+      console.error('Delete error:', e);
+      setError('Failed to delete feedback');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="flex gap-6">
+      {/* Error display */}
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+          {error}
+          <button 
+            className="ml-2 font-bold" 
+            onClick={() => setError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
       {/* Feedback Form */}
       <Card className="flex-1 max-w-md p-6">
-        <h2 className="text-xl font-bold mb-4">Submit Feedback</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">
+            {selectedId ? 'Edit Feedback' : 'Submit Feedback'}
+          </h2>
+          <Button 
+            type="button" 
+            variant="default" 
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => { setSelectedId(null); reset(); }}
+          >
+            New Feedback
+          </Button>
+        </div>
         {/* Display logged-in username at the top, readonly */}
         {user?.username && (
           <div className="text-xs text-gray-400 mb-2">{user.username}</div>
@@ -140,25 +213,37 @@ const FeedbackPage: React.FC = () => {
               disabled={!selectedId} // Only editable when editing
             >
               {statuses.map((status) => (
-                <option key={status} value={status}>{status}</option>
+                <option key={status} value={status}>
+                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                </option>
               ))}
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="message">Message</label>
-            <Textarea id="message" {...register('message')} placeholder="Your feedback..." required rows={6} disabled={!!selectedId} />
+            <Textarea id="message" {...register('message')} placeholder="Your feedback..." required rows={6} disabled={false} />
           </div>
           <div className="flex gap-2">
-            <Button type="submit">{selectedId ? 'Update Status' : 'Submit'}</Button>
-            {selectedId && <Button type="button" variant="destructive" onClick={handleDelete}>Delete</Button>}
-            {selectedId && <Button type="button" variant="outline" onClick={() => { setSelectedId(null); reset(); }}>Cancel</Button>}
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? 'Loading...' : (selectedId ? 'Update Feedback' : 'Submit Feedback')}
+            </Button>
+            {selectedId && (
+              <Button type="button" variant="destructive" onClick={handleDelete} disabled={loading}>
+                Delete
+              </Button>
+            )}
           </div>
         </form>
       </Card>
       {/* Feedback Grid */}
       <Card className="flex-1 p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Feedbacks</h2>
+          <div>
+            <h2 className="text-xl font-bold">Feedbacks</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Click on your own feedback (highlighted in blue) to edit or delete it
+            </p>
+          </div>
           <div className="flex gap-2">
             <select
               className="border rounded px-2 py-1"
@@ -167,7 +252,9 @@ const FeedbackPage: React.FC = () => {
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>
+                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                </option>
               ))}
             </select>
             <select
@@ -177,7 +264,9 @@ const FeedbackPage: React.FC = () => {
             >
               <option value="">All Statuses</option>
               {statuses.map((status) => (
-                <option key={status} value={status}>{status}</option>
+                <option key={status} value={status}>
+                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                </option>
               ))}
             </select>
           </div>
@@ -185,23 +274,38 @@ const FeedbackPage: React.FC = () => {
         <Table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Message</th>
-              <th>Category</th>
-              <th>Status</th>
+              <th className="text-left">Date</th>
+              <th className="text-left">Username</th>
+              <th className="text-left">Message</th>
+              <th className="text-left">Category</th>
+              <th className="text-left">Status</th>
             </tr>
           </thead>
           <tbody>
-            {feedbacks.length === 0 ? (
-              <tr><td colSpan={4} className="text-center">No feedback found.</td></tr>
-            ) : feedbacks.map(fb => (
-              <tr key={fb.id} className="cursor-pointer hover:bg-gray-100" onClick={() => handleRowClick(fb)}>
-                <td>{new Date(fb.submitted_at).toLocaleDateString()}</td>
-                <td>{fb.message.length > 15 ? fb.message.slice(0, 15) + '…' : fb.message}</td>
-                <td>{fb.category}</td>
-                <td>{fb.status}</td>
-              </tr>
-            ))}
+            {loading ? (
+              <tr><td colSpan={5} className="text-center py-4">Loading...</td></tr>
+            ) : feedbacks.length === 0 ? (
+              <tr><td colSpan={5} className="text-center">No feedback found.</td></tr>
+            ) : feedbacks.map(fb => {
+              const isOwner = user?.user_id && fb.user_id && String(user.user_id) === String(fb.user_id);
+              return (
+                <tr 
+                  key={fb.id} 
+                  className={`cursor-pointer hover:bg-gray-100 ${isOwner ? 'bg-blue-50 border-l-4 border-blue-400' : ''}`} 
+                  onClick={() => handleRowClick(fb)}
+                  title={isOwner ? 'Click to edit (your feedback)' : 'View only (not your feedback)'}
+                >
+                  <td className="text-left">{new Date(fb.submitted_at).toLocaleDateString()}</td>
+                  <td className="text-left">
+                    {fb.username || 'Unknown'}
+                    {isOwner && <span className="ml-1 text-xs text-blue-600">(You)</span>}
+                  </td>
+                  <td className="text-left">{fb.message.length > 15 ? fb.message.slice(0, 15) + '…' : fb.message}</td>
+                  <td className="text-left">{fb.category ? fb.category.charAt(0).toUpperCase() + fb.category.slice(1) : ''}</td>
+                  <td className="text-left">{fb.status ? fb.status.charAt(0).toUpperCase() + fb.status.slice(1).replace('_', ' ') : ''}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
         {/* Pagination */}

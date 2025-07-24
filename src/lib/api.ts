@@ -60,6 +60,12 @@ export async function apiRequest<T = any>({
       console.log(`[Attempt ${i + 1}] API response status: ${response.status} ${response.statusText}`);
 
       if (response.ok) {
+        // Handle responses that might not have a body (like DELETE with 204)
+        if (response.status === 204 || method === 'DELETE') {
+          console.log('API response: No content (204 or DELETE)');
+          return {} as T;
+        }
+        
         const responseData = await response.json();
         console.log('API response data:', responseData);
         return responseData;
