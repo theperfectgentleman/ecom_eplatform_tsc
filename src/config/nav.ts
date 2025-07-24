@@ -1,9 +1,22 @@
-import { LayoutDashboard, Send, BarChart, Contact, Calendar, Users } from 'lucide-react';
+import { LayoutDashboard, Send, BarChart, Contact, Calendar, Users, BookOpen, MessageSquare, FileText, Settings, HelpCircle } from 'lucide-react';
 
-export const navConfig = [
+export interface NavItem {
+  title: string;
+  href?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  subItems?: NavSubItem[];
+}
+
+export interface NavSubItem {
+  title: string;
+  href: string;
+  icon?: React.ComponentType<{ className?: string }>;
+}
+
+export const navConfig: NavItem[] = [
   {
     title: 'Dashboard',
-    href: '/',
+    href: '/dashboard',
     icon: LayoutDashboard,
   },
   {
@@ -28,7 +41,38 @@ export const navConfig = [
   },
   {
     title: 'Admin',
-    href: '/admin',
     icon: Users,
+    subItems: [
+      {
+        title: 'User Management',
+        href: '/admin',
+        icon: Users,
+      },
+      {
+        title: 'System Settings',
+        href: '/admin/settings',
+        icon: Settings,
+      },
+      {
+        title: 'Technical Documentation',
+        href: '/admin/docs',
+        icon: FileText,
+      },
+      {
+        title: 'Implementation Guide',
+        href: '/admin/implementation',
+        icon: HelpCircle,
+      },
+    ],
+  },
+  {
+    title: 'Guide',
+    href: '/guide',
+    icon: BookOpen,
+  },
+  {
+    title: 'Feedback',
+    href: '/feedback',
+    icon: MessageSquare,
   },
 ];

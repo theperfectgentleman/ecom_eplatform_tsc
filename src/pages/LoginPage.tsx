@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
 import { useToast } from '@/components/ui/toast/useToast';
 import { AccessLevel, UserType, Account } from '@/types';
+import { shouldRedirectToGuide } from '@/lib/permissions';
 import logo from '@/img/logo.png';
 import docNurse from '@/img/doc_nurse.png';
 import docPat from '@/img/doc_pat.png';
@@ -62,13 +63,21 @@ const LoginPage = () => {
     checkStatus();
   }, [request]);
 
-  // Redirect to dashboard if already logged in
+  // Redirect to appropriate page if already logged in
   useEffect(() => {
     console.log('LoginPage useEffect - Current user:', user);
     
     if (user) {
-      console.log('User is logged in, navigating to dashboard');
-      navigate('/dashboard', { replace: true });
+      console.log('User is logged in, navigating to appropriate page');
+      
+      // Redirect unknown types or volunteers to guide, others to dashboard
+      if (shouldRedirectToGuide(user.user_type)) {
+        console.log('User should go to guide, redirecting to guide');
+        navigate('/guide', { replace: true });
+      } else {
+        console.log('Regular user, navigating to dashboard');
+        navigate('/dashboard', { replace: true });
+      }
     } else {
       console.log('User is not logged in yet');
     }

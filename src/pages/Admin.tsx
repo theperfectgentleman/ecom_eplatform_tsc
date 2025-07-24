@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Account, AccessLevel } from "@/types";
 import { useApi } from "@/lib/useApi";
+import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { UserForm } from "@/components/admin/UserForm";
@@ -41,11 +42,15 @@ const Admin = () => {
   const [filterText, setFilterText] = useState("");
   const { toast } = useToast();
   const { request } = useApi();
+  const { filterByAccessLevel } = useAccessLevelFilter();
 
   const fetchAccounts = async () => {
     try {
       const response = await request<Account[]>({ path: "accounts" });
-      setData(normalizeAccounts(response));
+      const normalizedAccounts = normalizeAccounts(response);
+      // Apply access level filtering
+      const filteredAccounts = filterByAccessLevel(normalizedAccounts);
+      setData(filteredAccounts);
     } catch (error) {
       console.error("Failed to fetch accounts:", error);
       toast({ variant: 'error', title: 'Failed to fetch accounts' });

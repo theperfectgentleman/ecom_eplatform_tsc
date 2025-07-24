@@ -11,10 +11,14 @@ import AppointmentsPage from '@/pages/Appointments';
 import GuidePage from '@/pages/Guide';
 import FeedbackPage from '@/pages/Feedback';
 import DownloadPage from '@/pages/Download';
+import TechnicalDocs from '@/pages/admin/TechnicalDocs';
+import ImplementationGuide from '@/pages/admin/ImplementationGuide';
+import AdminSettings from '@/pages/admin/AdminSettings';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/components/ui/toast/ToastContext';
 import { ToastContainer } from '@/components/ui/toast/Toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { RouteGuard } from '@/components/RouteGuard';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import '@/index.css';
 
@@ -30,14 +34,17 @@ const App = () => {
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/referral" element={<Referral />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/address-book" element={<AddressBook />} />
-                  <Route path="/appointments" element={<AppointmentsPage />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/guide" element={<GuidePage />} />
-                  <Route path="/feedback" element={<FeedbackPage />} />
+                  <Route path="/dashboard" element={<RouteGuard><Dashboard /></RouteGuard>} />
+                  <Route path="/referral" element={<RouteGuard><Referral /></RouteGuard>} />
+                  <Route path="/reports" element={<RouteGuard><Reports /></RouteGuard>} />
+                  <Route path="/address-book" element={<RouteGuard><AddressBook /></RouteGuard>} />
+                  <Route path="/appointments" element={<RouteGuard><AppointmentsPage /></RouteGuard>} />
+                  <Route path="/admin" element={<RouteGuard><Admin /></RouteGuard>} />
+                  <Route path="/admin/settings" element={<RouteGuard><AdminSettings /></RouteGuard>} />
+                  <Route path="/admin/docs" element={<RouteGuard><TechnicalDocs /></RouteGuard>} />
+                  <Route path="/admin/implementation" element={<RouteGuard><ImplementationGuide /></RouteGuard>} />
+                  <Route path="/guide" element={<RouteGuard><GuidePage /></RouteGuard>} />
+                  <Route path="/feedback" element={<RouteGuard><FeedbackPage /></RouteGuard>} />
                 </Route>
               </Route>
             </Routes>

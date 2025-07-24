@@ -2,7 +2,14 @@
 // Handles REST API requests and can be extended for permissions, auth, etc.
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// api.ts
+/// <reference lib="dom" />
+
+interface ApiRequestInit extends Omit<RequestInit, 'body'> {
+  body?: string | FormData | null;
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -30,7 +37,7 @@ export async function apiRequest<T = any>({
   }
   console.log(`Making API request to: ${url}`);
   
-  const fetchOptions: RequestInit = {
+  const fetchOptions: ApiRequestInit = {
     method,
     headers: {
       'Content-Type': 'application/json',

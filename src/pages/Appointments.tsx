@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PlusCircle, Edit, Trash2, Calendar, User, Clock } from 'lucide-react';
 import { useToast } from '@/components/ui/toast/useToast';
+import { useAccessLevelFilter } from '@/hooks/useAccessLevelFilter';
 
 const AppointmentsPage: React.FC = () => {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -24,6 +25,7 @@ const AppointmentsPage: React.FC = () => {
   const [formEditable, setFormEditable] = useState(false);
   const { request } = useApi();
   const { toast } = useToast();
+  const { filterByAccessLevel } = useAccessLevelFilter();
 
   const fetchData = async () => {
     try {
@@ -36,9 +38,14 @@ const AppointmentsPage: React.FC = () => {
       console.log('Meetings response:', meetingsResponse); // Debug log
       console.log('Sample meeting:', meetingsResponse?.[0]); // Debug log
       
-      setMeetings(meetingsResponse);
-      setPatients(patientsResponse);
-      setPractitioners(practitionersResponse);
+      // Apply access level filtering to all data
+      const filteredMeetings = filterByAccessLevel(meetingsResponse || []);
+      const filteredPatients = filterByAccessLevel(patientsResponse || []);
+      const filteredPractitioners = filterByAccessLevel(practitionersResponse || []);
+      
+      setMeetings(filteredMeetings);
+      setPatients(filteredPatients);
+      setPractitioners(filteredPractitioners);
     } catch (error) {
       console.error("Failed to fetch appointments data", error);
       toast({

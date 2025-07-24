@@ -38,15 +38,79 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
 
 const mockChartData = [
-    { name: "Jan", cases: 35, appointments: 20, region: "Greater Accra", district: "Accra Metropolitan" },
-    { name: "Feb", cases: 45, appointments: 30, region: "Ashanti", district: "Kumasi Metropolitan" },
-    { name: "Mar", cases: 50, appointments: 40, region: "Greater Accra", district: "Tema Metropolitan" },
-    { name: "Apr", cases: 60, appointments: 50, region: "Western", district: "Sekondi-Takoradi Metropolitan" },
-    { name: "May", cases: 55, appointments: 45, region: "Ashanti", district: "Obuasi Municipal" },
-    { name: "Jun", cases: 70, appointments: 60, region: "Greater Accra", district: "Accra Metropolitan" },
-    { name: "Jul", cases: 75, appointments: 65, region: "Western", district: "Tarkwa-Nsuaem Municipal" },
+    { 
+      name: "Jan", 
+      cases: 35, 
+      appointments: 20, 
+      region: "Greater Accra", 
+      district: "Accra Metropolitan",
+      subdistrict: "Osu Klottey",
+      community_name: "Osu",
+      accessLevel: 2 // District level data
+    },
+    { 
+      name: "Feb", 
+      cases: 45, 
+      appointments: 30, 
+      region: "Ashanti", 
+      district: "Kumasi Metropolitan",
+      subdistrict: "Manhyia",
+      community_name: "Adum",
+      accessLevel: 2 // District level data
+    },
+    { 
+      name: "Mar", 
+      cases: 50, 
+      appointments: 40, 
+      region: "Greater Accra", 
+      district: "Tema Metropolitan",
+      subdistrict: "Tema West",
+      community_name: "Community 1",
+      accessLevel: 0 // Community level data
+    },
+    { 
+      name: "Apr", 
+      cases: 60, 
+      appointments: 50, 
+      region: "Western", 
+      district: "Sekondi-Takoradi Metropolitan",
+      subdistrict: "Sekondi",
+      community_name: "Market Circle",
+      accessLevel: 1 // Subdistrict level data
+    },
+    { 
+      name: "May", 
+      cases: 55, 
+      appointments: 45, 
+      region: "Ashanti", 
+      district: "Obuasi Municipal",
+      subdistrict: "Obuasi East",
+      community_name: "Tutuka",
+      accessLevel: 0 // Community level data
+    },
+    { 
+      name: "Jun", 
+      cases: 70, 
+      appointments: 60, 
+      region: "Greater Accra", 
+      district: "Accra Metropolitan",
+      subdistrict: "Ablekuma Central",
+      community_name: "Dansoman",
+      accessLevel: 1 // Subdistrict level data
+    },
+    { 
+      name: "Jul", 
+      cases: 75, 
+      appointments: 65, 
+      region: "Western", 
+      district: "Tarkwa-Nsuaem Municipal",
+      subdistrict: "Tarkwa",
+      community_name: "Tarkwa Township",
+      accessLevel: 2 // District level data
+    },
 ];
 
 const mockRecentCases = [
@@ -58,7 +122,10 @@ const mockRecentCases = [
     date: "2025-07-07",
     assignee: "Dr. Smith",
     region: "Greater Accra",
-    district: "Accra Metropolitan"
+    district: "Accra Metropolitan",
+    subdistrict: "Osu Klottey",
+    community_name: "Osu",
+    accessLevel: 2 // District level case
   },
   {
     id: "CASE-002",
@@ -68,7 +135,10 @@ const mockRecentCases = [
     date: "2025-07-06",
     assignee: "Dr. Jones",
     region: "Ashanti",
-    district: "Kumasi Metropolitan"
+    district: "Kumasi Metropolitan",
+    subdistrict: "Manhyia",
+    community_name: "Adum",
+    accessLevel: 0 // Community level case
   },
   {
     id: "CASE-003",
@@ -78,7 +148,10 @@ const mockRecentCases = [
     date: "2025-07-05",
     assignee: "Dr. Smith",
     region: "Greater Accra",
-    district: "Tema Metropolitan"
+    district: "Tema Metropolitan",
+    subdistrict: "Tema West",
+    community_name: "Community 1",
+    accessLevel: 1 // Subdistrict level case
   },
   {
     id: "CASE-004",
@@ -88,7 +161,10 @@ const mockRecentCases = [
     date: "2025-07-04",
     assignee: "Dr. Brown",
     region: "Western",
-    district: "Sekondi-Takoradi Metropolitan"
+    district: "Sekondi-Takoradi Metropolitan",
+    subdistrict: "Sekondi",
+    community_name: "Market Circle",
+    accessLevel: 2 // District level case
   },
   {
     id: "CASE-005",
@@ -98,7 +174,10 @@ const mockRecentCases = [
     date: "2025-07-03",
     assignee: "Dr. Jones",
     region: "Ashanti",
-    district: "Obuasi Municipal"
+    district: "Obuasi Municipal",
+    subdistrict: "Obuasi East",
+    community_name: "Tutuka",
+    accessLevel: 0 // Community level case
   },
 ];
 
@@ -112,21 +191,25 @@ const districtsByRegion: { [key: string]: string[] } = {
 const Dashboard = () => {
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
+  const { filterByAccessLevel } = useAccessLevelFilter();
 
   const handleRegionChange = (region: string) => {
     setSelectedRegion(region);
     setSelectedDistrict("All Districts");
   };
 
-  const filteredCases = mockRecentCases.filter(c => 
+  // Apply both manual filters and access level filters
+  const manuallyFilteredCases = mockRecentCases.filter(c => 
     (selectedRegion === "All Regions" || c.region === selectedRegion) &&
     (selectedDistrict === "All Districts" || c.district === selectedDistrict)
   );
+  const filteredCases = filterByAccessLevel(manuallyFilteredCases);
 
-  const filteredChartData = mockChartData.filter(d => 
+  const manuallyFilteredChartData = mockChartData.filter(d => 
     (selectedRegion === "All Regions" || d.region === selectedRegion) &&
     (selectedDistrict === "All Districts" || d.district === selectedDistrict)
   );
+  const filteredChartData = filterByAccessLevel(manuallyFilteredChartData);
 
   const openCasesCount = filteredCases.filter(c => c.status === 'Open').length;
   const totalPatients = filteredCases.length > 0 ? new Set(filteredCases.map(c => c.patient)).size + 1200 : 1234; // Mock logic

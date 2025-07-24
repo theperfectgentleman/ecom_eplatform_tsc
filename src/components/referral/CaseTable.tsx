@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useApi } from "@/lib/useApi";
 import { useToast } from "@/components/ui/toast/useToast";
+import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
 import { Case } from "@/types";
 import { Input } from "../ui/input";
 import {
@@ -57,17 +58,19 @@ const CaseTable: React.FC<CaseTableProps> = ({
 	const [caseToDelete, setCaseToDelete] = useState<Case | null>(null);
 	const { request } = useApi();
 	const { toast } = useToast();
+	const { filterByAccessLevel } = useAccessLevelFilter();
 
 	const fetchCases = useCallback(async () => {
 		try {
 			const data = await request<Case[]>({ path: "case-files" });
-			setCases(
-				data.sort(
-					(a, b) =>
-						new Date(b.date_created).getTime() -
-						new Date(a.date_created).getTime()
-				)
+			const sortedData = data.sort(
+				(a, b) =>
+					new Date(b.date_created).getTime() -
+					new Date(a.date_created).getTime()
 			);
+			// Apply access level filtering
+			const filteredData = filterByAccessLevel(sortedData);
+			setCases(filteredData);
 		} catch (error) {
 			toast({
 				title: "Error",
@@ -75,7 +78,7 @@ const CaseTable: React.FC<CaseTableProps> = ({
 				variant: "error",
 			});
 		}
-	}, [request, toast]);
+	}, [request, toast, filterByAccessLevel]);
 
 	useEffect(() => {
 		fetchCases();
@@ -120,7 +123,10 @@ const CaseTable: React.FC<CaseTableProps> = ({
 	return (
 		<div className="bg-white p-4 rounded-lg shadow flex flex-col h-full">
 			<style>{listStyles}</style>
-			<h3 className="text-lg font-semibold mb-4">Recent & Emergency Cases</h3>
+			<h3 className="text-lg font-semibold mb-4">
+				Recent & Emergency Cases 
+				<span className="ml-2 text-sm font-normal text-gray-500">({filteredCases.length})</span>
+			</h3>
 			<Input
 				placeholder="Search by patient, case ID, or region..."
 				value={searchTerm}

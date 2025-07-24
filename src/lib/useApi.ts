@@ -1,9 +1,8 @@
+import { useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast/useToast";
-import { useCallback } from "react";
-// Types RequestInit and HeadersInit are available globally in the DOM lib for browsers/React
 
-export function useApi() {
+export const useApi = () => {
   const { token, logout } = useAuth();
   const { toast } = useToast();
 
@@ -23,7 +22,7 @@ export function useApi() {
 
       console.log('API Request Debug:', { method, url, body }); // Debug log
 
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
 
@@ -31,7 +30,7 @@ export function useApi() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const config: RequestInit = { method, headers };
+      const config: { method: string; headers: Record<string, string>; body?: string } = { method, headers };
       if (body) {
         config.body = JSON.stringify(body);
       }

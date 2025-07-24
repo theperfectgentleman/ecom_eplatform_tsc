@@ -32,6 +32,15 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
+      // Allow unused enum values as they're meant to be part of the complete enum definition
+      '@typescript-eslint/no-unused-vars': ['error', { 
+        'varsIgnorePattern': '^_',
+        'argsIgnorePattern': '^_',
+        'ignoreRestSiblings': true
+      }],
+      'no-unused-vars': 'off', // Turn off base rule in favor of TypeScript version
+      // Relax rules for enums and type definitions
+      '@typescript-eslint/no-unused-expressions': 'off',
     },
   },
 ]

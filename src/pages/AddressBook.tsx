@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useApi } from "@/lib/useApi";
+import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
 import { Contact } from "@/types";
 import ContactForm from "@/components/address/ContactForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,11 +18,14 @@ const AddressBook = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { request } = useApi();
   const { toast } = useToast();
+  const { filterByAccessLevel } = useAccessLevelFilter();
 
   const fetchContacts = async () => {
     try {
       const data = await request({ path: "contacts", method: "GET" });
-      setContacts(data);
+      // Apply access level filtering
+      const filteredData = filterByAccessLevel(data);
+      setContacts(filteredData);
     } catch (error) {
       console.error("Failed to fetch contacts", error);
       toast({

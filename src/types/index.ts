@@ -1,11 +1,9 @@
 export enum UserType {
   VOLUNTEER = 'volunteer',
-  TSC = 'tsc',
   CLINICIAN = 'clinician',
-  SUPERVISOR = 'supervisor',
+  TELEMEDICINE = 'telemedicine',
   MANAGEMENT = 'management',
   ADMIN = 'admin',
-  CHV = 'CHV', // Community Health Volunteer, from API
 }
 
 export enum AccessLevel {

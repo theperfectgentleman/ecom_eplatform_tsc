@@ -15,6 +15,7 @@ import { useApi } from '@/lib/useApi';
 import { useToast } from '@/components/ui/toast/useToast';
 import { Meeting, MeetingStatus, Contact } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessLevelFilter } from '@/hooks/useAccessLevelFilter';
 import { Copy, RefreshCcw } from 'lucide-react';
 
 interface AppointmentFormProps {
@@ -47,6 +48,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
   const { user } = useAuth();
   const { request } = useApi();
   const { toast } = useToast();
+  const { filterByAccessLevel } = useAccessLevelFilter();
   
   // Debug: Log the current user object to understand the structure
   useEffect(() => {
@@ -127,7 +129,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
       try {
         // Fetch practitioners and case files
         const practitionerRes = await request<Contact[]>({ path: '/contacts', method: 'GET' });
-        setPractitioners(practitionerRes || []);
+        const filteredPractitioners = filterByAccessLevel(practitionerRes || []);
+        setPractitioners(filteredPractitioners);
         await fetchCaseFiles();
       } catch (error) {
         console.error("Failed to fetch initial data", error);
@@ -160,7 +163,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
         console.log('Case file fields available:', Object.keys(caseFilesRes[0]));
       }
       
-      setCaseFiles(caseFilesRes);
+      // Apply access level filtering to case files
+      const filteredCaseFiles = filterByAccessLevel(caseFilesRes);
+      setCaseFiles(filteredCaseFiles);
     } catch (error) {
       console.error("Failed to fetch case files", error);
       toast({ title: 'Error', description: 'Could not load case files. Please try the refresh button.', variant: 'error' });

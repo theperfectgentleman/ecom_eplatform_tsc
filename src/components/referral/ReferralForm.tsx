@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
 import { Patient } from "@/types";
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
@@ -73,6 +74,7 @@ const ReferralForm: React.FC<{
   // Community options removed as community does not exist in the database
   const [showReferral, setShowReferral] = useState(false);
   const { request } = useApi();
+  const { filterByAccessLevel } = useAccessLevelFilter();
   const [formState, setFormState] = useState({
     case_file_id: undefined as string | undefined,
     priority_level: "Opened",
@@ -123,7 +125,9 @@ const ReferralForm: React.FC<{
           path: `patients/search?search=${patientSearch}`,
         })
           .then((data) => {
-            setPatientSearchResults(data);
+            // Apply access level filtering to patient search results
+            const filteredPatients = filterByAccessLevel(data);
+            setPatientSearchResults(filteredPatients);
           })
           .catch((err) => {
             console.error("Failed to search patients", err);
