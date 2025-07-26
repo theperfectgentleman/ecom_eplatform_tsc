@@ -15,6 +15,28 @@ const DownloadPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Extract build date from release notes
+  const getBuildDate = (releaseNotes: string[]): string | null => {
+    const buildNote = releaseNotes.find(note => note.includes('Build '));
+    if (buildNote) {
+      const buildMatch = buildNote.match(/Build (\d{8})-\d{6}/);
+      if (buildMatch) {
+        const buildDateStr = buildMatch[1]; // YYYYMMDD format
+        const year = buildDateStr.substring(0, 4);
+        const month = buildDateStr.substring(4, 6);
+        const day = buildDateStr.substring(6, 8);
+        
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return date.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      }
+    }
+    return null;
+  };
+
   useEffect(() => {
     const fetchUpdateInfo = async () => {
       try {
@@ -78,19 +100,36 @@ const DownloadPage: React.FC = () => {
         <CardContent className="space-y-6">
           {updateInfo && (
             <>
-              {/* Release Notes Section */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-blue-600" />
-                  <h3 className="font-semibold text-sm">What's New:</h3>
+              {/* Release Date and Notes Section */}
+              <div className="space-y-4">
+                {/* Release Date */}
+                {getBuildDate(updateInfo.releaseNotes) && (
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center justify-center gap-2 text-blue-700">
+                      <Calendar className="w-4 h-4" />
+                      <span className="font-medium text-sm">
+                        Released on {getBuildDate(updateInfo.releaseNotes)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Release Notes */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-4 h-4 text-blue-600" />
+                    <h3 className="font-semibold text-sm">What's New:</h3>
+                  </div>
+                  <ul className="text-sm text-gray-600 space-y-1 ml-6">
+                    {updateInfo.releaseNotes
+                      .filter(note => !note.includes('Build ')) // Hide the build note since we show it as release date
+                      .map((note, index) => (
+                        <li key={index} className="list-disc">
+                          {note.replace(/^- /, '')}
+                        </li>
+                      ))}
+                  </ul>
                 </div>
-                <ul className="text-sm text-gray-600 space-y-1 ml-6">
-                  {updateInfo.releaseNotes.map((note, index) => (
-                    <li key={index} className="list-disc">
-                      {note.replace(/^- /, '')}
-                    </li>
-                  ))}
-                </ul>
               </div>
 
               {/* Download Button */}
@@ -105,10 +144,7 @@ const DownloadPage: React.FC = () => {
 
               {/* Build Info */}
               <div className="text-center text-xs text-gray-500 pt-2 border-t">
-                <div className="flex items-center justify-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  <span>Latest build from today</span>
-                </div>
+                <span>Build {updateInfo.latestVersionCode} • {updateInfo.latestVersion}</span>
               </div>
             </>
           )}
