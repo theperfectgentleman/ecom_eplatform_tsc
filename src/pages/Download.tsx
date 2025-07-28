@@ -14,7 +14,6 @@ const DownloadPage: React.FC = () => {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
 
   // Extract build date from release notes
   const getBuildDate = (releaseNotes: string[]): string | null => {
@@ -36,37 +35,6 @@ const DownloadPage: React.FC = () => {
       }
     }
     return null;
-  };
-
-  const handleDownload = async () => {
-    if (!updateInfo) return;
-    
-    setDownloading(true);
-    try {
-      // Use the URL from the JSON file - it should point directly to the APK
-      const apkUrl = updateInfo.url;
-      
-      const response = await fetch(apkUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch APK: ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `preg-app-v${updateInfo.latestVersion}.apk`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download failed:', error);
-      // Fallback: try opening the URL directly
-      window.open(updateInfo.url, '_blank');
-    } finally {
-      setDownloading(false);
-    }
   };
 
   useEffect(() => {
@@ -165,16 +133,14 @@ const DownloadPage: React.FC = () => {
               </div>
 
               {/* Download Button */}
-              <button
-                onClick={handleDownload}
-                disabled={downloading}
-                className="flex items-center justify-center w-full px-6 py-3 text-lg text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              <a
+                href={updateInfo.url}
+                download={`preg-app-v${updateInfo.latestVersion}.apk`}
+                className="flex items-center justify-center w-full px-6 py-3 text-lg text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
                 <Download className="w-6 h-6 mr-2" />
-                <span>
-                  {downloading ? 'Downloading...' : `Download v${updateInfo.latestVersion}`}
-                </span>
-              </button>
+                <span>Download v{updateInfo.latestVersion}</span>
+              </a>
 
               {/* Build Info */}
               <div className="text-center text-xs text-gray-500 pt-2 border-t">
