@@ -1,10 +1,10 @@
 {
-  "latestVersion": "1.0.10",
-  "latestVersionCode": 11,
-  "url": "https://app.encompas.org/apk/pregapp_1010.apk",
+  "latestVersion": "1.0.11",
+  "latestVersionCode": 12,
+  "url": "https://app.encompas.org/apk/pregapp_1011.apk",
   "releaseNotes": [
-    "- Version 1.0.10 released",
-    "- Build 20250728-161733",
+    "- Version 1.0.11 released",
+    "- Build 20250728-175047",
     "- Manual update system active"
   ]
 }
