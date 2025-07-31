@@ -45,36 +45,32 @@ const LoginPage = () => {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        // Try to make a simple API call to check if the server is responsive
-        // Use a public endpoint that should always be available
-        await request<any>({
-          path: "health",
+        // Test basic API connectivity by trying to reach the API base URL
+        // This is a more reliable test than specific endpoints
+        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org/api').replace(/\/$/, '');
+        
+        const response = await fetch(apiBaseUrl, {
           method: "GET",
-          isPublic: true
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // Add timeout to prevent hanging
+          signal: AbortSignal.timeout(10000), // 10 second timeout
         });
         
-        // If we get any response, consider the system live
+        // If we get any response (even 404), the API server is reachable
+        // Only network errors or server completely down will throw
+        console.log("API connectivity check - Status:", response.status);
         setSystemStatus("live");
-      } catch (error) {
-        console.error("System status check failed:", error);
         
-        // Try an alternative endpoint - sometimes 'health' might not exist
-        try {
-          await request<any>({
-            path: "status", 
-            method: "GET",
-            isPublic: true
-          });
-          setSystemStatus("live");
-        } catch (secondError) {
-          console.error("Secondary status check failed:", secondError);
-          setSystemStatus("down");
-        }
+      } catch (error) {
+        console.error("API connectivity check failed:", error);
+        setSystemStatus("down");
       }
     };
 
     checkStatus();
-  }, [request]);
+  }, []);
 
   // Redirect to appropriate page if already logged in
   useEffect(() => {
@@ -206,17 +202,17 @@ const LoginPage = () => {
     const statusInfo = {
       checking: {
         icon: <Loader2 className="mr-2 h-4 w-4 animate-spin" />,
-        text: "Checking system status...",
+        text: "Checking API connectivity...",
         color: "text-gray-500",
       },
       live: {
         icon: <CheckCircle className="mr-2 h-4 w-4" />,
-        text: "System is live",
+        text: "API server is reachable",
         color: "text-green-500",
       },
       down: {
         icon: <XCircle className="mr-2 h-4 w-4" />,
-        text: "Unable to connect to API server",
+        text: "Cannot reach API server",
         color: "text-red-500",
       },
     };
