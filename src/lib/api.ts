@@ -10,6 +10,7 @@ interface ApiRequestInit extends Omit<RequestInit, 'body'> {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const API_KEY = import.meta.env.VITE_ENCOMPAS_API_KEY as string;
 
 export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -44,12 +45,20 @@ export async function apiRequest<T = any>({
       ...headers,
     },
   };
+  
+  // Authentication: Use Bearer token if provided, otherwise use API key
   if (token) {
     fetchOptions.headers = {
       ...fetchOptions.headers,
       Authorization: `Bearer ${token}`,
     };
+  } else if (API_KEY) {
+    fetchOptions.headers = {
+      ...fetchOptions.headers,
+      'x-api-key': API_KEY,
+    };
   }
+  
   if (body) {
     fetchOptions.body = JSON.stringify(body);
   }
