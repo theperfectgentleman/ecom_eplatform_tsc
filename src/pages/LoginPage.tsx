@@ -47,7 +47,7 @@ const LoginPage = () => {
       try {
         // Try to make a simple API call to check if the server is responsive
         // Use a public endpoint that should always be available
-        const response = await request<any>({
+        await request<any>({
           path: "health",
           method: "GET",
           isPublic: true
