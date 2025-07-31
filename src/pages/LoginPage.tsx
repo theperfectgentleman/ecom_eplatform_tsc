@@ -45,18 +45,31 @@ const LoginPage = () => {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const response = await request<{ status: string }>({
-          path: "status",
+        // Try to make a simple API call to check if the server is responsive
+        // Use a public endpoint that should always be available
+        const response = await request<any>({
+          path: "health",
           method: "GET",
+          isPublic: true
         });
-        if (response && response.status === "live system") {
-          setSystemStatus("live");
-        } else {
-          setSystemStatus("down");
-        }
+        
+        // If we get any response, consider the system live
+        setSystemStatus("live");
       } catch (error) {
         console.error("System status check failed:", error);
-        setSystemStatus("down");
+        
+        // Try an alternative endpoint - sometimes 'health' might not exist
+        try {
+          await request<any>({
+            path: "status", 
+            method: "GET",
+            isPublic: true
+          });
+          setSystemStatus("live");
+        } catch (secondError) {
+          console.error("Secondary status check failed:", secondError);
+          setSystemStatus("down");
+        }
       }
     };
 
@@ -203,7 +216,7 @@ const LoginPage = () => {
       },
       down: {
         icon: <XCircle className="mr-2 h-4 w-4" />,
-        text: "System is currently down",
+        text: "Unable to connect to API server",
         color: "text-red-500",
       },
     };
