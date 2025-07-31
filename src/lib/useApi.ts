@@ -26,8 +26,14 @@ export const useApi = () => {
         "Content-Type": "application/json",
       };
 
+      // Authentication: Use Bearer token if available, otherwise use API key
       if (!isPublic && token) {
         headers["Authorization"] = `Bearer ${token}`;
+      } else if (!isPublic) {
+        const apiKey = import.meta.env.VITE_ENCOMPAS_API_KEY;
+        if (apiKey) {
+          headers["x-api-key"] = apiKey;
+        }
       }
 
       const config: { method: string; headers: Record<string, string>; body?: string } = { method, headers };
