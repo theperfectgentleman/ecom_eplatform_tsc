@@ -14,6 +14,7 @@ import { shouldRedirectToGuide } from '@/lib/permissions';
 import logo from '@/img/logo.png';
 import docNurse from '@/img/doc_nurse.png';
 import docPat from '@/img/doc_pat.png';
+import packageJson from '../../package.json';
 import { Eye, EyeOff, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import {
   Card,
@@ -246,6 +247,7 @@ const LoginPage = () => {
           <p className="text-xl mt-2 max-w-lg">
             Connecting Healthcare in Rural Communities. Secure, reliable, and always available.
           </p>
+          <p className="text-sm mt-4 opacity-75">v{packageJson.version}</p>
         </div>
       </div>
       <div className="flex items-center justify-center py-12">

@@ -49,7 +49,6 @@ const ReferralForm: React.FC<{
 }> = ({ initialData, onCancel, onCaseCreated, isReadOnly, onNewCase }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [allPatients, setAllPatients] = useState<Patient[]>([]);
   const [patientOptions, setPatientOptions] = useState<PatientOption[]>([]);
   const [selectedPatientOption, setSelectedPatientOption] = useState<PatientOption | null>(null);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
@@ -108,7 +107,6 @@ const ReferralForm: React.FC<{
         path: `patients/level/${user.user_id}`,
       })
         .then((data) => {
-          setAllPatients(data);
           // Create options for React-Select
           const options: PatientOption[] = data.map(patient => ({
             value: patient.patient_id.toString(),
@@ -120,7 +118,6 @@ const ReferralForm: React.FC<{
         })
         .catch((err) => {
           console.error("Failed to load patients", err);
-          setAllPatients([]);
           setPatientOptions([]);
         })
         .finally(() => {
