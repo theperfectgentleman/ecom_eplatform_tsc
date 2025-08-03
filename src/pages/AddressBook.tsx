@@ -16,19 +16,16 @@ const AddressBook = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | undefined>(undefined);
   const [formEditable, setFormEditable] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10); // Fixed page size of 10
   const { request } = useApi();
   const { toast } = useToast();
   const { user } = useAuth();
 
   const fetchContacts = async () => {
     try {
-      const data = await request({ path: "contacts", method: "GET" });
-      console.log("Raw contacts data:", data);
-      // Temporarily disable access level filtering to debug
-      // const filteredData = filterByAccessLevel(data);
-      const filteredData = data; // Use raw data directly
-      console.log("Filtered contacts data:", filteredData);
-      setContacts(filteredData);
+      const data = await request({ path: "contacts", method: "GET" });      
+      setContacts(data);
     } catch (error) {
       console.error("Failed to fetch contacts", error);
       toast({
@@ -144,6 +141,17 @@ const AddressBook = () => {
     )
   );
 
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredContacts.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   console.log("All contacts:", contacts);
   console.log("Search term:", searchTerm);
   console.log("Filtered contacts:", filteredContacts);
@@ -197,42 +205,47 @@ const AddressBook = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="mt-4"
             />
+            {/* Pagination info */}
+            {filteredContacts.length > 0 && (
+              <div className="text-sm text-gray-500 mt-2">
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredContacts.length)} of {filteredContacts.length} contacts
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-0">
             <div className="space-y-2">
-              {filteredContacts.length === 0 ? (
+              {paginatedContacts.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  No contacts found
+                  {filteredContacts.length === 0 ? "No contacts found" : "No contacts on this page"}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredContacts.map((contact) => (
+                  {paginatedContacts.map((contact) => (
                     <div
-                      key={contact.ContactID}
+                      key={contact.ContactID || contact.contactid}
                       className="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => handleSelectContact(contact)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <div className="font-semibold text-gray-900 text-base">{contact.Name}</div>
+                            <div className="font-semibold text-gray-900 text-base">
+                              {contact.Name || contact.name || 'No Name'}
+                            </div>
                             {user?.user_id === contact.user_id && (
                               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                                 My Contact
                               </span>
                             )}
                           </div>
-                          <div className="text-sm text-gray-700 mb-1">{contact.Mobile1}{contact.Mobile2 ? `, ${contact.Mobile2}` : ''}</div>
-                          <div className="text-xs text-gray-500 mb-1">
-                            {contact.Region ? `Region: ${contact.Region}` : ''}
-                            {contact.Region && contact.District ? ' | ' : ''}
-                            {contact.District ? `District: ${contact.District}` : ''}
+                          <div className="text-sm text-gray-700 mb-1">
+                            {contact.Mobile1 || contact.mobile1 || ''}
                           </div>
-                          {contact.Position && (
-                            <div className="text-xs text-gray-400 mb-1">{contact.Position}</div>
-                          )}
-                          {contact.username && contact.username !== user?.username && (
-                            <div className="text-xs text-gray-400">Created by: {contact.username}</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            {(contact.District || contact.district) ? `District: ${contact.District || contact.district}` : ''}
+                          </div>
+                          {(contact.Position || contact.position) && (
+                            <div className="text-xs text-gray-400 mb-1">{contact.Position || contact.position}</div>
                           )}
                         </div>
                         <div className="flex gap-1 ml-4">
@@ -256,7 +269,10 @@ const AddressBook = () => {
                               size="sm"
                               onClick={e => {
                                 e.stopPropagation();
-                                setDeleteConfirm({ id: String(contact.ContactID), name: contact.Name || 'Unknown Contact' });
+                                setDeleteConfirm({ 
+                                  id: String(contact.ContactID || contact.contactid), 
+                                  name: contact.Name || contact.name || 'Unknown Contact' 
+                                });
                               }}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
@@ -270,6 +286,43 @@ const AddressBook = () => {
                 </div>
               )}
             </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
