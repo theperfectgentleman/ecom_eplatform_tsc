@@ -13,30 +13,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
 import { Patient } from "@/types";
-import { Check, ChevronsUpDown } from "lucide-react";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { normalizeReferralPayload } from "@/lib/normalizeReferralPayload";
 import { useToast } from "@/components/ui/toast/useToast";
+import ReactSelect, { SingleValue } from "react-select";
 
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
 const PRIORITY_OPTIONS = ["Opened", "Urgent", "Critical", "Closed"];
 const BLOOD_GROUP_OPTIONS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const INSURANCE_STATUS_OPTIONS = ["Insured", "Not Insured", "Unknown"];
+
+// Type for patient select options
+interface PatientOption {
+  value: string;
+  label: string;
+  patient: Patient;
+}
 
 const getPriorityColorClass = (priority: string) => {
   switch (priority) {
@@ -62,10 +54,11 @@ const ReferralForm: React.FC<{
 }> = ({ initialData, onCancel, onCaseCreated, isReadOnly, onNewCase }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [patientSearch, setPatientSearch] = useState("");
-  const [patientSearchResults, setPatientSearchResults] = useState<Patient[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [allPatients, setAllPatients] = useState<Patient[]>([]);
+  const [patientOptions, setPatientOptions] = useState<PatientOption[]>([]);
+  const [selectedPatientOption, setSelectedPatientOption] = useState<PatientOption | null>(null);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [usePatientDropdown, setUsePatientDropdown] = useState<boolean>(false);
 
   const [communities, setCommunities] = useState<any[]>([]);
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
@@ -74,7 +67,6 @@ const ReferralForm: React.FC<{
   // Community options removed as community does not exist in the database
   const [showReferral, setShowReferral] = useState(false);
   const { request } = useApi();
-  const { filterByAccessLevel } = useAccessLevelFilter();
   const [formState, setFormState] = useState({
     case_file_id: undefined as string | undefined,
     priority_level: "Opened",
@@ -106,42 +98,44 @@ const ReferralForm: React.FC<{
     name: "",
     year_of_birth: "",
     patient_id: "-1",
+    contact_number: "",
   });
   const isInitialMount = React.useRef(true);
 
   const isFormDisabled = isReadOnly && !!initialData;
 
-  // Debounced search for patients
+  // Load all patients based on user's access level when dropdown is enabled and not in edit mode
   useEffect(() => {
-    if (patientSearch.trim().length < 3) {
-      setPatientSearchResults([]);
-      return;
-    }
-
-    const debounceTimer = setTimeout(() => {
-      if (user?.account_id) {
-        setIsSearching(true);
-        request<Patient[]>({
-          path: `patients/search?search=${patientSearch}`,
+    if (user?.user_id && usePatientDropdown && !initialData) {
+      setIsLoadingPatients(true);
+      console.log(`Loading patients for user ID: ${user.user_id}`);
+      request<Patient[]>({
+        path: `patients/level/${user.user_id}`,
+      })
+        .then((data) => {
+          setAllPatients(data);
+          // Create options for React-Select
+          const options: PatientOption[] = data.map(patient => ({
+            value: patient.patient_id.toString(),
+            label: `${patient.name || 'Unknown'} ${patient.contact_number ? `(${patient.contact_number})` : '(No phone)'}`,
+            patient: patient
+          }));
+          setPatientOptions(options);
+          console.log(`Loaded ${data.length} patients for user access level`);
         })
-          .then((data) => {
-            // Apply access level filtering to patient search results
-            const filteredPatients = filterByAccessLevel(data);
-            setPatientSearchResults(filteredPatients);
-          })
-          .catch((err) => {
-            console.error("Failed to search patients", err);
-            setPatientSearchResults([]);
-          })
-          .finally(() => {
-            setIsSearching(false);
-          });
-      }
-    }, 500);
-
-    return () => clearTimeout(debounceTimer);
-  }, [patientSearch, user?.account_id, request]);
-
+        .catch((err) => {
+          console.error("Failed to load patients", err);
+          setAllPatients([]);
+          setPatientOptions([]);
+        })
+        .finally(() => {
+          setIsLoadingPatients(false);
+        });
+    } else {
+      console.log("Patient loading skipped - dropdown disabled or in edit mode");
+      setIsLoadingPatients(false);
+    }
+  }, [user?.user_id, request, usePatientDropdown, initialData]);
 
   // Fetch communities on mount
   useEffect(() => {
@@ -318,7 +312,6 @@ const ReferralForm: React.FC<{
         };
 
         setFormState(updatedState);
-        setPatientSearch(fullPatientData.name ? `${fullPatientData.name} (${fullPatientData.patient_code || fullPatientData.patient_id})` : "");
         setShowReferral(updatedState.referral_needed);
         // Keep initialMount true for a bit to prevent cascading effects from clearing values
         setTimeout(() => {
@@ -332,48 +325,49 @@ const ReferralForm: React.FC<{
     }
   }, [initialData]);
 
-  const handleClearPatientSearch = () => {
-    setFormState(s => ({
-      ...s,
-      patient_id: "-1",
-      name: "",
-      year_of_birth: "",
-      gender: "",
-      region: "",
-      district: "",
-      sub_district: "",
-      // community removed
-      national_id: "",
-      insurance_status: "",
-      insurance_no: "",
-      blood_group: "",
-    }));
-    setPatientSearch("");
-    setPatientSearchResults([]); // Clear previous results
-    setOpen(false);
-    setDistrictOptions([]);
-    setSubdistrictOptions([]);
-    // setCommunityOptions removed
-  };
+  const handlePatientSelect = (option: SingleValue<PatientOption>) => {
+    if (!option) {
+      // Clear selection
+      setSelectedPatientOption(null);
+      setFormState(prev => ({ 
+        ...prev, 
+        patient_id: "-1",
+        name: "",
+        year_of_birth: "",
+        gender: "",
+        region: "",
+        district: "",
+        sub_district: "",
+        national_id: "",
+        insurance_status: "",
+        insurance_no: "",
+        blood_group: "",
+        contact_number: "",
+      }));
+      return;
+    }
 
-  const handlePatientSelect = (selectedPatient: Patient) => {
+    const selectedPatient = option.patient;
+    setSelectedPatientOption(option);
+    
+    // Auto-populate form with patient data
     setFormState(prev => ({
       ...prev,
       patient_id: String(selectedPatient.patient_id),
-      name: selectedPatient.name,
-      year_of_birth: String(selectedPatient.year_of_birth),
-      gender: selectedPatient.gender,
+      name: selectedPatient.name || "",
+      year_of_birth: String(selectedPatient.year_of_birth || ""),
+      gender: selectedPatient.gender || "",
       region: selectedPatient.region || "",
       district: selectedPatient.district || "",
       sub_district: selectedPatient.sub_district || "",
-      // community removed
       national_id: selectedPatient.national_id || "",
       insurance_status: selectedPatient.insurance_status || "",
       insurance_no: selectedPatient.insurance_no || "",
       blood_group: selectedPatient.blood_group || "",
+      contact_number: selectedPatient.contact_number || "",
     }));
-    setPatientSearch(`${selectedPatient.name} (${selectedPatient.patient_code || selectedPatient.patient_id})`);
-    setOpen(false);
+
+    console.log("Selected patient:", selectedPatient.name);
 
     // Trigger dropdown updates
     if (selectedPatient.region) {
@@ -384,12 +378,28 @@ const ReferralForm: React.FC<{
       const subdistricts = Array.from(new Set(communities.filter((c) => c.region === selectedPatient.region && c.district === selectedPatient.district).map((c) => c.subdistrict).filter(Boolean)));
       setSubdistrictOptions(["None", ...subdistricts]);
     }
-    // No community dropdown
   };
 
-  const handleNewPatient = () => {
-    handleClearPatientSearch();
-    // You might want to focus the 'name' input here later
+  const handleTogglePatientMode = (useDropdown: boolean) => {
+    setUsePatientDropdown(useDropdown);
+    
+    // Clear patient selection when switching modes
+    if (!useDropdown) {
+      setSelectedPatientOption(null);
+      // Reset patient fields to allow manual entry
+      setFormState(prev => ({
+        ...prev,
+        patient_id: "-1",
+        name: "",
+        year_of_birth: "",
+        gender: "",
+        contact_number: "",
+        national_id: "",
+        insurance_status: "",
+        insurance_no: "",
+        blood_group: "",
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -490,7 +500,6 @@ const ReferralForm: React.FC<{
       patient_id: "-1",
     };
     setFormState(initialFormState);
-    setPatientSearch("");
     setShowReferral(false);
     if (onCancel) onCancel();
   };
@@ -547,69 +556,110 @@ const ReferralForm: React.FC<{
             </Select>
           </div>
 
-          {/* Patient Search */}
-          <div className="space-y-2">
-            <label className="font-semibold">Patient</label>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-full justify-between"
-                  disabled={isFormDisabled}
+          {/* Patient Selection - Only show toggle if not in edit mode */}
+          {!initialData && (
+            <div className="space-y-2">
+              <label className="font-semibold">Patient Information</label>
+              
+              {/* Toggle for patient entry mode */}
+              <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePatientMode(false)}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    !usePatientDropdown
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
                 >
-                  {formState.patient_id !== "-1"
-                    ? patientSearch
-                    : "Select patient..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <Command>
-                  <CommandInput placeholder="Search patient by name or ID..." onValueChange={setPatientSearch} />
-                  <CommandList>
-                    {isSearching && <div className="p-4 text-sm">Searching...</div>}
-                    <CommandEmpty>No patient found.</CommandEmpty>
-                    <CommandGroup>
-                       <CommandItem
-                        onSelect={handleNewPatient}
-                      >
-                        + Add New Patient
-                      </CommandItem>
-                      {patientSearchResults.map((p) => (
-                        <CommandItem
-                          key={p.patient_id}
-                          value={`${p.name} (${p.patient_code || p.patient_id})`}
-                          onSelect={() => {
-                            handlePatientSelect(p);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              formState.patient_id === String(p.patient_id)
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          {p.name} ({p.patient_code || p.patient_id})
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
+                  Enter Details Manually
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTogglePatientMode(true)}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    usePatientDropdown
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Find Existing Patient
+                </button>
+              </div>
+
+              {/* Patient Dropdown - Only show when toggle is enabled */}
+              {usePatientDropdown && (
+                <div className="space-y-3">
+                  <ReactSelect
+                    options={patientOptions}
+                    value={selectedPatientOption}
+                    onChange={handlePatientSelect}
+                    placeholder={isLoadingPatients ? "Loading patients..." : "Search and select a patient..."}
+                    isLoading={isLoadingPatients}
+                    isSearchable={true}
+                    isClearable={true}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    noOptionsMessage={() => "No patients found"}
+                    loadingMessage={() => "Loading patients..."}
+                    styles={{
+                      control: (provided, state) => ({
+                        ...provided,
+                        minHeight: '40px',
+                        border: state.isFocused ? '2px solid #3b82f6' : '1px solid #d1d5db',
+                        boxShadow: state.isFocused ? '0 0 0 0 rgba(59, 130, 246, 0.1)' : 'none',
+                        '&:hover': {
+                          border: '1px solid #9ca3af'
+                        }
+                      }),
+                      option: (provided, state) => ({
+                        ...provided,
+                        backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#f3f4f6' : 'white',
+                        color: state.isSelected ? 'white' : '#374151',
+                        padding: '8px 12px',
+                        fontSize: '14px'
+                      }),
+                      placeholder: (provided) => ({
+                        ...provided,
+                        color: '#9ca3af'
+                      })
+                    }}
+                  />
+                  
+                  {selectedPatientOption && (
+                    <button
+                      type="button"
+                      className="text-sm text-red-600 hover:text-red-800 underline"
+                      onClick={() => handlePatientSelect(null)}
+                    >
+                      Clear Selection
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Personal Info */}
           <div className="space-y-2">
             <h3 className="font-semibold text-lg border-b pb-2">Personal Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <Input name="name" placeholder="Full Name" value={formState.name} onChange={handleChange} disabled={isFormDisabled || formState.patient_id !== '-1'} />
-              <Input name="year_of_birth" placeholder="Year of Birth" type="number" value={formState.year_of_birth} onChange={handleChange} disabled={isFormDisabled || formState.patient_id !== '-1'} />
-              <Select value={formState.gender} onValueChange={(v) => handleSelectChange("gender", v)} disabled={isFormDisabled || formState.patient_id !== '-1'}>
+              <Input 
+                name="name" 
+                placeholder="Full Name" 
+                value={formState.name} 
+                onChange={handleChange} 
+                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
+              />
+              <Input 
+                name="year_of_birth" 
+                placeholder="Year of Birth" 
+                type="number" 
+                value={formState.year_of_birth} 
+                onChange={handleChange} 
+                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
+              />
+              <Select value={formState.gender} onValueChange={(v) => handleSelectChange("gender", v)} disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Gender" />
                 </SelectTrigger>
@@ -619,7 +669,13 @@ const ReferralForm: React.FC<{
                   ))}
                 </SelectContent>
               </Select>
-              <Input name="national_id" placeholder="National ID" value={formState.national_id} onChange={handleChange} disabled={isFormDisabled} />
+              <Input 
+                name="national_id" 
+                placeholder="National ID" 
+                value={formState.national_id} 
+                onChange={handleChange} 
+                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
+              />
             </div>
           </div>
 
@@ -721,7 +777,7 @@ const ReferralForm: React.FC<{
           <div className="space-y-2">
             <h3 className="font-semibold text-lg border-b pb-2">Insurance</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <Select value={formState.insurance_status} onValueChange={(v) => handleSelectChange("insurance_status", v)} disabled={isFormDisabled}>
+              <Select value={formState.insurance_status} onValueChange={(v) => handleSelectChange("insurance_status", v)} disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Insurance Status" />
                 </SelectTrigger>
@@ -731,7 +787,13 @@ const ReferralForm: React.FC<{
                   ))}
                 </SelectContent>
               </Select>
-              <Input name="insurance_no" placeholder="Insurance Number" value={formState.insurance_no} onChange={handleChange} disabled={isFormDisabled} />
+              <Input 
+                name="insurance_no" 
+                placeholder="Insurance Number" 
+                value={formState.insurance_no} 
+                onChange={handleChange} 
+                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
+              />
             </div>
           </div>
 
@@ -747,7 +809,7 @@ const ReferralForm: React.FC<{
               <Input name="weight" placeholder="Weight (kg)" type="number" value={formState.weight} onChange={handleChange} disabled={isFormDisabled} />
               <Input name="temperature" placeholder="Temperature (°C)" type="number" value={formState.temperature} onChange={handleChange} disabled={isFormDisabled} />
               <Input name="pulse" placeholder="Pulse" type="number" value={formState.pulse} onChange={handleChange} disabled={isFormDisabled} />
-              <Select value={formState.blood_group} onValueChange={(v) => handleSelectChange("blood_group", v)} disabled={isFormDisabled}>
+              <Select value={formState.blood_group} onValueChange={(v) => handleSelectChange("blood_group", v)} disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Blood Group" />
                 </SelectTrigger>

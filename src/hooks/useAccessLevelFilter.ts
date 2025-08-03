@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { AccessLevel } from '@/types';
+import { useCallback } from 'react';
 
 interface FilterableData {
   region?: string;
@@ -18,7 +19,7 @@ interface FilterableData {
 export const useAccessLevelFilter = () => {
   const { user } = useAuth();
 
-  const filterByAccessLevel = <T extends FilterableData>(data: T[]): T[] => {
+  const filterByAccessLevel = useCallback(<T extends FilterableData>(data: T[]): T[] => {
     if (!user || !Array.isArray(data)) return data || [];
 
     const { access_level, region, district, subdistrict, community_name } = user;
@@ -70,7 +71,7 @@ export const useAccessLevelFilter = () => {
       default:
         return []; // No access if unknown level
     }
-  };
+  }, [user]);
 
   const getAccessLevelInfo = () => {
     if (!user) return { label: 'No Access', scope: 'none', location: '' };
@@ -115,7 +116,7 @@ export const useAccessLevelFilter = () => {
     }
   };
 
-  const canAccessLocation = (item: FilterableData): boolean => {
+  const canAccessLocation = useCallback((item: FilterableData): boolean => {
     if (!user) return false;
     
     const { access_level, region, district, subdistrict, community_name } = user;
@@ -150,7 +151,7 @@ export const useAccessLevelFilter = () => {
       default:
         return false;
     }
-  };
+  }, [user]);
 
   return {
     filterByAccessLevel,

@@ -95,6 +95,7 @@ export interface Patient {
   patient_code?: string;
   year_of_birth: number;
   gender: string;
+  contact_number?: string;
   region?: string;
   district?: string;
   sub_district?: string;
