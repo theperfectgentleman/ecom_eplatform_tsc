@@ -35,7 +35,7 @@ const FloatingSelect = React.forwardRef<
         <SelectTrigger
           ref={ref}
           className={cn(
-            "h-10 pt-6 pb-2 text-black",
+            "h-14 pt-8 pb-3 text-gray-900",
             className
           )}
         >
@@ -50,7 +50,7 @@ const FloatingSelect = React.forwardRef<
           "absolute left-3 transition-all duration-200 pointer-events-none",
           focused || hasValue
             ? "top-1 text-xs text-gray-400 font-normal"
-            : "top-2.5 text-sm text-gray-400"
+            : "top-4 text-sm text-gray-400"
         )}
       >
         {label}

@@ -3,13 +3,7 @@ import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
 import { FloatingTextarea } from "@/components/ui/floating-textarea";
 import { FloatingSelect } from "@/components/ui/floating-select";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApi } from "@/lib/useApi";
@@ -645,7 +639,8 @@ const ReferralForm: React.FC<{
           {/* Personal Info */}
           <div className="space-y-2">
             <h3 className="font-semibold text-lg border-b pb-2">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <div className="space-y-4 pt-2">
+              {/* Full Name on its own row */}
               <FloatingInput 
                 name="name" 
                 label="Full Name" 
@@ -653,31 +648,37 @@ const ReferralForm: React.FC<{
                 onChange={handleChange} 
                 disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
               />
-              <FloatingInput 
-                name="year_of_birth" 
-                label="Year of Birth" 
-                type="number" 
-                value={formState.year_of_birth} 
-                onChange={handleChange} 
-                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
-              />
-              <FloatingSelect 
-                label="Gender" 
-                value={formState.gender} 
-                onValueChange={(v) => handleSelectChange("gender", v)} 
-                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}
-              >
-                {GENDER_OPTIONS.map((g) => (
-                  <SelectItem key={g} value={g}>{g}</SelectItem>
-                ))}
-              </FloatingSelect>
-              <FloatingInput 
-                name="national_id" 
-                label="National ID" 
-                value={formState.national_id} 
-                onChange={handleChange} 
-                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
-              />
+              
+              {/* Other fields on second row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FloatingInput 
+                  name="year_of_birth" 
+                  label="Year of Birth" 
+                  type="text" 
+                  mask="year"
+                  placeholder="1990"
+                  value={formState.year_of_birth} 
+                  onChange={handleChange} 
+                  disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
+                />
+                <FloatingSelect 
+                  label="Gender" 
+                  value={formState.gender} 
+                  onValueChange={(v) => handleSelectChange("gender", v)} 
+                  disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}
+                >
+                  {GENDER_OPTIONS.map((g) => (
+                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                  ))}
+                </FloatingSelect>
+                <FloatingInput 
+                  name="national_id" 
+                  label="National ID" 
+                  value={formState.national_id} 
+                  onChange={handleChange} 
+                  disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
+                />
+              </div>
             </div>
           </div>
 
@@ -705,71 +706,70 @@ const ReferralForm: React.FC<{
             ) : initialData ? (
               // Edit mode for existing cases - reset to full dropdown controls with cascading
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <Select value={formState.region} onValueChange={(v) => handleSelectChange("region", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Region" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regionOptions.map((region) => (
-                      <SelectItem key={region} value={region}>{region}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={formState.district} onValueChange={(v) => handleSelectChange("district", v)} disabled={!formState.region}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="District" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {districtOptions.map((district) => (
-                      <SelectItem key={district} value={district}>{district}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={formState.sub_district} onValueChange={(v) => handleSelectChange("sub_district", v)} disabled={!formState.district}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Subdistrict" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subdistrictOptions.map((sub) => (
-                      <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FloatingSelect 
+                  label="Region" 
+                  value={formState.region} 
+                  onValueChange={(v) => handleSelectChange("region", v)}
+                >
+                  {regionOptions.map((region) => (
+                    <SelectItem key={region} value={region}>{region}</SelectItem>
+                  ))}
+                </FloatingSelect>
+                <FloatingSelect 
+                  label="District" 
+                  value={formState.district} 
+                  onValueChange={(v) => handleSelectChange("district", v)} 
+                  disabled={!formState.region}
+                >
+                  {districtOptions.map((district) => (
+                    <SelectItem key={district} value={district}>{district}</SelectItem>
+                  ))}
+                </FloatingSelect>
+                <FloatingSelect 
+                  label="Subdistrict" 
+                  value={formState.sub_district} 
+                  onValueChange={(v) => handleSelectChange("sub_district", v)} 
+                  disabled={!formState.district}
+                >
+                  {subdistrictOptions.map((sub) => (
+                    <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                  ))}
+                </FloatingSelect>
                 {/* Community dropdown removed as it does not exist in the database */}
               </div>
             ) : (
               // New case creation - use normal cascading dropdowns
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <Select value={formState.region} onValueChange={(v) => handleSelectChange("region", v)} disabled={isFormDisabled || formState.patient_id !== '-1'}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Region" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regionOptions.map((region) => (
-                      <SelectItem key={region} value={region}>{region}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={formState.district} onValueChange={(v) => handleSelectChange("district", v)} disabled={isFormDisabled || !formState.region || formState.patient_id !== '-1'}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="District" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {districtOptions.map((district) => (
-                      <SelectItem key={district} value={district}>{district}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={formState.sub_district} onValueChange={(v) => handleSelectChange("sub_district", v)} disabled={isFormDisabled || !formState.district || formState.patient_id !== '-1'}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Subdistrict" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subdistrictOptions.map((subdistrict) => (
-                      <SelectItem key={subdistrict} value={subdistrict}>{subdistrict}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FloatingSelect 
+                  label="Region" 
+                  value={formState.region} 
+                  onValueChange={(v) => handleSelectChange("region", v)} 
+                  disabled={isFormDisabled || formState.patient_id !== '-1'}
+                >
+                  {regionOptions.map((region) => (
+                    <SelectItem key={region} value={region}>{region}</SelectItem>
+                  ))}
+                </FloatingSelect>
+                <FloatingSelect 
+                  label="District" 
+                  value={formState.district} 
+                  onValueChange={(v) => handleSelectChange("district", v)} 
+                  disabled={isFormDisabled || !formState.region || formState.patient_id !== '-1'}
+                >
+                  {districtOptions.map((district) => (
+                    <SelectItem key={district} value={district}>{district}</SelectItem>
+                  ))}
+                </FloatingSelect>
+                <FloatingSelect 
+                  label="Subdistrict" 
+                  value={formState.sub_district} 
+                  onValueChange={(v) => handleSelectChange("sub_district", v)} 
+                  disabled={isFormDisabled || !formState.district || formState.patient_id !== '-1'}
+                >
+                  {subdistrictOptions.map((subdistrict) => (
+                    <SelectItem key={subdistrict} value={subdistrict}>{subdistrict}</SelectItem>
+                  ))}
+                </FloatingSelect>
                 {/* Community dropdown removed as it does not exist in the database */}
               </div>
             )}
@@ -821,10 +821,10 @@ const ReferralForm: React.FC<{
               />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
-              <FloatingInput name="bp" label="Blood Pressure (BP)" value={formState.bp} onChange={handleChange} disabled={isFormDisabled} />
-              <FloatingInput name="weight" label="Weight (kg)" type="number" value={formState.weight} onChange={handleChange} disabled={isFormDisabled} />
-              <FloatingInput name="temperature" label="Temperature (°C)" type="number" value={formState.temperature} onChange={handleChange} disabled={isFormDisabled} />
-              <FloatingInput name="pulse" label="Pulse" type="number" value={formState.pulse} onChange={handleChange} disabled={isFormDisabled} />
+              <FloatingInput name="bp" label="Blood Pressure (BP)" mask="bp" placeholder="120/80" value={formState.bp} onChange={handleChange} disabled={isFormDisabled} />
+              <FloatingInput name="weight" label="Weight (kg)" type="text" mask="weight" placeholder="70" value={formState.weight} onChange={handleChange} disabled={isFormDisabled} />
+              <FloatingInput name="temperature" label="Temperature (°C)" type="text" mask="temp" placeholder="37" value={formState.temperature} onChange={handleChange} disabled={isFormDisabled} />
+              <FloatingInput name="pulse" label="Pulse" type="text" mask="pulse" placeholder="72" value={formState.pulse} onChange={handleChange} disabled={isFormDisabled} />
               <FloatingSelect 
                 label="Blood Group" 
                 value={formState.blood_group} 

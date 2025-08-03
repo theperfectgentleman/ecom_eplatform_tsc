@@ -19,7 +19,7 @@ const FloatingTextarea = React.forwardRef<HTMLTextAreaElement, FloatingTextareaP
       <div className="relative">
         <textarea
           className={cn(
-            "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 pt-6 pb-2 text-sm text-black ring-offset-background placeholder:text-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-3 pt-8 pb-3 text-sm text-gray-900 ring-offset-background placeholder:text-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
             className
           )}
           ref={ref}
@@ -38,7 +38,7 @@ const FloatingTextarea = React.forwardRef<HTMLTextAreaElement, FloatingTextareaP
             "absolute left-3 transition-all duration-200 pointer-events-none",
             focused || hasValue
               ? "top-1 text-xs text-gray-400 font-normal"
-              : "top-2.5 text-sm text-gray-400"
+              : "top-4 text-sm text-gray-400"
           )}
         >
           {label}
