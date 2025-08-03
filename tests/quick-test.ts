@@ -26,7 +26,7 @@ export async function quickTest(instructions: string, formData: any) {
     await page.waitForTimeout(3000);
     
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    console.error('❌ Test failed:', error instanceof Error ? error.message : String(error));
     await tester.takeScreenshot('error-state');
   } finally {
     await browser.close();

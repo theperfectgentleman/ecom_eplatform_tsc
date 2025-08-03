@@ -66,7 +66,6 @@ export class AIFormTester {
             break;
           } else {
             const tagName = await element.evaluate(el => el.tagName.toLowerCase());
-            const inputType = await element.getAttribute('type');
             const role = await element.getAttribute('role');
 
             // Handle different input types
@@ -124,7 +123,7 @@ export class AIFormTester {
       }
       
     } catch (error) {
-      console.error(`✗ Failed to fill ${fieldName}:`, error.message);
+      console.error(`✗ Failed to fill ${fieldName}:`, error instanceof Error ? error.message : String(error));
     }
   }
 
