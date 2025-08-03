@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { FloatingInput } from "@/components/ui/floating-input";
+import { FloatingTextarea } from "@/components/ui/floating-textarea";
+import { FloatingSelect } from "@/components/ui/floating-select";
 import {
   Select,
   SelectContent,
@@ -498,6 +499,7 @@ const ReferralForm: React.FC<{
       name: "",
       year_of_birth: "",
       patient_id: "-1",
+      contact_number: "",
     };
     setFormState(initialFormState);
     setShowReferral(false);
@@ -543,17 +545,17 @@ const ReferralForm: React.FC<{
         <form id="referral-form" className="space-y-6" onSubmit={handleSubmit} data-cy="referral-form">
           {/* Priority Level */}
           <div className="space-y-2">
-            <label className="font-semibold">Priority</label>
-            <Select value={formState.priority_level} onValueChange={(v) => handleSelectChange("priority_level", v)} disabled={isFormDisabled}>
-              <SelectTrigger className={getPriorityColorClass(formState.priority_level)}>
-                <SelectValue placeholder="Priority Level" />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORITY_OPTIONS.map((p) => (
-                  <SelectItem key={p} value={p} className={getPriorityColorClass(p)}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FloatingSelect 
+              label="Priority Level" 
+              value={formState.priority_level} 
+              onValueChange={(v) => handleSelectChange("priority_level", v)} 
+              disabled={isFormDisabled}
+              className={getPriorityColorClass(formState.priority_level)}
+            >
+              {PRIORITY_OPTIONS.map((p) => (
+                <SelectItem key={p} value={p} className={getPriorityColorClass(p)}>{p}</SelectItem>
+              ))}
+            </FloatingSelect>
           </div>
 
           {/* Patient Selection - Only show toggle if not in edit mode */}
@@ -644,34 +646,34 @@ const ReferralForm: React.FC<{
           <div className="space-y-2">
             <h3 className="font-semibold text-lg border-b pb-2">Personal Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <Input 
+              <FloatingInput 
                 name="name" 
-                placeholder="Full Name" 
+                label="Full Name" 
                 value={formState.name} 
                 onChange={handleChange} 
                 disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
               />
-              <Input 
+              <FloatingInput 
                 name="year_of_birth" 
-                placeholder="Year of Birth" 
+                label="Year of Birth" 
                 type="number" 
                 value={formState.year_of_birth} 
                 onChange={handleChange} 
                 disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
               />
-              <Select value={formState.gender} onValueChange={(v) => handleSelectChange("gender", v)} disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Gender" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GENDER_OPTIONS.map((g) => (
-                    <SelectItem key={g} value={g}>{g}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input 
+              <FloatingSelect 
+                label="Gender" 
+                value={formState.gender} 
+                onValueChange={(v) => handleSelectChange("gender", v)} 
+                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}
+              >
+                {GENDER_OPTIONS.map((g) => (
+                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
+              </FloatingSelect>
+              <FloatingInput 
                 name="national_id" 
-                placeholder="National ID" 
+                label="National ID" 
                 value={formState.national_id} 
                 onChange={handleChange} 
                 disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
@@ -777,19 +779,19 @@ const ReferralForm: React.FC<{
           <div className="space-y-2">
             <h3 className="font-semibold text-lg border-b pb-2">Insurance</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <Select value={formState.insurance_status} onValueChange={(v) => handleSelectChange("insurance_status", v)} disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Insurance Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INSURANCE_STATUS_OPTIONS.map((status) => (
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input 
+              <FloatingSelect 
+                label="Insurance Status" 
+                value={formState.insurance_status} 
+                onValueChange={(v) => handleSelectChange("insurance_status", v)} 
+                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}
+              >
+                {INSURANCE_STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                ))}
+              </FloatingSelect>
+              <FloatingInput 
                 name="insurance_no" 
-                placeholder="Insurance Number" 
+                label="Insurance Number" 
                 value={formState.insurance_no} 
                 onChange={handleChange} 
                 disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')} 
@@ -800,35 +802,72 @@ const ReferralForm: React.FC<{
           {/* Clinical */}
           <div className="space-y-2">
             <h3 className="font-semibold text-lg border-b pb-2">Clinical</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <Textarea name="present_complaints" placeholder="Present Complaints" value={formState.present_complaints} onChange={handleChange} className="min-h-[120px]" disabled={isFormDisabled} />
-              <Textarea name="examination_findings" placeholder="Examination Findings" value={formState.examination_findings} onChange={handleChange} className="min-h-[120px]" disabled={isFormDisabled} />
+            <div className="grid grid-cols-1 gap-4 pt-2">
+              <FloatingTextarea 
+                name="present_complaints" 
+                label="Present Complaints" 
+                value={formState.present_complaints} 
+                onChange={handleChange} 
+                className="min-h-[150px]" 
+                disabled={isFormDisabled} 
+              />
+              <FloatingTextarea 
+                name="examination_findings" 
+                label="Examination Findings" 
+                value={formState.examination_findings} 
+                onChange={handleChange} 
+                className="min-h-[150px]" 
+                disabled={isFormDisabled} 
+              />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
-              <Input name="bp" placeholder="Blood Pressure (BP)" value={formState.bp} onChange={handleChange} disabled={isFormDisabled} />
-              <Input name="weight" placeholder="Weight (kg)" type="number" value={formState.weight} onChange={handleChange} disabled={isFormDisabled} />
-              <Input name="temperature" placeholder="Temperature (°C)" type="number" value={formState.temperature} onChange={handleChange} disabled={isFormDisabled} />
-              <Input name="pulse" placeholder="Pulse" type="number" value={formState.pulse} onChange={handleChange} disabled={isFormDisabled} />
-              <Select value={formState.blood_group} onValueChange={(v) => handleSelectChange("blood_group", v)} disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Blood Group" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BLOOD_GROUP_OPTIONS.map((bg) => (
-                    <SelectItem key={bg} value={bg}>{bg}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FloatingInput name="bp" label="Blood Pressure (BP)" value={formState.bp} onChange={handleChange} disabled={isFormDisabled} />
+              <FloatingInput name="weight" label="Weight (kg)" type="number" value={formState.weight} onChange={handleChange} disabled={isFormDisabled} />
+              <FloatingInput name="temperature" label="Temperature (°C)" type="number" value={formState.temperature} onChange={handleChange} disabled={isFormDisabled} />
+              <FloatingInput name="pulse" label="Pulse" type="number" value={formState.pulse} onChange={handleChange} disabled={isFormDisabled} />
+              <FloatingSelect 
+                label="Blood Group" 
+                value={formState.blood_group} 
+                onValueChange={(v) => handleSelectChange("blood_group", v)} 
+                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}
+              >
+                {BLOOD_GROUP_OPTIONS.map((bg) => (
+                  <SelectItem key={bg} value={bg}>{bg}</SelectItem>
+                ))}
+              </FloatingSelect>
             </div>
           </div>
 
           {/* Treatment */}
           <div className="space-y-2">
             <h3 className="font-semibold text-lg border-b pb-2">Treatment</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <Textarea name="treatment_given" placeholder="Treatment Given" value={formState.treatment_given} onChange={handleChange} className="min-h-[100px]" disabled={isFormDisabled} />
-              <Textarea name="medications_given" placeholder="Medications Given" value={formState.medications_given} onChange={handleChange} className="min-h-[100px]" disabled={isFormDisabled} />
-              <Textarea name="medications_on" placeholder="Medications On" value={formState.medications_on} onChange={handleChange} className="min-h-[100px]" disabled={isFormDisabled} />
+            <div className="grid grid-cols-1 gap-4 pt-2">
+              <FloatingTextarea 
+                name="treatment_given" 
+                label="Treatment Given" 
+                value={formState.treatment_given} 
+                onChange={handleChange} 
+                className="min-h-[120px]" 
+                disabled={isFormDisabled} 
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FloatingTextarea 
+                  name="medications_given" 
+                  label="Medications Given" 
+                  value={formState.medications_given} 
+                  onChange={handleChange} 
+                  className="min-h-[100px]" 
+                  disabled={isFormDisabled} 
+                />
+                <FloatingTextarea 
+                  name="medications_on" 
+                  label="Medications On" 
+                  value={formState.medications_on} 
+                  onChange={handleChange} 
+                  className="min-h-[100px]" 
+                  disabled={isFormDisabled} 
+                />
+              </div>
             </div>
           </div>
 
@@ -843,21 +882,37 @@ const ReferralForm: React.FC<{
               <label htmlFor="referral_needed" className="text-sm">Referral Needed?</label>
             </div>
             {showReferral && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                <Input name="referring_facility_name" placeholder="Referring Facility Name" value={formState.referring_facility_name} onChange={handleChange} disabled={isFormDisabled} />
-                <Input name="facility_referred_to" placeholder="Facility Referred To" value={formState.facility_referred_to} onChange={handleChange} disabled={isFormDisabled} />
-                <Input name="referring_officer_name" placeholder="Referring Officer Name" value={formState.referring_officer_name} onChange={handleChange} disabled={isFormDisabled} />
-                <Input name="referring_officer_position" placeholder="Referring Officer Position" value={formState.referring_officer_position} onChange={handleChange} disabled={isFormDisabled} />
-                <Input name="transportation_means" placeholder="Means of Transportation" value={formState.transportation_means} onChange={handleChange} disabled={isFormDisabled} />
-                <Textarea name="referral_reason_notes" placeholder="Referral Reason/Notes" value={formState.referral_reason_notes} onChange={handleChange} className="md:col-span-2" disabled={isFormDisabled} />
+              <div className="space-y-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FloatingInput name="referring_facility_name" label="Referring Facility Name" value={formState.referring_facility_name} onChange={handleChange} disabled={isFormDisabled} />
+                  <FloatingInput name="facility_referred_to" label="Facility Referred To" value={formState.facility_referred_to} onChange={handleChange} disabled={isFormDisabled} />
+                  <FloatingInput name="referring_officer_name" label="Referring Officer Name" value={formState.referring_officer_name} onChange={handleChange} disabled={isFormDisabled} />
+                  <FloatingInput name="referring_officer_position" label="Referring Officer Position" value={formState.referring_officer_position} onChange={handleChange} disabled={isFormDisabled} />
+                  <FloatingInput name="transportation_means" label="Means of Transportation" value={formState.transportation_means} onChange={handleChange} disabled={isFormDisabled} />
+                </div>
+                <FloatingTextarea 
+                  name="referral_reason_notes" 
+                  label="Referral Reason/Notes" 
+                  value={formState.referral_reason_notes} 
+                  onChange={handleChange} 
+                  className="min-h-[120px]" 
+                  disabled={isFormDisabled} 
+                />
               </div>
             )}
           </div>
 
           {/* Other Notes */}
           <div className="space-y-2">
-            <label htmlFor="other_notes" className="font-semibold">Other Notes</label>
-            <Textarea id="other_notes" name="other_notes" value={formState.other_notes} onChange={handleChange} disabled={isFormDisabled} />
+            <FloatingTextarea 
+              id="other_notes" 
+              name="other_notes" 
+              label="Other Notes" 
+              value={formState.other_notes} 
+              onChange={handleChange} 
+              className="min-h-[100px]" 
+              disabled={isFormDisabled} 
+            />
           </div>
 
           {/* Bottom Buttons */}
