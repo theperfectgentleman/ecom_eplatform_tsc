@@ -51,6 +51,8 @@ export interface Contact {
   Mobile1?: string;
   mobile2?: string;
   Mobile2?: string;
+  user_id?: number;
+  username?: string;
   createdat?: string;
   CreatedAt?: string;
   updatedat?: string;

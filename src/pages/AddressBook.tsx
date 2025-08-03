@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useApi } from "@/lib/useApi";
-import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
+import { useAuth } from "@/contexts/AuthContext";
 import { Contact } from "@/types";
 import ContactForm from "@/components/address/ContactForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,13 +18,16 @@ const AddressBook = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { request } = useApi();
   const { toast } = useToast();
-  const { filterByAccessLevel } = useAccessLevelFilter();
+  const { user } = useAuth();
 
   const fetchContacts = async () => {
     try {
       const data = await request({ path: "contacts", method: "GET" });
-      // Apply access level filtering
-      const filteredData = filterByAccessLevel(data);
+      console.log("Raw contacts data:", data);
+      // Temporarily disable access level filtering to debug
+      // const filteredData = filterByAccessLevel(data);
+      const filteredData = data; // Use raw data directly
+      console.log("Filtered contacts data:", filteredData);
       setContacts(filteredData);
     } catch (error) {
       console.error("Failed to fetch contacts", error);
@@ -49,6 +52,9 @@ const AddressBook = () => {
           ...data,
           ContactID: selectedContact.ContactID,
           UpdatedAt: new Date().toISOString(),
+          // Preserve existing user info for updates, but update if user changed
+          user_id: user?.user_id || selectedContact.user_id,
+          username: user?.username || selectedContact.username,
         };
         await request({
           path: `contacts/${selectedContact.ContactID}`,
@@ -61,8 +67,13 @@ const AddressBook = () => {
           variant: "success",
         });
       } else {
-        // For new contacts, use the mapped data as-is
-        await request({ path: "contacts", method: "POST", body: data });
+        // For new contacts, automatically add user info
+        const newContactData = {
+          ...data,
+          user_id: user?.user_id,
+          username: user?.username,
+        };
+        await request({ path: "contacts", method: "POST", body: newContactData });
         toast({
           title: "Success",
           description: "Contact created successfully.",
@@ -133,6 +144,10 @@ const AddressBook = () => {
     )
   );
 
+  console.log("All contacts:", contacts);
+  console.log("Search term:", searchTerm);
+  console.log("Filtered contacts:", filteredContacts);
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Left Panel - Contact Form or Empty State */}
@@ -145,6 +160,7 @@ const AddressBook = () => {
               contact={selectedContact}
               onCancel={closeDialog}
               readOnly={!formEditable}
+              currentUser={user}
             />
             {/* Removed Edit button from form - editing is only triggered from the list */}
           </div>
@@ -198,7 +214,14 @@ const AddressBook = () => {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="font-semibold text-gray-900 text-base mb-1">{contact.Name}</div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="font-semibold text-gray-900 text-base">{contact.Name}</div>
+                            {user?.user_id === contact.user_id && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                My Contact
+                              </span>
+                            )}
+                          </div>
                           <div className="text-sm text-gray-700 mb-1">{contact.Mobile1}{contact.Mobile2 ? `, ${contact.Mobile2}` : ''}</div>
                           <div className="text-xs text-gray-500 mb-1">
                             {contact.Region ? `Region: ${contact.Region}` : ''}
@@ -208,29 +231,49 @@ const AddressBook = () => {
                           {contact.Position && (
                             <div className="text-xs text-gray-400 mb-1">{contact.Position}</div>
                           )}
+                          {contact.username && contact.username !== user?.username && (
+                            <div className="text-xs text-gray-400">Created by: {contact.username}</div>
+                          )}
                         </div>
                         <div className="flex gap-1 ml-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={e => {
-                              e.stopPropagation();
-                              openDialog(contact);
-                            }}
-                          >
-                            <Edit className="h-5 w-5" />
-                          </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setDeleteConfirm({ id: String(contact.ContactID), name: contact.Name || 'Unknown Contact' });
-                          }}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
+                          {/* Only show edit button if current user owns this contact */}
+                          {user?.user_id === contact.user_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={e => {
+                                e.stopPropagation();
+                                openDialog(contact);
+                              }}
+                            >
+                              <Edit className="h-5 w-5" />
+                            </Button>
+                          )}
+                          {/* Only show delete button if current user owns this contact */}
+                          {user?.user_id === contact.user_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setDeleteConfirm({ id: String(contact.ContactID), name: contact.Name || 'Unknown Contact' });
+                              }}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
       {/* Delete Confirmation Dialog */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -244,16 +287,6 @@ const AddressBook = () => {
           </div>
         </div>
       )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 };

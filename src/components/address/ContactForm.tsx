@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Contact } from "@/types";
+import { Contact, Account } from "@/types";
 import { useState, useEffect } from "react";
 import { useApi } from "@/lib/useApi";
 import {
@@ -43,9 +43,10 @@ interface ContactFormProps {
   onSubmit: (data: any) => Promise<void> | void;
   onCancel: () => void;
   readOnly?: boolean;
+  currentUser?: Account | null;
 }
 
-const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false }: ContactFormProps) => {
+const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUser }: ContactFormProps) => {
   // Role options, sorted alphabetically
   const roleOptions = [
     "Community Health Nurse",
@@ -381,32 +382,42 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false }: ContactF
           />
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            className="flex items-center gap-1"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-x"
+        <div className="flex justify-between items-center gap-2 pt-4 border-t">
+          {/* User info labels - username visible, user_id hidden when editing */}
+          {!readOnly && currentUser && (
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-gray-500">
+                Created by: {currentUser.username}
+              </span>
+              <span className="text-xs text-gray-400 hidden">
+                User ID: {currentUser.user_id}
+              </span>
+            </div>
+          )}
+          
+          {/* When viewing existing contact, show the contact's user info */}
+          {readOnly && contact && (contact.username || contact.user_id) && (
+            <div className="flex items-center gap-4">
+              {contact.username && (
+                <span className="text-xs text-gray-500">
+                  Created by: {contact.username}
+                </span>
+              )}
+              {contact.user_id && (
+                <span className="text-xs text-gray-400 hidden">
+                  User ID: {contact.user_id}
+                </span>
+              )}
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="flex items-center gap-1"
             >
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-            Cancel
-          </Button>
-          {!readOnly && (
-            <Button type="submit" className="flex items-center gap-1">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"
@@ -417,15 +428,35 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false }: ContactF
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="lucide lucide-save"
+                className="lucide lucide-x"
               >
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
               </svg>
-              Submit
+              Cancel
             </Button>
-          )}
+            {!readOnly && (
+              <Button type="submit" className="flex items-center gap-1">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-save"
+                >
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Submit
+              </Button>
+            )}
+          </div>
         </div>
       </form>
     </Form>
