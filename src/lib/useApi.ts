@@ -46,12 +46,24 @@ export const useApi = () => {
         const response = await fetch(url, config);
 
         if (response.status === 401) {
-          logout();
-          toast({
-            variant: "error",
-            title: "Session expired",
-            description: "Please log in again.",
-          });
+          // Only logout if we actually have a token and it's rejected
+          // Don't logout if we're using API key authentication
+          if (token) {
+            console.log('401 received with token - logging out due to expired session');
+            logout();
+            toast({
+              variant: "error",
+              title: "Session expired",
+              description: "Please log in again.",
+            });
+          } else {
+            console.log('401 received with API key - not logging out');
+            toast({
+              variant: "error", 
+              title: "Access denied",
+              description: "Authentication failed.",
+            });
+          }
           throw new Error("Unauthorized");
         }
 

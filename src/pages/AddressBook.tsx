@@ -78,9 +78,7 @@ const AddressBook = () => {
         });
       }
       fetchContacts();
-      setIsDialogOpen(false);
-      setSelectedContact(undefined);
-      setFormEditable(false);
+      closeDialog(); // This will properly reset all states
     } catch (error) {
       console.error("Failed to submit contact", error);
       toast({
@@ -92,9 +90,22 @@ const AddressBook = () => {
   };
 
   const openDialog = (contact?: Contact) => {
+    console.log('Opening dialog with contact:', contact);
     setSelectedContact(contact);
     setIsDialogOpen(true);
     setFormEditable(true);
+  };
+
+  // Create a separate function for new contact to ensure proper reset
+  const openNewContactDialog = () => {
+    console.log('Opening new contact dialog');
+    setSelectedContact(undefined); // Explicitly set to undefined
+    setIsDialogOpen(true);
+    setFormEditable(true);
+    // Force a small delay to ensure state is updated before form renders
+    setTimeout(() => {
+      console.log('New contact dialog opened, selectedContact should be undefined');
+    }, 50);
   };
 
   // When a contact is selected from the list, show in form as read-only
@@ -106,6 +117,7 @@ const AddressBook = () => {
 
   // Close dialog and reset form
   const closeDialog = () => {
+    console.log('Closing dialog and resetting state');
     setIsDialogOpen(false);
     setSelectedContact(undefined);
     setFormEditable(false);
@@ -164,6 +176,7 @@ const AddressBook = () => {
           <div>
             <h2 className="text-xl font-semibold mb-4">{selectedContact ? (formEditable ? "Edit Contact" : "Contact Details") : "Create Contact"}</h2>
             <ContactForm
+              key={selectedContact ? `contact-${selectedContact.ContactID || selectedContact.contactid}` : 'new-contact'}
               onSubmit={handleFormSubmit}
               contact={selectedContact}
               onCancel={closeDialog}
@@ -177,7 +190,7 @@ const AddressBook = () => {
             <div className="text-center">
               <CardTitle className="text-2xl mb-2">No Contact Selected</CardTitle>
               <p className="text-gray-500 mb-4">Select a contact to view or create a new one</p>
-              <Button onClick={() => openDialog()}>
+              <Button onClick={() => openNewContactDialog()}>
                 <Edit className="mr-2 h-4 w-4" />
                 New Contact
               </Button>
@@ -194,7 +207,7 @@ const AddressBook = () => {
                 <Edit className="mr-2 h-5 w-5" />
                 Address Book ({filteredContacts.length})
               </CardTitle>
-              <Button onClick={() => openDialog()} size="sm">
+              <Button onClick={() => openNewContactDialog()} size="sm">
                 <Edit className="mr-2 h-4 w-4" />
                 New
               </Button>

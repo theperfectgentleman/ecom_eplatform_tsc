@@ -19,30 +19,67 @@ const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
     const applyMask = (value: string, maskPattern: string) => {
       if (!maskPattern) return value;
       
-      // Remove all non-numeric characters first
-      const numericValue = value.replace(/\D/g, '');
-      
       switch (maskPattern) {
-        case 'bp': // nnn/nnn (blood pressure)
-          if (numericValue.length === 0) return '';
-          if (numericValue.length <= 3) {
-            return numericValue;
-          } else if (numericValue.length <= 6) {
-            return numericValue.slice(0, 3) + '/' + numericValue.slice(3);
+        case 'bp': // nnn/nnn (blood pressure) - max 3 digits on each side
+          // Remove all non-numeric characters except /
+          const bpValue = value.replace(/[^\d/]/g, '');
+          const numericOnly = bpValue.replace(/\D/g, '');
+          
+          if (numericOnly.length === 0) return '';
+          if (numericOnly.length <= 3) {
+            return numericOnly;
+          } else if (numericOnly.length <= 6) {
+            return numericOnly.slice(0, 3) + '/' + numericOnly.slice(3);
           } else {
-            return numericValue.slice(0, 3) + '/' + numericValue.slice(3, 6);
+            return numericOnly.slice(0, 3) + '/' + numericOnly.slice(3, 6);
           }
-        case 'weight': // nnn (weight in kg)
-          return numericValue.slice(0, 3);
-        case 'temp': // nn (temperature)
-          return numericValue.slice(0, 2);
-        case 'pulse': // nnn (pulse rate)
-          return numericValue.slice(0, 3);
+        case 'weight': // nnn (weight in kg) - max 3 digits
+          const weightValue = value.replace(/\D/g, '');
+          return weightValue.slice(0, 3);
+        case 'temp': // nn (temperature) - max 2 digits
+          const tempValue = value.replace(/\D/g, '');
+          return tempValue.slice(0, 2);
+        case 'pulse': // nnn (pulse rate) - max 3 digits
+          const pulseValue = value.replace(/\D/g, '');
+          return pulseValue.slice(0, 3);
         case 'year': // nnnn (year of birth)
-          return numericValue.slice(0, 4);
+          const yearValue = value.replace(/\D/g, '');
+          return yearValue.slice(0, 4);
         default:
           return value;
       }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (mask) {
+        // Allow control keys (backspace, delete, tab, escape, enter, etc.)
+        if (e.ctrlKey || e.altKey || e.metaKey || 
+            ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'Home', 'End', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+          return;
+        }
+        
+        // For specific masks, only allow certain characters
+        switch (mask) {
+          case 'bp':
+            // Allow digits and slash
+            if (!/[\d/]/.test(e.key)) {
+              e.preventDefault();
+            }
+            break;
+          case 'weight':
+          case 'temp':
+          case 'pulse':
+          case 'year':
+            // Allow digits only (no decimals)
+            if (!/\d/.test(e.key)) {
+              e.preventDefault();
+            }
+            break;
+        }
+      }
+      
+      // Call the original onKeyDown if provided
+      props.onKeyDown?.(e);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,19 +87,25 @@ const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
         const originalValue = e.target.value;
         const maskedValue = applyMask(originalValue, mask);
         
-        // Update the input value
-        e.target.value = maskedValue;
+        // Only proceed if the value actually changed after masking
+        if (maskedValue !== originalValue) {
+          // Set the masked value directly on the input element
+          e.target.value = maskedValue;
+        }
         
-        // Create a new event with the masked value
-        const maskedEvent = {
-          ...e,
-          target: {
-            ...e.target,
-            value: maskedValue
-          }
-        };
-        
-        props.onChange?.(maskedEvent as React.ChangeEvent<HTMLInputElement>);
+        // Always call onChange with the masked value
+        if (props.onChange) {
+          const syntheticEvent = {
+            ...e,
+            target: {
+              ...e.target,
+              value: maskedValue,
+              name: props.name || e.target.name
+            }
+          } as React.ChangeEvent<HTMLInputElement>;
+          
+          props.onChange(syntheticEvent);
+        }
       } else {
         props.onChange?.(e);
       }
@@ -78,6 +121,7 @@ const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
           )}
           ref={ref}
           onChange={handleChange}
+          onKeyDown={handleKeyDown}
           onFocus={(e) => {
             setFocused(true);
             props.onFocus?.(e);

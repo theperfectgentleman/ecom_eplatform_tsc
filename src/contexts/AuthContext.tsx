@@ -10,6 +10,7 @@ interface AuthContextType {
   logout: () => void;
   checkPermission: (permission: string) => boolean;
   userPermissions: string[];
+  isTokenExpired: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,7 +27,7 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-const IDLE_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+const IDLE_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours - suitable for poor network conditions
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<Account | null>(null);
@@ -67,9 +68,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [updateUserAndPermissions]);
 
 
-  // Idle timeout logic
+  // Idle timeout logic - optimized for poor network conditions
   useEffect(() => {
+    let lastActivity = Date.now();
+    
     const resetTimer = () => {
+      // Throttle timer resets to reduce CPU usage
+      const now = Date.now();
+      if (now - lastActivity < 30000) return; // Only reset timer every 30 seconds
+      lastActivity = now;
+      
       if (idleTimer) clearTimeout(idleTimer);
       setIdleTimer(
         setTimeout(() => {
@@ -77,18 +85,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }, IDLE_TIMEOUT)
       );
     };
+    
     if (user) {
-      window.addEventListener('mousemove', resetTimer);
-      window.addEventListener('keydown', resetTimer);
+      // Reduced event listeners - focus on key user interactions only
       window.addEventListener('mousedown', resetTimer);
+      window.addEventListener('keydown', resetTimer);
       window.addEventListener('touchstart', resetTimer);
       resetTimer();
     }
     return () => {
       if (idleTimer) clearTimeout(idleTimer);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keydown', resetTimer);
       window.removeEventListener('mousedown', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
       window.removeEventListener('touchstart', resetTimer);
     };
     // eslint-disable-next-line
@@ -140,6 +148,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return userPermissions.includes(permission);
   };
 
+  // Helper function to check if token is expired (basic check)
+  const isTokenExpired = useCallback(() => {
+    if (!token) return true;
+    
+    try {
+      // JWT tokens have 3 parts separated by dots
+      const parts = token.split('.');
+      if (parts.length !== 3) return true;
+      
+      // Decode the payload (second part)
+      const payload = JSON.parse(atob(parts[1]));
+      
+      // Check if token has expiration claim and if it's expired
+      if (payload.exp) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const isExpired = payload.exp < currentTime;
+        const timeUntilExpiry = payload.exp - currentTime;
+        
+        if (isExpired) {
+          console.log('Token is expired');
+        } else if (timeUntilExpiry < 1800) { // Less than 30 minutes (more appropriate for 2-hour intervals)
+          console.log(`Token expires in ${Math.floor(timeUntilExpiry / 60)} minutes`);
+        }
+        return isExpired;
+      }
+      
+      // If no expiration claim, assume token is valid
+      return false;
+    } catch (error) {
+      console.error('Error checking token expiration:', error);
+      return true; // If we can't parse it, assume it's invalid
+    }
+  }, [token]);
+
+  // Periodic token validation - placed after logout and isTokenExpired are defined
+  useEffect(() => {
+    if (!user || !token) return;
+
+    const checkTokenPeriodically = setInterval(() => {
+      if (isTokenExpired()) {
+        console.log('Token expired during periodic check - logging out');
+        logout();
+      }
+    }, 2 * 60 * 60 * 1000); // Check every 2 hours to minimize network usage
+
+    return () => clearInterval(checkTokenPeriodically);
+  }, [user, token, isTokenExpired, logout]);
+
   const value = {
     user,
     token,
@@ -148,6 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     checkPermission,
     userPermissions,
+    isTokenExpired,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -80,6 +80,7 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
   const [communityObjects, setCommunityObjects] = useState<any[]>([]);
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
   const [districtOptions, setDistrictOptions] = useState<string[]>([]);
+  const [communityOptions, setCommunityOptions] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -107,20 +108,28 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
   // Add this effect to update form values when contact changes
   useEffect(() => {
     if (contact) {
+      console.log('Loading contact into form:', contact);
       form.reset({
-        ...contact,
-        region: contact.region || "",
-        district: contact.district || "",
-        position: contact.position || "",
+        name: contact.name || contact.Name || "",
+        position: contact.position || contact.Position || "",
+        email1: contact.email1 || contact.Email1 || "",
+        email2: contact.email2 || contact.Email2 || "",
+        mobile1: contact.mobile1 || contact.Mobile1 || "",
+        mobile2: contact.mobile2 || contact.Mobile2 || "",
+        region: contact.region || contact.Region || "",
+        district: contact.district || contact.District || "",
         community: "",
-        description: contact.description || "",
+        description: contact.description || contact.Description || "",
       });
     } else {
+      console.log('Resetting form for new contact');
       form.reset({
         name: "",
         position: "",
         email1: "",
+        email2: "",
         mobile1: "",
+        mobile2: "",
         region: "",
         district: "",
         community: "",
@@ -130,6 +139,7 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
   }, [contact, form]);
 
   const watchedRegion = form.watch("region");
+  const watchedDistrict = form.watch("district");
 
   useEffect(() => {
     request({ path: "communities" }).then((data: any[]) => {
@@ -140,45 +150,121 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
       ].sort() as string[];
       setRegionOptions(regions);
       
-      // If we have a selected region, populate districts immediately
-      const currentRegion = form.getValues("region");
-      if (currentRegion) {
+      // If we have a contact with region/district, populate districts immediately
+      const contactRegion = contact?.region || contact?.Region;
+      const contactDistrict = contact?.district || contact?.District;
+      
+      if (contactRegion) {
+        console.log('Loading districts for contact region:', contactRegion);
         const districts = [
           ...new Set(
             data
-              .filter((c: any) => c.region === currentRegion)
+              .filter((c: any) => c.region === contactRegion)
               .map((c: any) => c.district)
+              .filter(Boolean)
           ),
         ].sort() as string[];
         setDistrictOptions(districts);
+        
+        // Verify the contact's district is in the list
+        if (contactDistrict && districts.includes(contactDistrict)) {
+          console.log('Contact district found in list:', contactDistrict);
+        } else if (contactDistrict) {
+          console.warn('Contact district not found in region districts:', contactDistrict, 'Available:', districts);
+        }
       }
     });
     // request is stable from useApi, but add for exhaustive-deps
-  }, [request, form]);
+  }, [request, contact]);
 
   useEffect(() => {
     if (watchedRegion && communityObjects.length > 0) {
+      console.log('Region changed to:', watchedRegion);
       // Find districts for selected region from communityObjects
       const districts = [
         ...new Set(
           communityObjects
             .filter((c: any) => c.region === watchedRegion)
             .map((c: any) => c.district)
+            .filter(Boolean)
         ),
       ].sort() as string[];
       setDistrictOptions(districts);
+      console.log('Available districts for region:', districts);
       
-      // Only reset district if we're not loading an existing contact
-      // or if the current district is not valid for the selected region
       const currentDistrict = form.getValues("district");
-      if (!contact || !districts.includes(currentDistrict)) {
+      const contactDistrict = contact?.district || contact?.District;
+      
+      // If we're loading an existing contact and the district is valid for the region, keep it
+      if (contact && contactDistrict && districts.includes(contactDistrict)) {
+        console.log('Keeping existing contact district:', contactDistrict);
+        if (currentDistrict !== contactDistrict) {
+          form.setValue("district", contactDistrict);
+        }
+      } 
+      // If user changed region (watchedRegion differs from contact's region), reset district
+      else if (contact && watchedRegion !== (contact.region || contact.Region)) {
+        console.log('Region changed from original, resetting district');
+        form.setValue("district", "");
+      }
+      // If no contact (new form) and no valid district, reset
+      else if (!contact || !districts.includes(currentDistrict)) {
+        console.log('Resetting district field for new contact or invalid district');
         form.setValue("district", "");
       }
     } else if (!watchedRegion) {
       setDistrictOptions([]);
-      form.setValue("district", "");
+      // Only reset district if it's not from an existing contact being loaded
+      if (!contact) {
+        form.setValue("district", "");
+      }
     }
   }, [watchedRegion, communityObjects, form, contact]);
+
+  // Effect for community/subdistrict options based on selected district
+  useEffect(() => {
+    if (watchedDistrict && communityObjects.length > 0) {
+      console.log('District changed to:', watchedDistrict);
+      // Find communities for selected district
+      const communities = [
+        ...new Set(
+          communityObjects
+            .filter((c: any) => c.district === watchedDistrict)
+            .map((c: any) => c.community)
+            .filter(Boolean)
+        ),
+      ].sort() as string[];
+      setCommunityOptions(communities);
+      console.log('Available communities for district:', communities);
+      
+      const currentCommunity = form.getValues("community");
+      const contactCommunity = (contact as any)?.community || (contact as any)?.Community;
+      
+      // If we're loading an existing contact and the community is valid for the district, keep it
+      if (contact && contactCommunity && communities.includes(contactCommunity)) {
+        console.log('Keeping existing contact community:', contactCommunity);
+        if (currentCommunity !== contactCommunity) {
+          form.setValue("community", contactCommunity);
+        }
+      } 
+      // If user changed district (watchedDistrict differs from contact's district), reset community
+      else if (contact && watchedDistrict !== (contact.district || (contact as any).District)) {
+        console.log('District changed from original, resetting community');
+        form.setValue("community", "");
+      }
+      // If no contact (new form) and no valid community, reset
+      else if (!contact || !currentCommunity || !communities.includes(currentCommunity)) {
+        console.log('Resetting community field for new contact or invalid community');
+        form.setValue("community", "");
+      }
+    } else if (!watchedDistrict) {
+      setCommunityOptions([]);
+      // Only reset community if it's not from an existing contact being loaded
+      if (!contact) {
+        form.setValue("community", "");
+      }
+    }
+  }, [watchedDistrict, communityObjects, form, contact]);
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
     // Map frontend form data to backend expected format
@@ -318,7 +404,7 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
-                      disabled={!watchedRegion || readOnly}
+                      disabled={readOnly || (!watchedRegion && !contact)}
                     >
                       <FormControl>
                         <SelectTrigger>

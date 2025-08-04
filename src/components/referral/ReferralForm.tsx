@@ -209,58 +209,9 @@ const ReferralForm: React.FC<{
     }
   }, [formState.sub_district, communities, formState.region, formState.district, initialData, isFormDisabled]);
 
-  // Separate effect to handle loading location options for existing data
-  useEffect(() => {
-    // Skip if no initial data or communities aren't loaded yet
-    if (!initialData || !communities.length) return;
-    
-    const { patient, ...caseData } = initialData;
-    const fullPatientData = patient || caseData.patient || initialData;
-    
-    if (fullPatientData) {
-      console.log("LOCATION DEBUG - Loading location data for case:", {
-        region: fullPatientData.region,
-        district: fullPatientData.district,
-        sub_district: fullPatientData.sub_district,
-        community: fullPatientData.community,
-      });
-      
-      // Ensure region options are loaded
-      const regionsList = Array.from(new Set(communities.map((c) => String(c.region)).filter(Boolean)));
-      setRegionOptions(["None", ...regionsList.filter((r) => r && r !== "None")]);
-      console.log("LOCATION DEBUG - Available regions:", regionsList);
-      
-      // Load district options based on region
-      if (fullPatientData.region) {
-        const districts = Array.from(new Set(
-          communities
-            .filter(c => c.region === fullPatientData.region)
-            .map(c => c.district)
-            .filter(Boolean)
-        ));
-        setDistrictOptions(["None", ...districts]);
-        console.log(`LOCATION DEBUG - Districts for region '${fullPatientData.region}':`, districts);
-      }
-      
-      // Load subdistrict options based on district
-      if (fullPatientData.region && fullPatientData.district) {
-        const subdistricts = Array.from(new Set(
-          communities
-            .filter(c => c.region === fullPatientData.region && c.district === fullPatientData.district)
-            .map(c => c.subdistrict)
-            .filter(Boolean)
-        ));
-        setSubdistrictOptions(["None", ...subdistricts]);
-        console.log(`LOCATION DEBUG - Subdistricts for district '${fullPatientData.district}':`, subdistricts);
-      }
-      
-      // Community dropdown removed
-    }
-  }, [initialData, communities]);
-
   // Effect to populate form state with initialData
   useEffect(() => {
-    if (initialData) {
+    if (initialData && communities.length > 0) {
       isInitialMount.current = true; // Prevent other effects from clearing values
       
       const { patient, ...caseData } = initialData;
@@ -268,6 +219,32 @@ const ReferralForm: React.FC<{
 
       if (fullPatientData) {
         console.log("Setting form state with data:", fullPatientData);
+        
+        // First, populate the dropdown options based on the initial data
+        const regionsList = Array.from(new Set(communities.map((c) => String(c.region)).filter(Boolean)));
+        setRegionOptions(["None", ...regionsList.filter((r) => r && r !== "None")]);
+        
+        if (fullPatientData.region) {
+          const districts = Array.from(new Set(
+            communities
+              .filter(c => c.region === fullPatientData.region)
+              .map(c => c.district)
+              .filter(Boolean)
+          ));
+          setDistrictOptions(["None", ...districts]);
+        }
+        
+        if (fullPatientData.region && fullPatientData.district) {
+          const subdistricts = Array.from(new Set(
+            communities
+              .filter(c => c.region === fullPatientData.region && c.district === fullPatientData.district)
+              .map(c => c.subdistrict)
+              .filter(Boolean)
+          ));
+          setSubdistrictOptions(["None", ...subdistricts]);
+        }
+        
+        // Then set the form state
         const updatedState = {
           ...formState,
           ...caseData,
@@ -311,11 +288,11 @@ const ReferralForm: React.FC<{
           isInitialMount.current = false;
         }, 500);
       }
-    } else {
+    } else if (!initialData) {
       // If no initialData, reset form and allow normal cascading behavior
       isInitialMount.current = false;
     }
-  }, [initialData]);
+  }, [initialData, communities]);
 
   const handlePatientSelect = (option: SingleValue<PatientOption>) => {
     if (!option) {
@@ -682,94 +659,40 @@ const ReferralForm: React.FC<{
           {/* Location */}
           <div className="space-y-2">
             <h3 className="font-semibold text-lg border-b pb-2">Location</h3>
-            {/* Show fields differently based on whether we're viewing an existing case */}
-            {initialData && isFormDisabled ? (
-              // Read-only view for existing cases - just display values directly as text
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Region</label>
-                  <div className="border p-2 rounded-md bg-gray-50">{formState.region || "—"}</div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">District</label>
-                  <div className="border p-2 rounded-md bg-gray-50">{formState.district || "—"}</div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Subdistrict</label>
-                  <div className="border p-2 rounded-md bg-gray-50">{formState.sub_district || "—"}</div>
-                </div>
-                {/* Community field removed as it does not exist in the database */}
-              </div>
-            ) : initialData ? (
-              // Edit mode for existing cases - reset to full dropdown controls with cascading
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <FloatingSelect 
-                  label="Region" 
-                  value={formState.region} 
-                  onValueChange={(v) => handleSelectChange("region", v)}
-                >
-                  {regionOptions.map((region) => (
-                    <SelectItem key={region} value={region}>{region}</SelectItem>
-                  ))}
-                </FloatingSelect>
-                <FloatingSelect 
-                  label="District" 
-                  value={formState.district} 
-                  onValueChange={(v) => handleSelectChange("district", v)} 
-                  disabled={!formState.region}
-                >
-                  {districtOptions.map((district) => (
-                    <SelectItem key={district} value={district}>{district}</SelectItem>
-                  ))}
-                </FloatingSelect>
-                <FloatingSelect 
-                  label="Subdistrict" 
-                  value={formState.sub_district} 
-                  onValueChange={(v) => handleSelectChange("sub_district", v)} 
-                  disabled={!formState.district}
-                >
-                  {subdistrictOptions.map((sub) => (
-                    <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                  ))}
-                </FloatingSelect>
-                {/* Community dropdown removed as it does not exist in the database */}
-              </div>
-            ) : (
-              // New case creation - use normal cascading dropdowns
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <FloatingSelect 
-                  label="Region" 
-                  value={formState.region} 
-                  onValueChange={(v) => handleSelectChange("region", v)} 
-                  disabled={isFormDisabled || formState.patient_id !== '-1'}
-                >
-                  {regionOptions.map((region) => (
-                    <SelectItem key={region} value={region}>{region}</SelectItem>
-                  ))}
-                </FloatingSelect>
-                <FloatingSelect 
-                  label="District" 
-                  value={formState.district} 
-                  onValueChange={(v) => handleSelectChange("district", v)} 
-                  disabled={isFormDisabled || !formState.region || formState.patient_id !== '-1'}
-                >
-                  {districtOptions.map((district) => (
-                    <SelectItem key={district} value={district}>{district}</SelectItem>
-                  ))}
-                </FloatingSelect>
-                <FloatingSelect 
-                  label="Subdistrict" 
-                  value={formState.sub_district} 
-                  onValueChange={(v) => handleSelectChange("sub_district", v)} 
-                  disabled={isFormDisabled || !formState.district || formState.patient_id !== '-1'}
-                >
-                  {subdistrictOptions.map((subdistrict) => (
-                    <SelectItem key={subdistrict} value={subdistrict}>{subdistrict}</SelectItem>
-                  ))}
-                </FloatingSelect>
-                {/* Community dropdown removed as it does not exist in the database */}
-              </div>
-            )}
+            {/* Use consistent dropdown interface across all modes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <FloatingSelect 
+                label="Region" 
+                value={formState.region} 
+                onValueChange={(v) => handleSelectChange("region", v)} 
+                disabled={isFormDisabled || (usePatientDropdown && formState.patient_id !== '-1')}
+              >
+                {regionOptions.map((region) => (
+                  <SelectItem key={region} value={region}>{region}</SelectItem>
+                ))}
+              </FloatingSelect>
+              <FloatingSelect 
+                label="District" 
+                value={formState.district} 
+                onValueChange={(v) => handleSelectChange("district", v)} 
+                disabled={isFormDisabled || !formState.region || (usePatientDropdown && formState.patient_id !== '-1')}
+              >
+                {districtOptions.map((district) => (
+                  <SelectItem key={district} value={district}>{district}</SelectItem>
+                ))}
+              </FloatingSelect>
+              <FloatingSelect 
+                label="Subdistrict" 
+                value={formState.sub_district} 
+                onValueChange={(v) => handleSelectChange("sub_district", v)} 
+                disabled={isFormDisabled || !formState.district || (usePatientDropdown && formState.patient_id !== '-1')}
+              >
+                {subdistrictOptions.map((subdistrict) => (
+                  <SelectItem key={subdistrict} value={subdistrict}>{subdistrict}</SelectItem>
+                ))}
+              </FloatingSelect>
+              {/* Community dropdown removed as it does not exist in the database */}
+            </div>
           </div>
 
           {/* Insurance */}
