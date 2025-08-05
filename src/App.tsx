@@ -4,6 +4,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import LoginPage from '@/pages/LoginPage';
 import Dashboard from '@/pages/Dashboard';
 import Referral from '@/pages/Referral';
+import PatientOverview from '@/pages/PatientOverview';
 import Reports from '@/pages/Reports';
 import AddressBook from '@/pages/AddressBook';
 import Admin from '@/pages/Admin';
@@ -36,6 +37,7 @@ const App = () => {
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<RouteGuard><Dashboard /></RouteGuard>} />
                   <Route path="/referral" element={<RouteGuard><Referral /></RouteGuard>} />
+                  <Route path="/patient-overview" element={<RouteGuard><PatientOverview /></RouteGuard>} />
                   <Route path="/reports" element={<RouteGuard><Reports /></RouteGuard>} />
                   <Route path="/address-book" element={<RouteGuard><AddressBook /></RouteGuard>} />
                   <Route path="/appointments" element={<RouteGuard><AppointmentsPage /></RouteGuard>} />

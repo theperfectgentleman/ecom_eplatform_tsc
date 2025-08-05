@@ -14,6 +14,24 @@ export enum AccessLevel {
   NATIONAL = 4,
 }
 
+// API toast suppression options
+export interface ToastSuppression {
+  error?: boolean;
+  success?: boolean;
+  warning?: boolean;
+  info?: boolean;
+  all?: boolean;
+}
+
+// API request options interface
+export interface ApiRequestOptions {
+  path: string;
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  body?: any;
+  isPublic?: boolean;
+  suppressToast?: ToastSuppression;
+}
+
 export interface Account {
   account_id?: string; // For backward compatibility
   user_id?: number; // Actual API field
@@ -104,6 +122,17 @@ export interface Patient {
   insurance_status?: string;
   insurance_no?: string;
   blood_group?: string;
+  assigned_user_id?: number;
+  othernames?: string;
+  dob?: string;
+  address?: string;
+  alternative_number?: string;
+  next_kin?: string;
+  next_kin_contact?: string;
+  registration_date?: string;
+  community_id?: number;
+  reg_loc_lat?: number;
+  reg_loc_lng?: number;
 }
 
 export interface Case {
@@ -145,4 +174,66 @@ export interface Case {
   user_id?: number;
   other_notes?: string;
   referral_needed?: boolean;
+}
+
+export interface AntenatalRegistration {
+  antenatal_registration_id: string;
+  patient_id: number;
+  registration_date: string;
+  registration_number: string;
+  parity?: number;
+  folic_acid_iron_supplements?: string;
+  hemoglobin_at_registration?: number;
+  gestation_weeks?: number;
+  estimated_delivery_date?: string;
+  blood_group_abo?: string;
+  rhesus_status?: string;
+  sickling_status?: string;
+  itn_type?: string;
+  itn_given?: boolean;
+  syphilis_screening_status?: string;
+  syphilis_treatment?: boolean;
+  hiv_status_at_registration?: string;
+  hiv_retested_at_34weeks?: string;
+  arv_treatment?: boolean;
+  screened_for_tb?: boolean;
+  tb_diagnosed?: boolean;
+  tb_treatment_started?: boolean;
+  blood_pressure?: string;
+  weight?: number;
+  antenatal_status?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AntenatalVisit {
+  id: number;
+  patient_id: number;
+  antenatal_registration_id: string;
+  visit_date: string;
+  blood_pressure?: string;
+  weight_kg?: number;
+  fetal_heart_inspection?: string;
+  urine_p?: string;
+  urine_s?: string;
+  fetal_heart_rate?: number;
+  folic_acid_iron?: string;
+  pt?: string;
+  tt?: string;
+  gestation_weeks?: number;
+  next_visit_date?: string;
+  fundal_height?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PatientOverviewData extends Patient {
+  assigned_user?: {
+    id: number;
+    firstname: string;
+    lastname: string;
+    username: string;
+    user_type: string;
+  };
+  age?: number;
 }

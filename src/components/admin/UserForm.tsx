@@ -60,13 +60,15 @@ const formSchema = baseSchema.extend({
 interface UserFormProps {
   user?: Account;
   onSuccess: () => void;
+  showPasswordFields?: boolean;
+  communities?: any[];
 }
 
-export function UserForm({ user, onSuccess }: UserFormProps) {
+export function UserForm({ user, onSuccess, showPasswordFields = false, communities: propCommunities = [] }: UserFormProps) {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [communities, setCommunities] = useState<any[]>([]);
+  const [communities, setCommunities] = useState<any[]>(propCommunities);
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
   const [districtOptions, setDistrictOptions] = useState<string[]>([]);
   const [subdistrictOptions, setSubdistrictOptions] = useState<string[]>([]);
@@ -74,7 +76,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
   const isInitialMount = useRef(true);
   const { request } = useApi();
 
-  const schema = user ? updateUserSchema : createUserSchema;
+  const schema = showPasswordFields ? createUserSchema : updateUserSchema;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(schema),
@@ -103,19 +105,35 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
   const watchedDistrict = form.watch("district");
   const watchedSubdistrict = form.watch("subdistrict");
 
-  // Fetch communities on mount
+  // Reset isInitialMount when user prop changes
   useEffect(() => {
-    request({ path: 'communities' })
-      .then(data => {
-        setCommunities(data);
-        const regions = [...new Set(data.map((c: any) => c.region))].sort() as string[];
-        setRegionOptions(regions);
-      });
-  }, [request]);
+    isInitialMount.current = true;
+  }, [user]);
+
+  // Update communities when propCommunities changes and set region options
+  useEffect(() => {
+    if (propCommunities.length > 0) {
+      setCommunities(propCommunities);
+      const regions = [...new Set(propCommunities.map((c: any) => c.region))].sort() as string[];
+      setRegionOptions(regions);
+    }
+  }, [propCommunities]);
+
+  // Fetch communities on mount only if not provided via props
+  useEffect(() => {
+    if (propCommunities.length === 0) {
+      request({ path: 'communities' })
+        .then(data => {
+          setCommunities(data);
+          const regions = [...new Set(data.map((c: any) => c.region))].sort() as string[];
+          setRegionOptions(regions);
+        });
+    }
+  }, [request, propCommunities.length]);
 
   // Handle region change
   useEffect(() => {
-    if (isInitialMount.current && user) {
+    if (isInitialMount.current && user && communities.length > 0) {
       // If in edit mode, pre-fill the form with user data
       const userRegion = user.region || '';
       const userDistrict = user.district || '';
@@ -149,10 +167,10 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
         community_name: userCommunity,
       });
 
-      // We need to delay this to avoid a flash of un-populated fields
+      // Set isInitialMount to false after a small delay to allow cascading options to be set
       setTimeout(() => {
         isInitialMount.current = false;
-      }, 100);
+      }, 50);
       return; // Prevent resetting fields on initial load for existing user
     }
 
@@ -172,6 +190,15 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 
   // Handle district change
   useEffect(() => {
+    // For initial population during edit mode, we need to set options without clearing values
+    if (isInitialMount.current && user) {
+      if (watchedDistrict && communities.length > 0) {
+        const subdistricts = [...new Set(communities.filter((c: any) => c.district === watchedDistrict).map((c: any) => c.subdistrict))].sort() as string[];
+        setSubdistrictOptions(subdistricts);
+      }
+      return;
+    }
+
     if (isInitialMount.current) return;
 
     form.setValue("subdistrict", "");
@@ -187,6 +214,15 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 
   // Handle subdistrict change
   useEffect(() => {
+    // For initial population during edit mode, we need to set options without clearing values
+    if (isInitialMount.current && user) {
+      if (watchedSubdistrict && communities.length > 0) {
+        const comms = [...new Set(communities.filter((c: any) => c.subdistrict === watchedSubdistrict).map((c: any) => c.community_name))].sort() as string[];
+        setCommunityOptions(comms);
+      }
+      return;
+    }
+
     if (isInitialMount.current) return;
 
     form.setValue("community_name", "");
@@ -278,18 +314,31 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
                 />
                 <FormField
                 control={form.control}
-                name="phone"
+                name="username"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
+                    <FormLabel>Username</FormLabel>
                     <FormControl>
-                        <Input placeholder="+1234567890" {...field} />
+                        <Input placeholder="Username" {...field} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
                 />
             </div>
+            <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                    <Input placeholder="+1234567890" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
         </div>
 
         <div className="space-y-4">
@@ -347,23 +396,10 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
             </div>
         </div>
 
-        {!user && (
+        {showPasswordFields && (
             <div className="space-y-4">
-                <h3 className="text-lg font-medium">Credentials</h3>
+                <h3 className="text-lg font-medium">Password</h3>
                 <hr />
-                <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                            <Input placeholder="Username" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}

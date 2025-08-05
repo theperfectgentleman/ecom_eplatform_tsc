@@ -1,4 +1,4 @@
-import { LayoutDashboard, Send, BarChart, Contact, Calendar, Users, BookOpen, MessageSquare, FileText, Settings, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Send, BarChart, Contact, Calendar, Users, BookOpen, MessageSquare, FileText, Settings, HelpCircle, Eye } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -23,6 +23,11 @@ export const navConfig: NavItem[] = [
     title: 'Referral',
     href: '/referral',
     icon: Send,
+  },
+  {
+    title: 'Patient Overview',
+    href: '/patient-overview',
+    icon: Eye,
   },
   {
     title: 'Reports',
