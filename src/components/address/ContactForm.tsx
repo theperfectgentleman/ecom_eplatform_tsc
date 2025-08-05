@@ -80,7 +80,6 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
   const [communityObjects, setCommunityObjects] = useState<any[]>([]);
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
   const [districtOptions, setDistrictOptions] = useState<string[]>([]);
-  const [communityOptions, setCommunityOptions] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -234,7 +233,6 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
             .filter(Boolean)
         ),
       ].sort() as string[];
-      setCommunityOptions(communities);
       console.log('Available communities for district:', communities);
       
       const currentCommunity = form.getValues("community");
@@ -258,7 +256,6 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
         form.setValue("community", "");
       }
     } else if (!watchedDistrict) {
-      setCommunityOptions([]);
       // Only reset community if it's not from an existing contact being loaded
       if (!contact) {
         form.setValue("community", "");
