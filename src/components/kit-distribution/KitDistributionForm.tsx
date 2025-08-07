@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast/useToast";
 import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
 import ReactSelect, { SingleValue } from "react-select";
-import { Package, User, CheckCircle, AlertCircle } from "lucide-react";
+import { Package, User, CheckCircle, AlertCircle, Plus } from "lucide-react";
 
 // Type for volunteer select options
 interface VolunteerOption {
@@ -20,9 +20,9 @@ const KitDistributionForm: React.FC<{
   initialData?: any;
   onCancel: () => void;
   onDistributionCreated: () => void;
+  onNewDistribution?: () => void;
   isReadOnly: boolean;
-  onNewDistribution: () => void;
-}> = ({ initialData, onCancel, onDistributionCreated, isReadOnly, onNewDistribution }) => {
+}> = ({ initialData, onCancel, onDistributionCreated, onNewDistribution, isReadOnly }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { request } = useApi();
@@ -37,13 +37,20 @@ const KitDistributionForm: React.FC<{
     distro_id: "",
     quantity: "",
     vol_user_id: "",
-    adm_user_id: user?.account_id?.toString() || "",
+    adm_user_id: user?.user_id?.toString() || "",
     release_date: new Date().toISOString().split('T')[0],
     vol_user_confirm: false,
     adm_user_confirm: true, // Automatically confirmed by issuer
   });
 
   const isFormDisabled = isReadOnly && !!initialData;
+
+  // Update admin user ID when user changes
+  useEffect(() => {
+    if (user?.user_id) {
+      setFormState(prev => ({ ...prev, adm_user_id: user.user_id!.toString() }));
+    }
+  }, [user?.user_id]);
 
   // Fetch volunteers when component mounts
   useEffect(() => {
@@ -85,18 +92,6 @@ const KitDistributionForm: React.FC<{
     fetchVolunteers();
   }, [request, toast, filterByAccessLevel]);
 
-  // Generate unique distribution ID
-  useEffect(() => {
-    if (!initialData && !formState.distro_id) {
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substr(2, 4).toUpperCase();
-      setFormState(prev => ({
-        ...prev,
-        distro_id: `KIT-${timestamp}-${randomSuffix}`
-      }));
-    }
-  }, [initialData, formState.distro_id]);
-
   // Populate form with initial data
   useEffect(() => {
     if (initialData) {
@@ -110,7 +105,7 @@ const KitDistributionForm: React.FC<{
           new Date(initialData.release_date).toISOString().split('T')[0] : 
           new Date().toISOString().split('T')[0],
         vol_user_confirm: initialData.vol_user_confirm || false,
-        adm_user_confirm: initialData.adm_user_confirm || false,
+        adm_user_confirm: initialData.adm_user_confirm !== undefined ? initialData.adm_user_confirm : true,
       });
 
       // Set selected volunteer
@@ -120,8 +115,25 @@ const KitDistributionForm: React.FC<{
         );
         setSelectedVolunteerOption(selectedOption || null);
       }
+    } else {
+      // Reset form to defaults when no initial data (creating new record)
+      // Generate unique distribution ID for new records
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substr(2, 4).toUpperCase();
+      
+      setFormState({
+        id: undefined,
+        distro_id: `KIT-${timestamp}-${randomSuffix}`,
+        quantity: "",
+        vol_user_id: "",
+        adm_user_id: user?.user_id?.toString() || "",
+        release_date: new Date().toISOString().split('T')[0],
+        vol_user_confirm: false,
+        adm_user_confirm: true, // Always true for new records
+      });
+      setSelectedVolunteerOption(null);
     }
-  }, [initialData, volunteerOptions]);
+  }, [initialData, volunteerOptions, user?.user_id]);
 
   const handleVolunteerSelect = (option: SingleValue<VolunteerOption>) => {
     if (!option) {
@@ -141,7 +153,7 @@ const KitDistributionForm: React.FC<{
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
+    if (!user || !user.user_id) {
       toast({
         title: "Authentication Required",
         description: "You must be logged in to distribute kits.",
@@ -172,10 +184,17 @@ const KitDistributionForm: React.FC<{
       distro_id: formState.distro_id,
       quantity: parseInt(formState.quantity),
       vol_user_id: parseInt(formState.vol_user_id),
-      adm_user_id: parseInt(formState.adm_user_id),
-      release_date: formState.release_date,
-      adm_user_confirm: true, // Always true for issuer
+      adm_user_id: user.user_id, // Use user.user_id directly since we validated it exists
+      release_date: new Date(formState.release_date).toISOString(), // Convert to ISO string for JSON API
+      adm_user_confirm: true, // Boolean true for new records as per API model
+      vol_user_confirm: false, // Boolean false for new records as per API model
     };
+
+    // For updates, preserve the existing confirmation values as booleans
+    if (formState.id) {
+      payload.adm_user_confirm = Boolean(formState.adm_user_confirm);
+      payload.vol_user_confirm = Boolean(formState.vol_user_confirm);
+    }
 
     try {
       if (formState.id) {
@@ -199,7 +218,7 @@ const KitDistributionForm: React.FC<{
         });
         toast({
           title: "Success",
-          description: "Kit distribution created successfully.",
+          description: "Kit distribution saved successfully.",
           variant: "success",
         });
       }
@@ -255,10 +274,22 @@ const KitDistributionForm: React.FC<{
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Package className="h-5 w-5" />
-          <span>{formState.id ? "Edit Kit Distribution" : "New Kit Distribution"}</span>
-        </CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center space-x-2">
+            <Package className="h-5 w-5" />
+            <span>{formState.id ? "Edit Kit Distribution" : "Kit Distribution"}</span>
+          </CardTitle>
+          {onNewDistribution && (formState.id || isReadOnly) && (
+            <Button 
+              onClick={onNewDistribution}
+              size="sm"
+              className="flex items-center space-x-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>New</span>
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -348,13 +379,6 @@ const KitDistributionForm: React.FC<{
               >
                 Cancel
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onNewDistribution}
-              >
-                New Distribution
-              </Button>
             </div>
             <div className="flex space-x-3">
               {canDelete && (
@@ -368,7 +392,7 @@ const KitDistributionForm: React.FC<{
               )}
               {!isFormDisabled && (
                 <Button type="submit">
-                  {formState.id ? "Update Distribution" : "Create Distribution"}
+                  {formState.id ? "Update" : "Save"}
                 </Button>
               )}
             </div>
