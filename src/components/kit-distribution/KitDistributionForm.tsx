@@ -57,7 +57,7 @@ const KitDistributionForm: React.FC<{
         
         // Filter for volunteers and community health workers
         const volunteerUsers = volunteers.filter((account: any) => 
-          account.user_type === "Volunteer" || account.user_type === "Community Health Worker"
+          account.user_type === "volunteer"
         );
         
         // Apply access level filtering to volunteers
@@ -180,30 +180,26 @@ const KitDistributionForm: React.FC<{
     try {
       if (formState.id) {
         // Update existing distribution
-        console.log("Would update distribution with payload:", payload);
-        // TODO: Uncomment when API is ready
-        // await request({
-        //   path: `kit-distro-logs/${formState.id}`,
-        //   method: "PUT",
-        //   body: payload,
-        // });
+        await request({
+          path: `kit-distro-logs/${formState.id}`,
+          method: "PUT",
+          body: payload,
+        });
         toast({
           title: "Success",
-          description: "Kit distribution updated successfully. (Mock mode - API not implemented yet)",
+          description: "Kit distribution updated successfully.",
           variant: "success",
         });
       } else {
         // Create new distribution
-        console.log("Would create distribution with payload:", payload);
-        // TODO: Uncomment when API is ready
-        // await request({
-        //   path: "kit-distro-logs",
-        //   method: "POST",
-        //   body: payload,
-        // });
+        await request({
+          path: "kit-distro-logs",
+          method: "POST",
+          body: payload,
+        });
         toast({
           title: "Success",
-          description: "Kit distribution created successfully. (Mock mode - API not implemented yet)",
+          description: "Kit distribution created successfully.",
           variant: "success",
         });
       }
@@ -235,15 +231,13 @@ const KitDistributionForm: React.FC<{
     }
 
     try {
-      console.log("Would delete distribution with ID:", formState.id);
-      // TODO: Uncomment when API is ready
-      // await request({
-      //   path: `kit-distro-logs/${formState.id}`,
-      //   method: "DELETE",
-      // });
+      await request({
+        path: `kit-distro-logs/${formState.id}`,
+        method: "DELETE",
+      });
       toast({
         title: "Success",
-        description: "Kit distribution deleted successfully. (Mock mode - API not implemented yet)",
+        description: "Kit distribution deleted successfully.",
         variant: "success",
       });
       onDistributionCreated();

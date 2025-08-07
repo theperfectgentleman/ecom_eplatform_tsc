@@ -45,54 +45,15 @@ const KitDistributionPage: React.FC = () => {
   const fetchDistributions = async () => {
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call when backend is ready
-      // const response = await request<KitDistribution[]>({
-      //   path: "kit-distro-logs",
-      //   method: "GET",
-      // });
+      const response = await request<KitDistribution[]>({
+        path: "kit-distro-logs",
+        method: "GET",
+      });
 
-      // Mock data for now
-      const mockDistributions: KitDistribution[] = [
-        {
-          id: 1,
-          distro_id: "KIT-1722890123-ABC1",
-          quantity: 50,
-          vol_user_id: 123,
-          adm_user_id: 456,
-          release_date: "2024-08-01",
-          vol_user_confirm: false,
-          adm_user_confirm: true,
-          created_at: "2024-08-01T10:00:00Z",
-          updated_at: "2024-08-01T10:00:00Z",
-          region: "Greater Accra",
-          district: "Accra Metropolitan",
-          subdistrict: "Osu Klottey",
-          community_name: "Osu"
-        },
-        {
-          id: 2,
-          distro_id: "KIT-1722890456-DEF2",
-          quantity: 25,
-          vol_user_id: 789,
-          adm_user_id: 456,
-          release_date: "2024-08-02",
-          vol_user_confirm: true,
-          adm_user_confirm: true,
-          created_at: "2024-08-02T14:30:00Z",
-          updated_at: "2024-08-02T14:30:00Z",
-          region: "Northern Region",
-          district: "Tamale Metropolitan",
-          subdistrict: "Tamale Central",
-          community_name: "Tamale Township"
-        }
-      ];
-
-      // Apply access level filtering to mock data
-      const filtered = filterByAccessLevel(mockDistributions);
+      // Apply access level filtering
+      const filtered = filterByAccessLevel(response);
       setDistributions(filtered);
       setFilteredDistributions(filtered);
-
-      console.log("Using mock data for kit distributions - API endpoint not available yet");
     } catch (error) {
       console.error("Failed to fetch kit distributions:", error);
       toast({
@@ -155,15 +116,13 @@ const KitDistributionPage: React.FC = () => {
     }
 
     try {
-      console.log("Would delete distribution:", distribution);
-      // TODO: Uncomment when API is ready
-      // await request({
-      //   path: `kit-distro-logs/${distribution.id}`,
-      //   method: "DELETE",
-      // });
+      await request({
+        path: `kit-distro-logs/${distribution.id}`,
+        method: "DELETE",
+      });
       toast({
         title: "Success",
-        description: "Kit distribution deleted successfully. (Mock mode - API not implemented yet)",
+        description: "Kit distribution deleted successfully.",
         variant: "success",
       });
       fetchDistributions();
