@@ -105,17 +105,24 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
   const watchedDistrict = form.watch("district");
   const watchedSubdistrict = form.watch("subdistrict");
 
-  // Reset isInitialMount when user prop changes
+  // Reset isInitialMount when user prop changes or when starting fresh
   useEffect(() => {
     isInitialMount.current = true;
-  }, [user]);
+    
+    // For create mode (no user), set isInitialMount to false immediately after communities are loaded
+    if (!user && communities.length > 0) {
+      // Use immediate execution instead of setTimeout for create mode
+      isInitialMount.current = false;
+    }
+  }, [user, communities.length]);
 
   // Update communities when propCommunities changes and set region options
   useEffect(() => {
     if (propCommunities.length > 0) {
       setCommunities(propCommunities);
-      const regions = [...new Set(propCommunities.map((c: any) => c.region))].sort() as string[];
-      setRegionOptions(regions);
+      const regions = [...new Set(propCommunities.map((c: any) => c.region).filter(Boolean))].sort() as string[];
+      console.log("UserForm - Regions found:", regions);
+      setRegionOptions(["None", ...regions.filter((r: string) => r && r !== "None")]);
     }
   }, [propCommunities]);
 
@@ -125,8 +132,8 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
       request({ path: 'communities' })
         .then(data => {
           setCommunities(data);
-          const regions = [...new Set(data.map((c: any) => c.region))].sort() as string[];
-          setRegionOptions(regions);
+          const regions = [...new Set(data.map((c: any) => c.region).filter(Boolean))].sort() as string[];
+          setRegionOptions(["None", ...regions.filter((r: string) => r && r !== "None")]);
         });
     }
   }, [request, propCommunities.length]);
@@ -142,15 +149,15 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
 
       if (userRegion) {
         const districts = [...new Set(communities.filter((c: any) => c.region === userRegion).map((c: any) => c.district).filter(Boolean))].sort() as string[];
-        setDistrictOptions(districts);
+        setDistrictOptions(["None", ...districts.filter((d: string) => d && d !== "None")]);
         
         if (userDistrict) {
           const subdistricts = [...new Set(communities.filter((c: any) => c.region === userRegion && c.district === userDistrict).map((c: any) => c.subdistrict).filter(Boolean))].sort() as string[];
-          setSubdistrictOptions(subdistricts);
+          setSubdistrictOptions(["None", ...subdistricts.filter((s: string) => s && s !== "None")]);
           
           if (userSubdistrict) {
             const comms = [...new Set(communities.filter((c: any) => c.region === userRegion && c.district === userDistrict && c.subdistrict === userSubdistrict).map((c: any) => c.community_name).filter(Boolean))].sort() as string[];
-            setCommunityOptions(comms);
+            setCommunityOptions(["None", ...comms.filter((c: string) => c && c !== "None")]);
           }
         }
       }
@@ -176,16 +183,27 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
       return; // Prevent resetting fields on initial load for existing user
     }
 
-    if (isInitialMount.current) return;
+    // Skip cascading if still in initial mount phase (but allow for create mode)
+    if (isInitialMount.current && user) return;
 
-    form.setValue("district", "");
-    form.setValue("subdistrict", "");
-    form.setValue("community_name", "");
+    console.log("UserForm - Region changed to:", watchedRegion);
+    console.log("UserForm - Communities available:", communities.length);
+    console.log("UserForm - In create mode:", !user);
+    console.log("UserForm - isInitialMount:", isInitialMount.current);
 
-    if (watchedRegion) {
+    // Only clear fields if this is a genuine user-initiated change
+    if (!isInitialMount.current) {
+      form.setValue("district", "");
+      form.setValue("subdistrict", "");
+      form.setValue("community_name", "");
+    }
+
+    if (watchedRegion && watchedRegion !== "None") {
       const districts = [...new Set(communities.filter((c: any) => c.region === watchedRegion).map((c: any) => c.district).filter(Boolean))].sort() as string[];
-      setDistrictOptions(districts);
+      console.log("UserForm - Districts found for region", watchedRegion, ":", districts);
+      setDistrictOptions(["None", ...districts.filter((d: string) => d && d !== "None")]);
     } else {
+      console.log("UserForm - No region selected or region is None, clearing districts");
       setDistrictOptions([]);
     }
     setSubdistrictOptions([]);
@@ -194,33 +212,59 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
 
   // Handle district change
   useEffect(() => {
-    if (isInitialMount.current) return;
+    // Skip cascading if still in initial mount phase for edit mode
+    if (isInitialMount.current && user) return;
 
-    form.setValue("subdistrict", "");
-    form.setValue("community_name", "");
+    console.log("UserForm - District changed to:", watchedDistrict);
 
-    if (watchedDistrict && watchedRegion) {
-      const subdistricts = [...new Set(communities.filter((c: any) => c.region === watchedRegion && c.district === watchedDistrict).map((c: any) => c.subdistrict).filter(Boolean))].sort() as string[];
-      setSubdistrictOptions(subdistricts);
+    // Only clear fields if this is a genuine user-initiated change
+    if (!isInitialMount.current) {
+      form.setValue("subdistrict", "");
+      form.setValue("community_name", "");
+    }
+
+    if (watchedDistrict && watchedRegion && watchedRegion !== "None") {
+      if (watchedDistrict === "None") {
+        // If district is "None", just show "None" option for subdistrict
+        setSubdistrictOptions(["None"]);
+      } else {
+        // If district has a value, load actual subdistricts
+        const subdistricts = [...new Set(communities.filter((c: any) => c.region === watchedRegion && c.district === watchedDistrict).map((c: any) => c.subdistrict).filter(Boolean))].sort() as string[];
+        console.log("UserForm - Subdistricts found:", subdistricts);
+        setSubdistrictOptions(["None", ...subdistricts.filter((s: string) => s && s !== "None")]);
+      }
     } else {
       setSubdistrictOptions([]);
     }
     setCommunityOptions([]);
-  }, [watchedDistrict, watchedRegion, communities, form]);
+  }, [watchedDistrict, watchedRegion, communities, form, user]);
 
   // Handle subdistrict change
   useEffect(() => {
-    if (isInitialMount.current) return;
+    // Skip cascading if still in initial mount phase for edit mode
+    if (isInitialMount.current && user) return;
 
-    form.setValue("community_name", "");
+    console.log("UserForm - Subdistrict changed to:", watchedSubdistrict);
 
-    if (watchedSubdistrict && watchedRegion && watchedDistrict) {
-      const comms = [...new Set(communities.filter((c: any) => c.region === watchedRegion && c.district === watchedDistrict && c.subdistrict === watchedSubdistrict).map((c: any) => c.community_name).filter(Boolean))].sort() as string[];
-      setCommunityOptions(comms);
+    // Only clear fields if this is a genuine user-initiated change
+    if (!isInitialMount.current) {
+      form.setValue("community_name", "");
+    }
+
+    if (watchedSubdistrict && watchedRegion && watchedRegion !== "None" && watchedDistrict && watchedDistrict !== "None") {
+      if (watchedSubdistrict === "None") {
+        // If subdistrict is "None", just show "None" option for community
+        setCommunityOptions(["None"]);
+      } else {
+        // If subdistrict has a value, load actual communities
+        const comms = [...new Set(communities.filter((c: any) => c.region === watchedRegion && c.district === watchedDistrict && c.subdistrict === watchedSubdistrict).map((c: any) => c.community_name).filter(Boolean))].sort() as string[];
+        console.log("UserForm - Communities found:", comms);
+        setCommunityOptions(["None", ...comms.filter((c: string) => c && c !== "None")]);
+      }
     } else {
       setCommunityOptions([]);
     }
-  }, [watchedSubdistrict, watchedRegion, watchedDistrict, communities, form]);
+  }, [watchedSubdistrict, watchedRegion, watchedDistrict, communities, form, user]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
