@@ -26,7 +26,7 @@ export interface ToastSuppression {
 // API request options interface
 export interface ApiRequestOptions {
   path: string;
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   body?: any;
   isPublic?: boolean;
   suppressToast?: ToastSuppression;

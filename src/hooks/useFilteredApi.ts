@@ -17,7 +17,7 @@ interface FilterableData {
 
 interface UseFilteredApiOptions {
   path: string;
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   body?: any;
   dependencies?: any[];
   applyFilter?: boolean;

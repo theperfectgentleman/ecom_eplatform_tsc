@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiRequest } from '../lib/api';
+import { useApi } from '../lib/useApi';
 import { useAuth } from '../contexts/AuthContext';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -32,6 +32,7 @@ const FeedbackPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, reset, setValue } = useForm<Feedback>();
   const { user } = useAuth();
+  const { request } = useApi();
 
   // Fetch feedbacks from API
   useEffect(() => {
@@ -44,7 +45,7 @@ const FeedbackPage: React.FC = () => {
       query += `page=${page}`;
       
       try {
-        const response = await apiRequest<{ data: Feedback[], total?: number, pages?: number }>({ 
+        const response = await request<{ data: Feedback[], total?: number, pages?: number }>({ 
           method: 'GET', 
           path: `feedback?${query}` 
         });
@@ -64,7 +65,7 @@ const FeedbackPage: React.FC = () => {
       }
     };
     fetchFeedbacks();
-  }, [filter, page]);
+  }, [filter, page, request]);
 
   // Create or update feedback
   const onSubmit = async (data: Feedback) => {
@@ -74,7 +75,7 @@ const FeedbackPage: React.FC = () => {
     try {
       if (selectedId) {
         // Update feedback (PATCH) - can update both status and message
-        await apiRequest({ 
+        await request({ 
           method: 'PATCH', 
           path: `feedback/${selectedId}`, 
           body: { 
@@ -85,7 +86,7 @@ const FeedbackPage: React.FC = () => {
         });
       } else {
         // Create new feedback (POST)
-        await apiRequest({
+        await request({
           method: 'POST',
           path: 'feedback',
           body: {
@@ -139,7 +140,7 @@ const FeedbackPage: React.FC = () => {
     setError(null);
     
     try {
-      await apiRequest({ method: 'DELETE', path: `feedback/${selectedId}` });
+      await request({ method: 'DELETE', path: `feedback/${selectedId}` });
       setSelectedId(null);
       reset();
       setPage(1);
