@@ -141,16 +141,18 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
       const userCommunity = user.community_name || '';
 
       if (userRegion) {
-        const districts = [...new Set(communities.filter((c: any) => c.region === userRegion).map((c: any) => c.district))].sort() as string[];
+        const districts = [...new Set(communities.filter((c: any) => c.region === userRegion).map((c: any) => c.district).filter(Boolean))].sort() as string[];
         setDistrictOptions(districts);
-      }
-      if (userDistrict) {
-        const subdistricts = [...new Set(communities.filter((c: any) => c.district === userDistrict).map((c: any) => c.subdistrict))].sort() as string[];
-        setSubdistrictOptions(subdistricts);
-      }
-      if (userSubdistrict) {
-        const comms = [...new Set(communities.filter((c: any) => c.subdistrict === userSubdistrict).map((c: any) => c.community_name))].sort() as string[];
-        setCommunityOptions(comms);
+        
+        if (userDistrict) {
+          const subdistricts = [...new Set(communities.filter((c: any) => c.region === userRegion && c.district === userDistrict).map((c: any) => c.subdistrict).filter(Boolean))].sort() as string[];
+          setSubdistrictOptions(subdistricts);
+          
+          if (userSubdistrict) {
+            const comms = [...new Set(communities.filter((c: any) => c.region === userRegion && c.district === userDistrict && c.subdistrict === userSubdistrict).map((c: any) => c.community_name).filter(Boolean))].sort() as string[];
+            setCommunityOptions(comms);
+          }
+        }
       }
 
       form.reset({
@@ -181,59 +183,44 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
     form.setValue("community_name", "");
 
     if (watchedRegion) {
-      const districts = [...new Set(communities.filter((c: any) => c.region === watchedRegion).map((c: any) => c.district))].sort() as string[];
+      const districts = [...new Set(communities.filter((c: any) => c.region === watchedRegion).map((c: any) => c.district).filter(Boolean))].sort() as string[];
       setDistrictOptions(districts);
     } else {
       setDistrictOptions([]);
     }
+    setSubdistrictOptions([]);
+    setCommunityOptions([]);
   }, [watchedRegion, communities, form, user, isInitialMount]);
 
   // Handle district change
   useEffect(() => {
-    // For initial population during edit mode, we need to set options without clearing values
-    if (isInitialMount.current && user) {
-      if (watchedDistrict && communities.length > 0) {
-        const subdistricts = [...new Set(communities.filter((c: any) => c.district === watchedDistrict).map((c: any) => c.subdistrict))].sort() as string[];
-        setSubdistrictOptions(subdistricts);
-      }
-      return;
-    }
-
     if (isInitialMount.current) return;
 
     form.setValue("subdistrict", "");
     form.setValue("community_name", "");
 
-    if (watchedDistrict) {
-      const subdistricts = [...new Set(communities.filter((c: any) => c.district === watchedDistrict).map((c: any) => c.subdistrict))].sort() as string[];
+    if (watchedDistrict && watchedRegion) {
+      const subdistricts = [...new Set(communities.filter((c: any) => c.region === watchedRegion && c.district === watchedDistrict).map((c: any) => c.subdistrict).filter(Boolean))].sort() as string[];
       setSubdistrictOptions(subdistricts);
     } else {
       setSubdistrictOptions([]);
     }
-  }, [watchedDistrict, communities, form, user, isInitialMount]);
+    setCommunityOptions([]);
+  }, [watchedDistrict, watchedRegion, communities, form]);
 
   // Handle subdistrict change
   useEffect(() => {
-    // For initial population during edit mode, we need to set options without clearing values
-    if (isInitialMount.current && user) {
-      if (watchedSubdistrict && communities.length > 0) {
-        const comms = [...new Set(communities.filter((c: any) => c.subdistrict === watchedSubdistrict).map((c: any) => c.community_name))].sort() as string[];
-        setCommunityOptions(comms);
-      }
-      return;
-    }
-
     if (isInitialMount.current) return;
 
     form.setValue("community_name", "");
 
-    if (watchedSubdistrict) {
-      const comms = [...new Set(communities.filter((c: any) => c.subdistrict === watchedSubdistrict).map((c: any) => c.community_name))].sort() as string[];
+    if (watchedSubdistrict && watchedRegion && watchedDistrict) {
+      const comms = [...new Set(communities.filter((c: any) => c.region === watchedRegion && c.district === watchedDistrict && c.subdistrict === watchedSubdistrict).map((c: any) => c.community_name).filter(Boolean))].sort() as string[];
       setCommunityOptions(comms);
     } else {
       setCommunityOptions([]);
     }
-  }, [watchedSubdistrict, communities, form, user, isInitialMount]);
+  }, [watchedSubdistrict, watchedRegion, watchedDistrict, communities, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
