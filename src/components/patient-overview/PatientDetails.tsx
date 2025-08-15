@@ -116,7 +116,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ selectedPatient }) => {
 
 	if (!selectedPatient) {
 		return (
-			<div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+			<div className="bg-white rounded-lg shadow-sm border w-full h-full flex flex-col items-center justify-center p-8 text-center">
 				<User className="h-12 w-12 mx-auto mb-4 text-gray-300" />
 				<h2 className="text-lg font-medium text-gray-900 mb-2">No Patient Selected</h2>
 				<p className="text-sm text-gray-500">
@@ -422,10 +422,10 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ selectedPatient }) => {
 	);
 
 	return (
-		<div className="bg-white rounded-lg shadow-sm border">
+		<div className="bg-white rounded-lg shadow-sm border w-full h-full flex flex-col">
 			{/* Header with assigned user info */}
 			{selectedPatient.assigned_user && (
-				<div className="px-6 py-4 border-b border-gray-200 bg-blue-50">
+				<div className="px-6 py-4 border-b border-gray-200 bg-blue-50 flex-shrink-0">
 					<div className="flex items-center space-x-2">
 						<User className="h-4 w-4 text-blue-600" />
 						<span className="text-sm font-medium text-blue-900">
@@ -439,7 +439,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ selectedPatient }) => {
 			)}
 
 			{/* Tab Navigation */}
-			<div className="border-b border-gray-200">
+			<div className="border-b border-gray-200 flex-shrink-0">
 				<nav className="flex space-x-8 px-6">
 					<button
 						onClick={() => setActiveTab("bio")}
@@ -484,9 +484,11 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ selectedPatient }) => {
 			</div>
 
 			{/* Tab Content */}
-			{activeTab === "bio" && renderPatientBio()}
-			{activeTab === "registration" && renderAntenatalRegistrations()}
-			{activeTab === "visits" && renderAntenatalVisits()}
+			<div className="flex-1 overflow-y-auto min-h-0">
+				{activeTab === "bio" && renderPatientBio()}
+				{activeTab === "registration" && renderAntenatalRegistrations()}
+				{activeTab === "visits" && renderAntenatalVisits()}
+			</div>
 		</div>
 	);
 };

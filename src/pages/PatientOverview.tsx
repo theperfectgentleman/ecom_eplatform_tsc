@@ -20,11 +20,11 @@ const PatientOverview = () => {
 			<div className="flex justify-between items-center mb-4">
 				<h1 className="text-2xl font-bold">Patient Overview</h1>
 			</div>
-			<div className="flex flex-col md:flex-row gap-6 w-full">
-				<div className="w-full md:w-[65%] min-w-0">
+			<div className="flex flex-col md:flex-row gap-6 w-full items-stretch">
+				<div className="w-full md:w-[65%] min-w-0 flex">
 					<PatientDetails selectedPatient={selectedPatient} />
 				</div>
-				<aside className="w-full md:w-[35%] min-w-0">
+				<aside className="w-full md:w-[35%] min-w-0 flex">
 					<PatientList
 						onPatientSelect={handlePatientSelect}
 						onClearForm={handleClearForm}

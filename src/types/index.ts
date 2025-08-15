@@ -237,3 +237,25 @@ export interface PatientOverviewData extends Patient {
   };
   age?: number;
 }
+
+// ANC-specific extended types
+export interface ANCPatient extends Patient {
+  antenatal_registration?: AntenatalRegistration;
+  latest_visit?: AntenatalVisit;
+  visits_count?: number;
+}
+
+// Form stage types
+export enum ANCStage {
+  PERSON_DETAILS = 1,
+  ANC_REGISTRATION = 2,
+  ANC_VISITS = 3,
+}
+
+export interface ANCFormState {
+  currentStage: ANCStage;
+  selectedPatient?: ANCPatient;
+  personDetails?: Partial<Patient>;
+  registration?: Partial<AntenatalRegistration>;
+  currentVisit?: Partial<AntenatalVisit>;
+}

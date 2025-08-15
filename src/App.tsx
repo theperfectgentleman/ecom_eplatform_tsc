@@ -10,6 +10,7 @@ import AddressBook from '@/pages/AddressBook';
 import Admin from '@/pages/Admin';
 import AppointmentsPage from '@/pages/Appointments';
 import KitDistributionPage from '@/pages/KitDistribution';
+import AntenatalCarePage from '@/pages/AntenatalCare';
 import GuidePage from '@/pages/Guide';
 import FeedbackPage from '@/pages/Feedback';
 import DownloadPage from '@/pages/Download';
@@ -43,6 +44,7 @@ const App = () => {
                   <Route path="/address-book" element={<RouteGuard><AddressBook /></RouteGuard>} />
                   <Route path="/appointments" element={<RouteGuard><AppointmentsPage /></RouteGuard>} />
                   <Route path="/kit-distribution" element={<RouteGuard><KitDistributionPage /></RouteGuard>} />
+                  <Route path="/antenatal-care" element={<RouteGuard><AntenatalCarePage /></RouteGuard>} />
                   <Route path="/admin" element={<RouteGuard><Admin /></RouteGuard>} />
                   <Route path="/admin/settings" element={<RouteGuard><AdminSettings /></RouteGuard>} />
                   <Route path="/admin/docs" element={<RouteGuard><TechnicalDocs /></RouteGuard>} />
