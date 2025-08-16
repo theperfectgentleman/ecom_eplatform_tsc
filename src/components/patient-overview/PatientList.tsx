@@ -28,7 +28,7 @@ const PatientList: React.FC<PatientListProps> = ({
 }) => {
 	const [patients, setPatients] = useState<PatientOverviewData[]>([]);
 	const [searchTerm, setSearchTerm] = useState("");
-	const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+	const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	
 	const { request } = useApi();
@@ -73,7 +73,7 @@ const PatientList: React.FC<PatientListProps> = ({
 		}
 	}, [request, filterByAccessLevel, toast]);
 
-	const fetchPatientWithUserDetails = useCallback(async (patientId: number) => {
+	const fetchPatientWithUserDetails = useCallback(async (patientId: string) => {
 		try {
 			// Fetch patient details with assigned user information
 			const patientResponse = await request<PatientOverviewData>({

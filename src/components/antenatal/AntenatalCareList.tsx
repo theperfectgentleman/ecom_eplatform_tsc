@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Calendar, User } from 'lucide-react';
 
 interface AntenatalCareListProps {
-  selectedPatientId?: number;
+  selectedPatientId?: string;
   onPatientSelect: (patient: ANCPatient) => void;
   refreshTrigger: number;
 }

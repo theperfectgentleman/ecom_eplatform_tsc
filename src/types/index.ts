@@ -89,7 +89,7 @@ export interface Meeting {
   description?: string;
   start_time: string;
   end_time: string;
-  patient_id: number; // Legacy field, kept for backward compatibility
+  patient_id: string; // Updated to string to match database change
   case_file_id?: number; // New field for case file reference
   practitioner_id: number | string;
   created_by: number;
@@ -108,7 +108,7 @@ export interface Meeting {
 }
 
 export interface Patient {
-  patient_id: number;
+  patient_id: string;
   name: string;
   patient_code?: string;
   year_of_birth: number;
@@ -137,7 +137,7 @@ export interface Patient {
 
 export interface Case {
   case_file_id: string; // Changed from number
-  patient_id: number;
+  patient_id: string;
   name: string; // Changed from patient_name
   status: string; // This will be mapped from priority_level
   priority_level: string; // Added from API data
@@ -178,7 +178,7 @@ export interface Case {
 
 export interface AntenatalRegistration {
   antenatal_registration_id: string;
-  patient_id: number;
+  patient_id: string;
   registration_date: string;
   registration_number: string;
   parity?: number;
@@ -208,7 +208,7 @@ export interface AntenatalRegistration {
 
 export interface AntenatalVisit {
   id: number;
-  patient_id: number;
+  patient_id: string;
   antenatal_registration_id: string;
   visit_date: string;
   blood_pressure?: string;

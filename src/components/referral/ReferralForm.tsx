@@ -109,7 +109,7 @@ const ReferralForm: React.FC<{
         .then((data) => {
           // Create options for React-Select
           const options: PatientOption[] = data.map(patient => ({
-            value: patient.patient_id.toString(),
+            value: patient.patient_id,
             label: `${patient.name || 'Unknown'} ${patient.contact_number ? `(${patient.contact_number})` : '(No phone)'}`,
             patient: patient
           }));
@@ -249,7 +249,7 @@ const ReferralForm: React.FC<{
           ...formState,
           ...caseData,
           case_file_id: caseData.case_file_id || initialData.case_file_id || undefined,
-          patient_id: fullPatientData?.patient_id?.toString() || "-1",
+          patient_id: fullPatientData?.patient_id || "-1",
           name: fullPatientData?.name || "",
           year_of_birth: fullPatientData?.year_of_birth?.toString() || "",
           gender: fullPatientData?.gender || "",
@@ -322,7 +322,7 @@ const ReferralForm: React.FC<{
     // Auto-populate form with patient data
     setFormState(prev => ({
       ...prev,
-      patient_id: String(selectedPatient.patient_id),
+      patient_id: selectedPatient.patient_id,
       name: selectedPatient.name || "",
       year_of_birth: String(selectedPatient.year_of_birth || ""),
       gender: selectedPatient.gender || "",

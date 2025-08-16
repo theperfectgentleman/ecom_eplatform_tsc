@@ -119,8 +119,8 @@ const AppointmentsPage: React.FC = () => {
     setFormEditable(false);
   };
 
-  const findPatientName = (id: number) => {
-    const patient = patients.find(p => (p.account_id === String(id)) || (p.user_id === id));
+  const findPatientName = (id: string) => {
+    const patient = patients.find(p => (p.account_id === id) || (p.user_id === Number(id)));
     return patient ? `${patient.firstname} ${patient.lastname}` : `ID: ${id}`;
   }
 

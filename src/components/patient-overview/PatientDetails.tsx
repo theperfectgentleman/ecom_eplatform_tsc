@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { PatientOverviewData, AntenatalRegistration, AntenatalVisit } from "@/types";
 import { useApi } from "@/lib/useApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,8 +19,56 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ selectedPatient }) => {
 	const [showShimmer, setShowShimmer] = useState(false);
 
 	const { optionalRequest } = useApi();
-	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const abortControllerRef = useRef<AbortController | null>(null);
+
+	const fetchAntenatalData = useCallback(async (patientId: string) => {
+		// Create new abort controller for this request
+		abortControllerRef.current = new AbortController();
+
+		// Fetch antenatal registrations
+		setIsLoadingRegistrations(true);
+		try {
+			const registrations = await optionalRequest<AntenatalRegistration[]>({
+				method: "GET",
+				path: `antenatal-registrations/patient/${patientId}`,
+			});
+			if (!abortControllerRef.current.signal.aborted) {
+				setAntenatalRegistrations(registrations || []);
+			}
+		} catch {
+			if (!abortControllerRef.current.signal.aborted) {
+				// Silently handle "no data found" cases
+				setAntenatalRegistrations([]);
+			}
+		} finally {
+			if (!abortControllerRef.current.signal.aborted) {
+				setIsLoadingRegistrations(false);
+			}
+		}
+
+		// Fetch antenatal visits
+		setIsLoadingVisits(true);
+		try {
+			const visits = await optionalRequest<AntenatalVisit[]>({
+				method: "GET",
+				path: `antenatal-visits/patient/${patientId}`,
+			});
+			if (!abortControllerRef.current.signal.aborted) {
+				setAntenatalVisits(visits || []);
+			}
+		} catch {
+			if (!abortControllerRef.current.signal.aborted) {
+				// Silently handle "no data found" cases
+				setAntenatalVisits([]);
+			}
+		} finally {
+			if (!abortControllerRef.current.signal.aborted) {
+				setIsLoadingVisits(false);
+				setShowShimmer(false);
+			}
+		}
+	}, [optionalRequest]);
 
 	useEffect(() => {
 		// Clear previous timeout and abort controller
@@ -59,55 +107,7 @@ const PatientDetails: React.FC<PatientDetailsProps> = ({ selectedPatient }) => {
 				abortControllerRef.current.abort();
 			}
 		};
-	}, [selectedPatient]);
-
-	const fetchAntenatalData = async (patientId: number) => {
-		// Create new abort controller for this request
-		abortControllerRef.current = new AbortController();
-
-		// Fetch antenatal registrations
-		setIsLoadingRegistrations(true);
-		try {
-			const registrations = await optionalRequest<AntenatalRegistration[]>({
-				method: "GET",
-				path: `antenatal-registrations/patient/${patientId}`,
-			});
-			if (!abortControllerRef.current.signal.aborted) {
-				setAntenatalRegistrations(registrations || []);
-			}
-		} catch (error: any) {
-			if (!abortControllerRef.current.signal.aborted) {
-				// Silently handle "no data found" cases
-				setAntenatalRegistrations([]);
-			}
-		} finally {
-			if (!abortControllerRef.current.signal.aborted) {
-				setIsLoadingRegistrations(false);
-			}
-		}
-
-		// Fetch antenatal visits
-		setIsLoadingVisits(true);
-		try {
-			const visits = await optionalRequest<AntenatalVisit[]>({
-				method: "GET",
-				path: `antenatal-visits/patient/${patientId}`,
-			});
-			if (!abortControllerRef.current.signal.aborted) {
-				setAntenatalVisits(visits || []);
-			}
-		} catch (error: any) {
-			if (!abortControllerRef.current.signal.aborted) {
-				// Silently handle "no data found" cases
-				setAntenatalVisits([]);
-			}
-		} finally {
-			if (!abortControllerRef.current.signal.aborted) {
-				setIsLoadingVisits(false);
-				setShowShimmer(false);
-			}
-		}
-	};
+	}, [selectedPatient, fetchAntenatalData]);
 
 	const formatDate = (dateString: string | undefined) => {
 		if (!dateString) return "N/A";
