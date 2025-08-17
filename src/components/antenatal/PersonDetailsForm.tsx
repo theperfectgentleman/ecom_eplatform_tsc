@@ -28,7 +28,8 @@ import {
   User, 
   Phone, 
   Users, 
-  MapPin as LocationIcon
+  MapPin as LocationIcon,
+  Edit
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -113,15 +114,20 @@ interface PersonDetailsFormProps {
   initialData?: Partial<Patient>;
   onSuccess: (patient: Patient) => void;
   communities?: any[];
+  readOnly?: boolean;
 }
 
-const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonDetailsFormProps) => {
+const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly = false }: PersonDetailsFormProps) => {
   const { toast } = useToast();
   const { request } = useApi();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingPatientData, setIsLoadingPatientData] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(!readOnly); // Start in edit mode if not read-only
+  
+  // Determine if form fields should be disabled
+  const isFormDisabled = readOnly && !isEditMode;
   
   // Geographic dropdown states
   const [regionOptions, setRegionOptions] = useState<string[]>([]);
@@ -137,6 +143,25 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
       return date.toISOString().split('T')[0]; // Gets just the YYYY-MM-DD part
     } catch (error) {
       console.error('Error formatting date:', error);
+      return '';
+    }
+  };
+
+  // Helper function to format date to DD-MMM-YYYY for display
+  const formatDateForDisplay = (dateString: string): string => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      
+      const day = date.getDate().toString().padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      
+      return `${day}-${month}-${year}`;
+    } catch (error) {
       return '';
     }
   };
@@ -477,12 +502,14 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
       const cleanedData = {
         ...data,
         name: data.surname, // Map surname to name for backend compatibility
+        othernames: data.other_names, // Map other_names to othernames for backend compatibility
         region: data.region === 'None' ? '' : data.region,
         district: data.district === 'None' ? '' : data.district,
         subdistrict: data.subdistrict === 'None' ? '' : data.subdistrict,
         community_name: data.community_name === 'None' ? '' : data.community_name,
-        // Remove surname since we mapped it to name
+        // Remove surname and other_names since we mapped them
         surname: undefined,
+        other_names: undefined,
       };
 
       const response = await request<Patient>({
@@ -515,7 +542,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            <CardTitle>Patient Personal Details</CardTitle>
+            <CardTitle>Personal Details</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             {form.watch('patient_code') && (
@@ -528,7 +555,10 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
           </div>
         </div>
         <CardDescription>
-          Manage patient information including personal details, contact information, and location data
+          {isFormDisabled 
+            ? "Viewing patient information including personal details, contact information, and location data"
+            : "Manage patient information including personal details, contact information, and location data"
+          }
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -539,11 +569,6 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
             <SectionHeader 
               title="Basic Information" 
               icon={User}
-              statusIndicator={
-                <div className="px-2 py-1 text-xs bg-blue-50 border border-blue-200 rounded-full text-blue-700">
-                  Personal Data
-                </div>
-              }
             />
             
             <div className="space-y-4">
@@ -555,7 +580,11 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
                     <FormItem>
                       <FormLabel>Surname *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter surname" {...field} />
+                        <Input 
+                          placeholder="Enter surname" 
+                          disabled={isFormDisabled}
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -569,7 +598,11 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
                     <FormItem>
                       <FormLabel>Other Names</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter other names" {...field} />
+                        <Input 
+                          placeholder="Enter other names" 
+                          disabled={isFormDisabled}
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -585,8 +618,13 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
                     <FormItem>
                       <FormLabel>Date of Birth *</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" {...field} disabled={isFormDisabled} />
                       </FormControl>
+                      {field.value && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDateForDisplay(field.value)}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -599,8 +637,13 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
                     <FormItem>
                       <FormLabel>Registration Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" {...field} disabled={isFormDisabled} />
                       </FormControl>
+                      {field.value && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDateForDisplay(field.value)}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -883,13 +926,34 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [] }: PersonD
             </div>
 
             <div className="flex justify-end gap-4 pt-6">
-              <Button type="button" variant="outline">
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                <Save className="h-4 w-4 mr-2" />
-                {isSubmitting ? 'Saving...' : 'Save Person Details'}
-              </Button>
+              {readOnly && !isEditMode ? (
+                <Button 
+                  type="button" 
+                  onClick={() => setIsEditMode(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Patient Details
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => {
+                      if (readOnly) {
+                        setIsEditMode(false);
+                      }
+                    }}
+                  >
+                    {readOnly ? 'Cancel' : 'Cancel'}
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {isSubmitting ? 'Saving...' : 'Save Person Details'}
+                  </Button>
+                </>
+              )}
             </div>
           </form>
         </Form>

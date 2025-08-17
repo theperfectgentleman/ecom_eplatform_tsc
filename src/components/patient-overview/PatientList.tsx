@@ -40,12 +40,31 @@ const PatientList: React.FC<PatientListProps> = ({
 		return currentYear - yearOfBirth;
 	};
 
+	// Helper function to format full name
+	const formatFullName = (patient: PatientOverviewData): string => {
+		const surname = patient.name || '';
+		const otherNames = patient.othernames || '';
+		
+		if (surname && otherNames) {
+			return `${otherNames} ${surname}`;
+		}
+		if (surname) {
+			return surname;
+		}
+		if (otherNames) {
+			return otherNames;
+		}
+		return 'No name';
+	};
+
 	const fetchPatients = useCallback(async () => {
 		setIsLoading(true);
 		try {
+			// Add cache busting parameter to ensure fresh data
+			const timestamp = new Date().getTime();
 			const response = await request<PatientOverviewData[]>({
 				method: "GET",
-				path: "patients",
+				path: `patients?_t=${timestamp}`,
 			});
 
 			if (response && Array.isArray(response)) {
@@ -132,6 +151,8 @@ const PatientList: React.FC<PatientListProps> = ({
 		return patients.filter((patient) => {
 			const searchFields = [
 				patient.name?.toLowerCase(),
+				patient.othernames?.toLowerCase(),
+				formatFullName(patient).toLowerCase(),
 				patient.patient_code?.toLowerCase(),
 				patient.contact_number?.toLowerCase(),
 				patient.national_id?.toLowerCase(),
@@ -210,7 +231,7 @@ const PatientList: React.FC<PatientListProps> = ({
 									<div className="flex items-start justify-between">
 										<div className="flex-1 min-w-0">
 											<h3 className="text-sm font-medium text-gray-900 truncate">
-												{patient.name}
+												{formatFullName(patient)}
 											</h3>
 											<div className="mt-1 space-y-1">
 												{patient.age && (

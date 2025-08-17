@@ -15,18 +15,21 @@ const AntenatalCare = () => {
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const handlePatientSelect = (patient: ANCPatient) => {
+  const handlePatientSelect = (patient: ANCPatient, isReadOnly: boolean = true) => {
     setFormState(prev => ({
       ...prev,
       selectedPatient: patient,
       currentStage: ANCStage.PERSON_DETAILS, // Always default to person details when patient is selected
+      isReadOnly: isReadOnly,
     }));
+    setShowForm(true); // Show the form when a patient is selected
   };
 
   const handleCreateNew = () => {
     setFormState({
       currentStage: ANCStage.PERSON_DETAILS,
       selectedPatient: undefined,
+      isReadOnly: false,
     });
     setShowForm(true);
   };

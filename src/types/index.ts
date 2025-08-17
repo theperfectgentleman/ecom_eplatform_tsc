@@ -258,4 +258,5 @@ export interface ANCFormState {
   personDetails?: Partial<Patient>;
   registration?: Partial<AntenatalRegistration>;
   currentVisit?: Partial<AntenatalVisit>;
+  isReadOnly?: boolean;
 }

@@ -7,7 +7,6 @@ import PersonDetailsForm from './PersonDetailsForm';
 import ANCRegistrationForm from './ANCRegistrationForm';
 import ANCVisitForm from './ANCVisitForm';
 import StageProgress from './StageProgress';
-import SectionHeader from './SectionHeader';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { ShimmerCard } from '@/components/ui/shimmer';
 
@@ -19,34 +18,12 @@ interface AntenatalCareFormProps {
 }
 
 const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdate }: AntenatalCareFormProps) => {
-  const { currentStage, selectedPatient } = formState;
+  const { currentStage, selectedPatient, isReadOnly } = formState;
   const { quietRequest, request } = useApi();
   const [communities, setCommunities] = useState<any[]>([]);
   const [registration, setRegistration] = useState<AntenatalRegistration | null>(null);
   const [completedStages, setCompletedStages] = useState<ANCStage[]>([]);
   const [isLoadingRegistration, setIsLoadingRegistration] = useState(false);
-
-  // Helper function to calculate age
-  const calculateAge = (patient: Patient) => {
-    if (patient.year_of_birth) {
-      return new Date().getFullYear() - patient.year_of_birth;
-    }
-    return undefined;
-  };
-
-  // Helper function to get stage category name
-  const getStageCategoryName = (stage: ANCStage) => {
-    switch (stage) {
-      case ANCStage.PERSON_DETAILS:
-        return 'Person Details';
-      case ANCStage.ANC_REGISTRATION:
-        return 'Antenatal Registration';
-      case ANCStage.ANC_VISITS:
-        return 'ANC Visits';
-      default:
-        return 'Antenatal Care';
-    }
-  };
 
   // Load communities on mount
   useEffect(() => {
@@ -133,6 +110,7 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
           <PersonDetailsForm
             initialData={selectedPatient}
             communities={communities}
+            readOnly={isReadOnly}
             onSuccess={(patient: Patient) => {
               // Update selected patient with latest data and move to next stage
               if (onPatientUpdate) {
@@ -265,18 +243,6 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
                   isStageAccessible={isStageAccessible}
                 />
               </div>
-              
-              {/* Patient Header - Full width, no side padding */}
-              {selectedPatient && (
-                <div className="px-6 pb-4">
-                  <SectionHeader 
-                    patientName={selectedPatient.name}
-                    patientAge={calculateAge(selectedPatient)}
-                    patientContact={selectedPatient.contact_number}
-                    category={getStageCategoryName(currentStage)}
-                  />
-                </div>
-              )}
               
               {/* Form Content */}
               <div className="p-6 pt-0">

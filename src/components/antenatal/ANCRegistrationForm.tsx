@@ -188,11 +188,6 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
             <SectionHeader 
               title="Registration Information" 
               icon={FileText}
-              statusIndicator={
-                <div className="px-2 py-1 text-xs bg-green-50 border border-green-200 rounded-full text-green-700">
-                  New Record
-                </div>
-              }
             />
             
             <div className="space-y-4">
