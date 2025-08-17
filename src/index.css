@@ -56,6 +56,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Hide document scrollbar globally */
+  html, body {
+    @apply scrollbar-hide;
+  }
 }
 
 @layer utilities {

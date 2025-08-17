@@ -69,7 +69,7 @@ const KitDistributionPage: React.FC = () => {
 
   useEffect(() => {
     fetchDistributions();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Search functionality
   useEffect(() => {
@@ -103,8 +103,8 @@ const KitDistributionPage: React.FC = () => {
 
   // Check if distribution can be edited
   const canEditDistribution = (distribution: KitDistribution): boolean => {
-    // Cannot edit if volunteer has confirmed (handle both boolean and integer values)
-    if (Boolean(distribution.vol_user_confirm)) {
+    // Cannot edit if volunteer has confirmed
+    if (!!distribution.vol_user_confirm) { // eslint-disable-line no-extra-boolean-cast
       return false;
     }
     
@@ -118,8 +118,8 @@ const KitDistributionPage: React.FC = () => {
 
   // Check if distribution can be deleted
   const canDeleteDistribution = (distribution: KitDistribution): boolean => {
-    // Cannot delete if volunteer has confirmed (handle both boolean and integer values)
-    if (Boolean(distribution.vol_user_confirm)) {
+    // Cannot delete if volunteer has confirmed
+    if (!!distribution.vol_user_confirm) { // eslint-disable-line no-extra-boolean-cast
       return false;
     }
     

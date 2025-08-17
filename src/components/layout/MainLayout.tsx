@@ -254,8 +254,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
-            <div className="w-full">
+          <main className={`flex-1 ${location.pathname === '/antenatal-care' ? 'overflow-hidden' : 'overflow-y-auto p-4 md:p-6'}`}>
+            <div className="w-full h-full">
               {isLoading ? <LoadingSpinner /> : children || <Outlet />}
             </div>
           </main>

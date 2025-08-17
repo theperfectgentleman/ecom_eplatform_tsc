@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
+import { Tooltip } from "@/components/ui/tooltip";
+import { User, Phone } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -44,9 +46,12 @@ interface ContactFormProps {
   onCancel: () => void;
   readOnly?: boolean;
   currentUser?: Account | null;
+  creatorInfo?: Account | null; // Add creator information
 }
 
-const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUser }: ContactFormProps) => {
+const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUser, creatorInfo }: ContactFormProps) => {
+  // Debug logging
+  console.log('ContactForm props:', { contact, readOnly, currentUser, creatorInfo });
   // Role options, sorted alphabetically
   const roleOptions = [
     "Community Health Nurse",
@@ -480,17 +485,51 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
           
           {/* When viewing existing contact, show the contact's user info */}
           {readOnly && contact && (contact.username || contact.user_id) && (
-            <div className="flex items-center gap-4">
-              {contact.username && (
-                <span className="text-xs text-gray-500">
-                  Created by: {contact.username}
-                </span>
-              )}
-              {contact.user_id && (
-                <span className="text-xs text-gray-400 hidden">
-                  User ID: {contact.user_id}
-                </span>
-              )}
+            <div className="pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 font-medium">Created by:</span>
+                {contact.username && (
+                  <Tooltip 
+                    content={
+                      <div className="text-center">
+                        <div className="font-semibold">{contact.username}</div>
+                        <div className="text-xs opacity-80">Contact Creator</div>
+                        {creatorInfo?.phone && (
+                          <div className="text-xs opacity-80 mt-1 flex items-center gap-1 justify-center">
+                            <Phone className="h-3 w-3" />
+                            {creatorInfo.phone}
+                          </div>
+                        )}
+                        {creatorInfo?.email && (
+                          <div className="text-xs opacity-80 mt-1">
+                            {creatorInfo.email}
+                          </div>
+                        )}
+                        {(creatorInfo?.firstname || creatorInfo?.lastname) && (
+                          <div className="text-xs opacity-80 mt-1">
+                            {creatorInfo.firstname} {creatorInfo.lastname}
+                          </div>
+                        )}
+                        {contact.CreatedAt || contact.createdat ? (
+                          <div className="text-xs opacity-60 mt-1">
+                            Created: {new Date(contact.CreatedAt || contact.createdat || '').toLocaleDateString()}
+                          </div>
+                        ) : null}
+                      </div>
+                    }
+                  >
+                    <span className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full flex items-center gap-1 cursor-help">
+                      <User className="h-3 w-3" />
+                      {contact.username}
+                    </span>
+                  </Tooltip>
+                )}
+                {contact.CreatedAt || contact.createdat ? (
+                  <span className="text-xs text-gray-400">
+                    on {new Date(contact.CreatedAt || contact.createdat || '').toLocaleDateString()}
+                  </span>
+                ) : null}
+              </div>
             </div>
           )}
           

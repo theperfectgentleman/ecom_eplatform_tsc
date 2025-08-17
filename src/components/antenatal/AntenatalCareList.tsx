@@ -100,8 +100,8 @@ const AntenatalCareList = ({
   }
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-4">        
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-4 flex-shrink-0">        
         <div className="space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -115,7 +115,7 @@ const AntenatalCareList = ({
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
+      <CardContent className="space-y-2 flex-1 overflow-y-auto scrollbar-hide">
         {filteredPatients.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             {searchTerm ? 'No patients found' : 'No patients registered yet'}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@/contexts/AuthContext";
-import { Contact } from "@/types";
+import { Contact, Account } from "@/types";
 import ContactForm from "@/components/address/ContactForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,23 @@ const AddressBook = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10); // Fixed page size of 10
+  const [creatorInfo, setCreatorInfo] = useState<Account | null>(null);
   const { request } = useApi();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Helper function to check if current user owns the contact
+  const isUserContact = (contact: Contact): boolean => {
+    if (!user?.user_id || !contact.user_id) return false;
+    
+    // Convert both to numbers for comparison to handle type mismatches
+    const currentUserId = Number(user.user_id);
+    const contactUserId = Number(contact.user_id);
+    
+    console.log(`Comparing user IDs: ${currentUserId} === ${contactUserId} = ${currentUserId === contactUserId}`);
+    
+    return currentUserId === contactUserId;
+  };
 
   const fetchContacts = async () => {
     try {
@@ -36,9 +50,36 @@ const AddressBook = () => {
     }
   };
 
+  const fetchCreatorInfo = async (userId: number) => {
+    try {
+      console.log('Fetching creator info for user ID:', userId);
+      // Try to fetch specific user information by ID
+      const userData = await request({ path: `accounts/${userId}`, method: "GET" });
+      console.log('Creator info fetched successfully:', userData);
+      setCreatorInfo(userData);
+    } catch (error) {
+      console.error("Failed to fetch creator info for user ID:", userId, error);
+      // If specific account fetch fails, try to get all accounts and find the one we need
+      try {
+        const allAccounts = await request({ path: `accounts`, method: "GET" });
+        const creatorAccount = allAccounts.find((account: Account) => account.user_id === userId);
+        if (creatorAccount) {
+          console.log('Creator info found in accounts list:', creatorAccount);
+          setCreatorInfo(creatorAccount);
+        } else {
+          console.log('Creator account not found in accounts list');
+          setCreatorInfo(null);
+        }
+      } catch (alternativeError) {
+        console.error("Failed to fetch accounts list:", alternativeError);
+        setCreatorInfo(null);
+      }
+    }
+  };
+
   useEffect(() => {
     fetchContacts();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFormSubmit = async (data: any) => {
     try {
@@ -109,10 +150,17 @@ const AddressBook = () => {
   };
 
   // When a contact is selected from the list, show in form as read-only
-  const handleSelectContact = (contact: Contact) => {
+  const handleSelectContact = async (contact: Contact) => {
     setSelectedContact(contact);
     setIsDialogOpen(true);
     setFormEditable(false);
+    
+    // Fetch creator info if the contact was created by someone else
+    if (contact.user_id && !isUserContact(contact)) {
+      await fetchCreatorInfo(contact.user_id);
+    } else {
+      setCreatorInfo(null);
+    }
   };
 
   // Close dialog and reset form
@@ -121,6 +169,7 @@ const AddressBook = () => {
     setIsDialogOpen(false);
     setSelectedContact(undefined);
     setFormEditable(false);
+    setCreatorInfo(null);
   };
 
 
@@ -167,6 +216,19 @@ const AddressBook = () => {
   console.log("All contacts:", contacts);
   console.log("Search term:", searchTerm);
   console.log("Filtered contacts:", filteredContacts);
+  console.log("Current user:", user);
+  console.log("Creator info:", creatorInfo);
+  
+  // Debug user ID comparisons
+  if (contacts.length > 0 && user) {
+    console.log("User ID type and value:", typeof user.user_id, user.user_id);
+    contacts.forEach((contact, index) => {
+      if (index < 3) { // Only log first 3 contacts to avoid spam
+        console.log(`Contact ${index} - user_id type and value:`, typeof contact.user_id, contact.user_id);
+        console.log(`Contact ${index} - Comparison result:`, Number(user.user_id) === Number(contact.user_id));
+      }
+    });
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -182,6 +244,7 @@ const AddressBook = () => {
               onCancel={closeDialog}
               readOnly={!formEditable}
               currentUser={user}
+              creatorInfo={creatorInfo}
             />
             {/* Removed Edit button from form - editing is only triggered from the list */}
           </div>
@@ -245,7 +308,7 @@ const AddressBook = () => {
                             <div className="font-semibold text-gray-900 text-base">
                               {contact.Name || contact.name || 'No Name'}
                             </div>
-                            {user?.user_id === contact.user_id && (
+                            {isUserContact(contact) && (
                               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                                 My Contact
                               </span>
@@ -262,35 +325,41 @@ const AddressBook = () => {
                           )}
                         </div>
                         <div className="flex gap-1 ml-4">
-                          {/* Only show edit button if current user owns this contact */}
-                          {user?.user_id === contact.user_id && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={e => {
-                                e.stopPropagation();
-                                openDialog(contact);
-                              }}
-                            >
-                              <Edit className="h-5 w-5" />
-                            </Button>
-                          )}
-                          {/* Only show delete button if current user owns this contact */}
-                          {user?.user_id === contact.user_id && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={e => {
-                                e.stopPropagation();
-                                setDeleteConfirm({ 
-                                  id: String(contact.ContactID || contact.contactid), 
-                                  name: contact.Name || contact.name || 'Unknown Contact' 
-                                });
-                              }}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </Button>
+                          {/* Show edit and delete buttons for contacts owned by current user */}
+                          {(() => {
+                            const showButtons = isUserContact(contact);
+                            console.log(`Contact ${contact.Name}: showButtons = ${showButtons}, user_id = ${user?.user_id}, contact.user_id = ${contact.user_id}`);
+                            return showButtons;
+                          })() && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  openDialog(contact);
+                                }}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                                title="Edit this contact"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setDeleteConfirm({ 
+                                    id: String(contact.ContactID || contact.contactid), 
+                                    name: contact.Name || contact.name || 'Unknown Contact' 
+                                  });
+                                }}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                title="Delete this contact"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -342,13 +411,46 @@ const AddressBook = () => {
       
       {/* Delete Confirmation Dialog */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-2">Delete Contact</h3>
-            <p className="mb-4">Are you sure you want to delete <span className="font-bold">{deleteConfirm.name}</span>? This action cannot be undone.</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-              <Button variant="destructive" onClick={() => handleDelete(deleteConfirm.id)}>Delete</Button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4 border">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Contact</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 mb-2">
+                Are you sure you want to permanently delete this contact?
+              </p>
+              <div className="bg-gray-50 p-3 rounded-md border">
+                <div className="font-semibold text-gray-900">{deleteConfirm.name}</div>
+                <div className="text-sm text-gray-600">
+                  This will remove all contact information and cannot be recovered.
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setDeleteConfirm(null)}
+                className="min-w-[80px]"
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => handleDelete(deleteConfirm.id)}
+                className="min-w-[80px] bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
             </div>
           </div>
         </div>

@@ -57,7 +57,8 @@ const FeedbackPage: React.FC = () => {
           setFeedbacks(response.data || []);
           if (response.pages) setTotalPages(response.pages);
         }
-      } catch (_e) {
+      } catch (error) {
+        console.error('Fetch feedbacks error:', error);
         setError('Failed to fetch feedbacks');
         setFeedbacks([]);
       } finally {
@@ -105,7 +106,8 @@ const FeedbackPage: React.FC = () => {
       // Refresh feedbacks
       setPage(1);
       setFilter({ ...filter });
-    } catch (_e) {
+    } catch (error) {
+      console.error('Submit/Update feedback error:', error);
       setError(selectedId ? 'Failed to update feedback' : 'Failed to submit feedback');
     } finally {
       setLoading(false);

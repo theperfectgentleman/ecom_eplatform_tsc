@@ -130,24 +130,15 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
     switch (currentStage) {
       case ANCStage.PERSON_DETAILS:
         return (
-          <div className="space-y-4">
-            {selectedPatient && (
-              <SectionHeader 
-                patientName={selectedPatient.name}
-                patientAge={calculateAge(selectedPatient)}
-                patientContact={selectedPatient.contact_number}
-                category={getStageCategoryName(currentStage)}
-              />
-            )}
-            <PersonDetailsForm
-              initialData={selectedPatient}
-              communities={communities}
-              onSuccess={(patient: Patient) => {
-                // Update selected patient with latest data and move to next stage
-                if (onPatientUpdate) {
-                  onPatientUpdate(patient);
-                }
-                // Mark this stage as completed
+          <PersonDetailsForm
+            initialData={selectedPatient}
+            communities={communities}
+            onSuccess={(patient: Patient) => {
+              // Update selected patient with latest data and move to next stage
+              if (onPatientUpdate) {
+                onPatientUpdate(patient);
+              }
+              // Mark this stage as completed
                 setCompletedStages(prev => {
                   if (!prev.includes(ANCStage.PERSON_DETAILS)) {
                     return [...prev, ANCStage.PERSON_DETAILS];
@@ -158,7 +149,6 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
                 onSuccess();
               }}
             />
-          </div>
         );
       
       case ANCStage.ANC_REGISTRATION:
@@ -175,30 +165,22 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
         }
         
         return (
-          <div className="space-y-4">
-            <SectionHeader 
-              patientName={selectedPatient.name}
-              patientAge={calculateAge(selectedPatient)}
-              patientContact={selectedPatient.contact_number}
-              category={getStageCategoryName(currentStage)}
-            />
-            <ANCRegistrationForm
-              patient={selectedPatient}
-              initialData={registration || undefined}
-              onSuccess={(newRegistration: AntenatalRegistration) => {
-                setRegistration(newRegistration);
-                // Mark this stage as completed
-                setCompletedStages(prev => {
-                  if (!prev.includes(ANCStage.ANC_REGISTRATION)) {
-                    return [...prev, ANCStage.ANC_REGISTRATION];
-                  }
-                  return prev;
-                });
-                onStageChange(ANCStage.ANC_VISITS);
-                onSuccess();
-              }}
-            />
-          </div>
+          <ANCRegistrationForm
+            patient={selectedPatient}
+            initialData={registration || undefined}
+            onSuccess={(newRegistration: AntenatalRegistration) => {
+              setRegistration(newRegistration);
+              // Mark this stage as completed
+              setCompletedStages(prev => {
+                if (!prev.includes(ANCStage.ANC_REGISTRATION)) {
+                  return [...prev, ANCStage.ANC_REGISTRATION];
+                }
+                return prev;
+              });
+              onStageChange(ANCStage.ANC_VISITS);
+              onSuccess();
+            }}
+          />
         );
       
       case ANCStage.ANC_VISITS:
@@ -242,21 +224,13 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
         }
         
         return (
-          <div className="space-y-4">
-            <SectionHeader 
-              patientName={selectedPatient.name}
-              patientAge={calculateAge(selectedPatient)}
-              patientContact={selectedPatient.contact_number}
-              category={getStageCategoryName(currentStage)}
-            />
-            <ANCVisitForm
-              patient={selectedPatient}
-              registration={registration}
-              onSuccess={() => {
-                onSuccess();
-              }}
-            />
-          </div>
+          <ANCVisitForm
+            patient={selectedPatient}
+            registration={registration}
+            onSuccess={() => {
+              onSuccess();
+            }}
+          />
         );
       
       default:
@@ -265,7 +239,7 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
   };
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col">
       {/* Loading Modal */}
       <LoadingModal 
         isOpen={isLoadingRegistration} 
@@ -273,23 +247,45 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
         message="Fetching antenatal registration information..."
       />
       
-      {/* Stage Progress */}
-      <StageProgress 
-        currentStage={currentStage}
-        completedStages={completedStages}
-        onStageClick={(stage) => {
-          if (isStageAccessible(stage)) {
-            onStageChange(stage);
-          }
-        }}
-        isStageAccessible={isStageAccessible}
-      />
-      
-      <Card className="h-full">
-        <CardContent className="p-6">
-          {renderStageContent()}
-        </CardContent>
-      </Card>
+      {/* Form Content - no internal scrolling, let parent handle it */}
+      <div className="flex-1">
+        <div className="w-full">
+          <Card className="w-full">
+            <CardContent className="p-0">
+              {/* Stage Progress - Inside card, at the top */}
+              <div className="p-6 pb-0">
+                <StageProgress 
+                  currentStage={currentStage}
+                  completedStages={completedStages}
+                  onStageClick={(stage) => {
+                    if (isStageAccessible(stage)) {
+                      onStageChange(stage);
+                    }
+                  }}
+                  isStageAccessible={isStageAccessible}
+                />
+              </div>
+              
+              {/* Patient Header - Full width, no side padding */}
+              {selectedPatient && (
+                <div className="px-6 pb-4">
+                  <SectionHeader 
+                    patientName={selectedPatient.name}
+                    patientAge={calculateAge(selectedPatient)}
+                    patientContact={selectedPatient.contact_number}
+                    category={getStageCategoryName(currentStage)}
+                  />
+                </div>
+              )}
+              
+              {/* Form Content */}
+              <div className="p-6 pt-0">
+                {renderStageContent()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };

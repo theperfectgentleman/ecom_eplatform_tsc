@@ -211,7 +211,7 @@ const DistributionTable: React.FC<DistributionTableProps> = ({
                           size="sm"
                           disabled
                           title={
-                            Boolean(distribution.vol_user_confirm) 
+                            !!distribution.vol_user_confirm // eslint-disable-line no-extra-boolean-cast
                               ? "Cannot edit: Volunteer has confirmed" 
                               : "Cannot edit: Not created by you"
                           }
@@ -238,7 +238,7 @@ const DistributionTable: React.FC<DistributionTableProps> = ({
                           size="sm"
                           disabled
                           title={
-                            Boolean(distribution.vol_user_confirm) 
+                            !!distribution.vol_user_confirm // eslint-disable-line no-extra-boolean-cast
                               ? "Cannot delete: Volunteer has confirmed" 
                               : "Cannot delete: Not created by you"
                           }
