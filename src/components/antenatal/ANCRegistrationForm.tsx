@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -28,9 +28,18 @@ import {
   Heart,
   Droplets,
   Shield,
-  ShieldCheck
+  ShieldCheck,
+  Ruler, // Added for height
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+// Function to generate a simple UUID
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 const ancRegistrationSchema = z.object({
   registrationDate: z.string().min(1, 'Registration date is required'),
@@ -41,6 +50,7 @@ const ancRegistrationSchema = z.object({
   estimatedDeliveryDate: z.string().optional(),
   bloodPressure: z.string().optional(),
   weight: z.string().optional(),
+  height: z.string().optional(), // Added height
   hemoglobinAtRegistration: z.number().min(0).max(20).optional(),
   bloodGroupAbo: z.string().optional(),
   rhesusStatus: z.string().optional(),
@@ -64,6 +74,7 @@ interface ANCRegistrationFormProps {
   patient: Patient;
   initialData?: Partial<AntenatalRegistration>;
   onSuccess: (registration: AntenatalRegistration) => void;
+  readOnly?: boolean;
 }
 
 // Section Header Component
@@ -84,31 +95,76 @@ const SectionHeader = ({ title, icon: Icon, statusIndicator }: SectionHeaderProp
 );
 
 // Utility function to generate registration number
-const generateAntenatalRegistrationNumber = (): string => {
-  const year = new Date().getFullYear();
-  const month = String(new Date().getMonth() + 1).padStart(2, '0');
-  const day = String(new Date().getDate()).padStart(2, '0');
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `ANC${year}${month}${day}${random}`;
+const generateAntenatalRegistrationNumber = (patientId: string): string => {
+  // Characters allowed (excluding O, I, L)
+  const allowedChars = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  // Numbers allowed (excluding 0)
+  const allowedNumbers = '123456789';
+  
+  // Generate random character
+  const getRandomChar = () => allowedChars[Math.floor(Math.random() * allowedChars.length)];
+  // Generate random number
+  const getRandomNumber = () => allowedNumbers[Math.floor(Math.random() * allowedNumbers.length)];
+  
+  // Format: Patient_id-[C][N][C]
+  const char1 = getRandomChar();
+  const number = getRandomNumber();
+  const char2 = getRandomChar();
+  
+  return `${patientId}-${char1}${number}${char2}`;
 };
 
-const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistrationFormProps) => {
+// Helper function to format date for input
+const formatDateForInput = (dateString: string) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+  } catch {
+    return '';
+  }
+};
+
+const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false }: ANCRegistrationFormProps) => {
   const { toast } = useToast();
   const { request } = useApi();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Determine if form should be disabled
+  const isFormDisabled = readOnly;
+
+  // Utility function to format date for display
+  const formatDateForDisplay = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      
+      const options: Intl.DateTimeFormatOptions = { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      };
+      return date.toLocaleDateString('en-GB', options);
+    } catch {
+      return '';
+    }
+  };
 
   const form = useForm<ANCRegistrationFormData>({
     resolver: zodResolver(ancRegistrationSchema),
     mode: 'onChange',
     defaultValues: {
-      registrationDate: initialData?.registration_date || new Date().toISOString().split('T')[0],
-      registrationNumber: initialData?.registration_number || generateAntenatalRegistrationNumber(),
+      registrationDate: formatDateForInput(initialData?.registration_date || '') || new Date().toISOString().split('T')[0],
+      registrationNumber: initialData?.registration_number || '',
       antenatalStatus: initialData?.antenatal_status || 'Active',
       parity: typeof initialData?.parity === 'string' ? initialData.parity : (initialData?.parity?.toString() || ''),
       gestationWeeks: initialData?.gestation_weeks || undefined,
-      estimatedDeliveryDate: initialData?.estimated_delivery_date || '',
+      estimatedDeliveryDate: formatDateForInput(initialData?.estimated_delivery_date || ''),
       bloodPressure: initialData?.blood_pressure || '',
       weight: initialData?.weight?.toString() || '',
+      height: initialData?.height?.toString() || '', // Added height
       hemoglobinAtRegistration: initialData?.hemoglobin_at_registration || undefined,
       bloodGroupAbo: initialData?.blood_group_abo || 'N/A',
       rhesusStatus: initialData?.rhesus_status || 'N/A',
@@ -127,31 +183,99 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
     },
   });
 
-  const generateRegistrationNumber = () => {
-    const newNumber = generateAntenatalRegistrationNumber();
-    form.setValue('registrationNumber', newNumber);
-  };
+  // Generate registration number for new registrations
+  useEffect(() => {
+    if (!initialData) {
+      const newRegNumber = generateAntenatalRegistrationNumber(patient.patient_id);
+      form.setValue('registrationNumber', newRegNumber);
+    }
+  }, [initialData, form, patient.patient_id]);
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (initialData && form) {
+      const formData = {
+        registrationDate: formatDateForInput(initialData?.registration_date || '') || new Date().toISOString().split('T')[0],
+        registrationNumber: initialData?.registration_number || '',
+        antenatalStatus: initialData?.antenatal_status || 'Active',
+        parity: typeof initialData?.parity === 'string' ? initialData.parity : (initialData?.parity?.toString() || ''),
+        gestationWeeks: initialData?.gestation_weeks || undefined,
+        estimatedDeliveryDate: formatDateForInput(initialData?.estimated_delivery_date || ''),
+        bloodPressure: initialData?.blood_pressure || '',
+        weight: initialData?.weight?.toString() || '',
+        height: initialData?.height?.toString() || '', // Added height
+        hemoglobinAtRegistration: initialData?.hemoglobin_at_registration || undefined,
+        bloodGroupAbo: initialData?.blood_group_abo || 'N/A',
+        rhesusStatus: initialData?.rhesus_status || 'N/A',
+        sicklingStatus: initialData?.sickling_status || 'N/A',
+        syphilisScreeningStatus: initialData?.syphilis_screening_status || 'N/A',
+        syphilisTreatment: initialData?.syphilis_treatment || undefined,
+        hivStatusAtRegistration: initialData?.hiv_status_at_registration || 'N/A',
+        hivRetestedAt34Weeks: initialData?.hiv_retested_at_34weeks || 'N/A',
+        arvTreatment: initialData?.arv_treatment || undefined,
+        screenedForTb: initialData?.screened_for_tb || undefined,
+        tbDiagnosed: initialData?.tb_diagnosed || undefined,
+        tbTreatmentStarted: initialData?.tb_treatment_started || undefined,
+        itnGiven: initialData?.itn_given || undefined,
+        itnType: initialData?.itn_type || 'N/A',
+        folicAcidIronSupplements: initialData?.folic_acid_iron_supplements || 'N/A',
+      };
+      
+      // Use setTimeout to ensure the form is properly initialized
+      setTimeout(() => {
+        form.reset(formData);
+      }, 0);
+    }
+  }, [initialData, form]);
 
   const onSubmit = async (data: ANCRegistrationFormData) => {
     try {
       setIsLoading(true);
       
-      const registrationData = {
-        ...data,
+      const isUpdate = !!initialData?.antenatal_registration_id;
+
+      const registrationData: Partial<AntenatalRegistration> = {
+        antenatal_registration_id: isUpdate 
+          ? initialData.antenatal_registration_id 
+          : generateUUID(),
         patient_id: patient.patient_id,
+        registration_number: data.registrationNumber || generateAntenatalRegistrationNumber(patient.patient_id),
+        registration_date: data.registrationDate,
+        antenatal_status: data.antenatalStatus || undefined,
+        parity: data.parity ? parseInt(data.parity, 10) : undefined,
+        gestation_weeks: data.gestationWeeks ?? undefined,
+        estimated_delivery_date: data.estimatedDeliveryDate || undefined,
+        blood_pressure: data.bloodPressure || undefined,
+        weight: data.weight ? parseFloat(data.weight) : undefined,
+        height: data.height ? parseFloat(data.height) : undefined,
+        hemoglobin_at_registration: data.hemoglobinAtRegistration ?? undefined,
+        blood_group_abo: data.bloodGroupAbo || undefined,
+        rhesus_status: data.rhesusStatus || undefined,
+        sickling_status: data.sicklingStatus || undefined,
+        syphilis_screening_status: data.syphilisScreeningStatus || undefined,
+        syphilis_treatment: data.syphilisTreatment ?? undefined,
+        hiv_status_at_registration: data.hivStatusAtRegistration || undefined,
+        hiv_retested_at_34weeks: data.hivRetestedAt34Weeks || undefined,
+        arv_treatment: data.arvTreatment ?? undefined,
+        screened_for_tb: data.screenedForTb ?? undefined,
+        tb_diagnosed: data.tbDiagnosed ?? undefined,
+        tb_treatment_started: data.tbTreatmentStarted ?? undefined,
+        itn_given: data.itnGiven ?? undefined,
+        itn_type: data.itnType || undefined,
+        folic_acid_iron_supplements: data.folicAcidIronSupplements || undefined,
       };
 
       const response = await request<AntenatalRegistration>({
-        path: initialData?.antenatal_registration_id 
+        path: isUpdate
           ? `antenatal-registrations/${initialData.antenatal_registration_id}` 
           : 'antenatal-registrations',
-        method: initialData?.antenatal_registration_id ? 'PUT' : 'POST',
+        method: isUpdate ? 'PUT' : 'POST',
         body: registrationData,
       });
 
       toast({
         variant: 'success',
-        title: initialData?.antenatal_registration_id 
+        title: isUpdate 
           ? 'ANC registration updated successfully' 
           : 'ANC registration created successfully',
       });
@@ -203,8 +327,14 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                           type="date"
                           {...field}
                           value={field.value || new Date().toISOString().split('T')[0]}
+                          disabled={isFormDisabled}
                         />
                       </FormControl>
+                      {field.value && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDateForDisplay(field.value)}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -216,19 +346,14 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Registration Number *</FormLabel>
-                      <div className="flex gap-2">
-                        <FormControl>
-                          <Input {...field} placeholder="Enter registration number" />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={generateRegistrationNumber}
-                        >
-                          Generate
-                        </Button>
-                      </div>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="Auto-generated (PatientID-[C][N][C])" 
+                          disabled={true}
+                          className="bg-gray-50"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -241,7 +366,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Antenatal Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
@@ -271,7 +396,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                     <FormItem>
                       <FormLabel>Parity (G/P) *</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g., G2P1" />
+                        <Input {...field} placeholder="e.g., G2P1" disabled={isFormDisabled} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -293,6 +418,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                           onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                           value={field.value || ''}
                           placeholder="1-42 weeks"
+                          disabled={isFormDisabled}
                         />
                       </FormControl>
                       <FormMessage />
@@ -308,8 +434,13 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                   <FormItem>
                     <FormLabel>Estimated Delivery Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="date" {...field} disabled={isFormDisabled} />
                     </FormControl>
+                    {field.value && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatDateForDisplay(field.value)}
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -328,7 +459,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                     <FormItem>
                       <FormLabel>Blood Pressure</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g., 120/80" />
+                        <Input {...field} placeholder="e.g., 120/80" disabled={isFormDisabled} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -342,7 +473,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                     <FormItem>
                       <FormLabel>Weight (kg)</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter weight" />
+                        <Input {...field} placeholder="Enter weight" disabled={isFormDisabled} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -350,6 +481,20 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                 />
 
                 <FormField
+                  control={form.control}
+                  name="height"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Height (cm)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter height" disabled={isFormDisabled} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
                   control={form.control}
                   name="hemoglobinAtRegistration"
                   render={({ field }) => (
@@ -363,13 +508,13 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                           onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                           value={field.value || ''}
                           placeholder="Enter hemoglobin level" 
+                          disabled={isFormDisabled}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
             </div>
 
             {/* SECTION D: Blood Work & Laboratory Results */}
@@ -383,7 +528,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Blood Group (ABO)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select blood group" />
@@ -408,7 +553,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Rhesus Status</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Rhesus status" />
@@ -431,7 +576,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Sickling Status</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select sickling status" />
@@ -470,7 +615,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Screening Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select screening status" />
@@ -495,7 +640,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Treatment Given</FormLabel>
-                          <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'}>
+                          <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'} disabled={isFormDisabled}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select treatment status" />
@@ -528,7 +673,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>HIV Status at Registration</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select HIV status" />
@@ -552,7 +697,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>HIV Retested at 34 Weeks</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select retest status" />
@@ -579,7 +724,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>ARV Treatment</FormLabel>
-                          <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'}>
+                          <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'} disabled={isFormDisabled}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select ARV treatment status" />
@@ -612,7 +757,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Screened for TB</FormLabel>
-                        <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'}>
+                        <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'} disabled={isFormDisabled}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select screening status" />
@@ -637,7 +782,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>TB Diagnosed</FormLabel>
-                            <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'}>
+                            <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'} disabled={isFormDisabled}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select diagnosis status" />
@@ -661,7 +806,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>TB Treatment Started</FormLabel>
-                              <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'}>
+                              <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'} disabled={isFormDisabled}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select treatment status" />
@@ -701,7 +846,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>ITN Given</FormLabel>
-                        <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'}>
+                        <Select onValueChange={(value) => field.onChange(value === 'Yes')} value={field.value === true ? 'Yes' : field.value === false ? 'No' : 'N/A'} disabled={isFormDisabled}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select ITN status" />
@@ -725,7 +870,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>ITN Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select ITN type" />
@@ -752,7 +897,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Folic Acid & Iron Supplements</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select supplement status" />
@@ -772,10 +917,10 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess }: ANCRegistratio
             </div>
 
             <div className="flex justify-end gap-4 pt-6">
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" disabled={isFormDisabled}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading || isFormDisabled}>
                 {isLoading ? 'Saving...' : 'Save Registration'}
               </Button>
             </div>

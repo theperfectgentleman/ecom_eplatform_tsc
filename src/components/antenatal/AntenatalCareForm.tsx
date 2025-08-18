@@ -146,6 +146,7 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
           <ANCRegistrationForm
             patient={selectedPatient}
             initialData={registration || undefined}
+            readOnly={isReadOnly}
             onSuccess={(newRegistration: AntenatalRegistration) => {
               setRegistration(newRegistration);
               // Mark this stage as completed
@@ -205,6 +206,7 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
           <ANCVisitForm
             patient={selectedPatient}
             registration={registration}
+            readOnly={isReadOnly}
             onSuccess={() => {
               onSuccess();
             }}

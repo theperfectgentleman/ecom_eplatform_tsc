@@ -5,7 +5,7 @@
 // api.ts
 /// <reference lib="dom" />
 
-interface ApiRequestInit extends Omit<RequestInit, 'body'> {
+interface ApiRequestInit extends Omit<globalThis.RequestInit, 'body'> {
   body?: string | FormData | null;
 }
 

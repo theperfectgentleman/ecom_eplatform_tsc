@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -58,9 +58,10 @@ interface ANCVisitFormProps {
   patient: Patient;
   registration: AntenatalRegistration;
   onSuccess: (visit: AntenatalVisit) => void;
+  readOnly?: boolean;
 }
 
-const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) => {
+const ANCVisitForm = ({ patient, registration, onSuccess, readOnly = false }: ANCVisitFormProps) => {
   const { toast } = useToast();
   const { quietRequest, request } = useApi();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,6 +69,24 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
   const [showForm, setShowForm] = useState(false);
   const [editingVisit, setEditingVisit] = useState<AntenatalVisit | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'form' | 'details'>('list');
+
+  // Utility function to format date for display
+  const formatDateForDisplay = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      
+      const options: Intl.DateTimeFormatOptions = { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      };
+      return date.toLocaleDateString('en-GB', options);
+    } catch {
+      return '';
+    }
+  };
 
   const form = useForm<ANCVisitFormData>({
     resolver: zodResolver(ancVisitSchema),
@@ -88,11 +107,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
     },
   });
 
-  useEffect(() => {
-    loadVisits();
-  }, [patient.patient_id]);
-
-  const loadVisits = async () => {
+  const loadVisits = useCallback(async () => {
     try {
       const data = await quietRequest<AntenatalVisit[]>({
         path: `antenatal-visits/patient/${patient.patient_id}`,
@@ -102,7 +117,11 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
       console.error('Failed to load visits:', error);
       setVisits([]);
     }
-  };
+  }, [patient.patient_id, quietRequest]);
+
+  useEffect(() => {
+    loadVisits();
+  }, [loadVisits]);
 
   const onSubmit = async (data: ANCVisitFormData) => {
     try {
@@ -513,8 +532,13 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
                     <FormItem>
                       <FormLabel>Visit Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" {...field} disabled={readOnly} />
                       </FormControl>
+                      {field.value && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDateForDisplay(field.value)}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -531,6 +555,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
                           type="number" 
                           placeholder="e.g. 28"
                           {...field}
+                          value={field.value || ''}
                           onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                         />
                       </FormControl>
@@ -565,6 +590,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
                           step="0.1"
                           placeholder="e.g. 65.5"
                           {...field}
+                          value={field.value || ''}
                           onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                         />
                       </FormControl>
@@ -585,6 +611,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
                           step="0.1"
                           placeholder="e.g. 28.5"
                           {...field}
+                          value={field.value || ''}
                           onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                         />
                       </FormControl>
@@ -604,6 +631,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
                           type="number"
                           placeholder="e.g. 140"
                           {...field}
+                          value={field.value || ''}
                           onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                         />
                       </FormControl>
@@ -619,8 +647,13 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
                     <FormItem>
                       <FormLabel>Next Visit Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" {...field} disabled={readOnly} />
                       </FormControl>
+                      {field.value && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDateForDisplay(field.value)}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -693,10 +726,14 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
             <CardContent className="p-8 text-center">
               <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p className="text-gray-500 mb-4">No visits recorded yet</p>
-              <Button onClick={() => setViewMode('form')} className="bg-green-500 hover:bg-green-600">
-                <Plus className="h-4 w-4 mr-2" />
-                Record First Visit
-              </Button>
+              {readOnly ? (
+                <p className="text-sm text-gray-400">Enable edit mode to record visits</p>
+              ) : (
+                <Button onClick={() => setViewMode('form')} className="bg-green-500 hover:bg-green-600">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Record First Visit
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -746,25 +783,51 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setEditingVisit(visit);
-                        form.reset({
-                          visit_date: visit.visit_date,
-                          gestation_weeks: visit.gestation_weeks,
-                          blood_pressure: visit.blood_pressure || '',
-                          weight_kg: visit.weight_kg,
-                          fundal_height: visit.fundal_height,
-                          fetal_heart_rate: visit.fetal_heart_rate,
-                          next_visit_date: visit.next_visit_date || '',
-                        });
-                        setViewMode('form');
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    {!readOnly && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setEditingVisit(visit);
+                          
+                          // Format dates to YYYY-MM-DD for HTML date inputs
+                          const formatDateForInput = (dateString: string | null | undefined) => {
+                            if (!dateString) return '';
+                            
+                            try {
+                              // Handle both ISO format and date-only format
+                              const date = new Date(dateString);
+                              if (isNaN(date.getTime())) return '';
+                              
+                              // Return in YYYY-MM-DD format
+                              return date.toISOString().split('T')[0];
+                            } catch {
+                              return '';
+                            }
+                          };
+                          
+                          form.reset({
+                            visit_date: formatDateForInput(visit.visit_date),
+                            gestation_weeks: visit.gestation_weeks || undefined,
+                            blood_pressure: visit.blood_pressure || '',
+                            weight_kg: visit.weight_kg || undefined,
+                            fundal_height: visit.fundal_height || undefined,
+                            fetal_heart_rate: visit.fetal_heart_rate || undefined,
+                            fetal_heart_inspection: visit.fetal_heart_inspection || '',
+                            urine_p: visit.urine_p || '',
+                            urine_s: visit.urine_s || '',
+                            folic_acid_iron: visit.folic_acid_iron || '',
+                            pt: visit.pt || '',
+                            tt: visit.tt || '',
+                            next_visit_date: formatDateForInput(visit.next_visit_date),
+                          });
+                          setViewMode('form');
+                        }}
+                        title="Edit Visit"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
                     <ChevronRight className="h-4 w-4 text-gray-400" />
                   </div>
                 </div>
@@ -775,7 +838,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
       </div>
 
       {/* Floating Add Button */}
-      {visits.length > 0 && (
+      {visits.length > 0 && !readOnly && (
         <div className="fixed bottom-6 right-6 z-50">
           <Button
             onClick={() => {
@@ -785,6 +848,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess }: ANCVisitFormProps) =
             }}
             size="lg"
             className="rounded-full w-14 h-14 bg-green-500 hover:bg-green-600 shadow-lg"
+            title="Add New Visit"
           >
             <Plus className="h-6 w-6" />
           </Button>

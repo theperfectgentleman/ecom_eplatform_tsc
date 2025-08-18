@@ -32,6 +32,7 @@ import {
   Edit
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
 
 // District code mapping
 const DISTRICT_CODES = {
@@ -57,7 +58,7 @@ const generateRandomLetters = (length: number): string => {
   return result;
 };
 
-const generatePatientCode = (district: string): string => {
+const generatePatientId = (district: string): string => {
   const districtCode = DISTRICT_CODES[district as keyof typeof DISTRICT_CODES] || '00';
   const year = new Date().getFullYear().toString().slice(-2); // Last 2 digits of year
   const randomDigits = generateRandomDigits(4);
@@ -66,27 +67,30 @@ const generatePatientCode = (district: string): string => {
   return `EN-${districtCode}${year}-${randomDigits}${randomLetters}`;
 };
 
-const isValidPatientCodeFormat = (code: string): boolean => {
+const isValidPatientIdFormat = (id: string): boolean => {
   // Format: EN-(districtcode)(YY)-(4 digits)(2 letters)
   const regex = /^EN-\d{4}-\d{4}[A-Z]{2}$/;
-  return regex.test(code);
+  return regex.test(id);
 };
 
 const personDetailsSchema = z.object({
   surname: z.string().min(2, 'Surname must be at least 2 characters'),
-  other_names: z.string().optional(),
+  other_names: z.string().min(1, 'Other names are required'),
   date_of_birth: z.string().min(1, 'Date of birth is required'),
-  contact_number: z.string().min(10, 'Contact number must be at least 10 digits'),
-  alternative_number: z.string().optional(),
+  contact_number: z.string()
+    .min(10, 'Contact number must be at least 10 digits')
+    .max(20, 'Contact number must not exceed 20 characters'),
+  alternative_number: z.string().max(20, 'Alternative number must not exceed 20 characters').optional(),
   next_of_kin_name: z.string().optional(),
-  next_of_kin_contact: z.string().optional(),
+  next_of_kin_contact: z.string().max(255, 'Next of kin contact must not exceed 255 characters').optional(),
+  patient_id: z.string().optional(),
   patient_code: z.string().optional(),
-  registration_date: z.string().optional(),
+  registration_date: z.string().min(1, 'Registration date is required'),
   region: z.string().min(1, 'Region is required'),
   district: z.string().min(1, 'District is required'),
-  subdistrict: z.string().optional(),
-  community_name: z.string().optional(),
-  address: z.string().optional(),
+  subdistrict: z.string().min(1, 'Subdistrict is required'),
+  community_name: z.string().min(1, 'Community is required'),
+  address: z.string().min(1, 'Address is required'),
   reg_loc_lat: z.number().optional(),
   reg_loc_lng: z.number().optional(),
 });
@@ -118,6 +122,7 @@ interface PersonDetailsFormProps {
 }
 
 const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly = false }: PersonDetailsFormProps) => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const { request } = useApi();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -141,8 +146,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
     try {
       const date = new Date(isoDate);
       return date.toISOString().split('T')[0]; // Gets just the YYYY-MM-DD part
-    } catch (error) {
-      console.error('Error formatting date:', error);
+    } catch {
       return '';
     }
   };
@@ -161,7 +165,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
       const year = date.getFullYear();
       
       return `${day}-${month}-${year}`;
-    } catch (error) {
+    } catch {
       return '';
     }
   };
@@ -176,6 +180,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
       alternative_number: initialData?.alternative_number || '',
       next_of_kin_name: initialData?.next_kin || '',
       next_of_kin_contact: initialData?.next_kin_contact || '',
+      patient_id: initialData?.patient_id || '',
       patient_code: initialData?.patient_code || '',
       registration_date: formatDateForInput(initialData?.registration_date),
       region: initialData?.region || '',
@@ -192,23 +197,23 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
   const watchedDistrict = form.watch('district');
   const watchedSubdistrict = form.watch('subdistrict');
 
-  // Generate patient code for new patients or validate/fix existing ones
+  // Generate patient ID for new patients or validate/fix existing ones
   useEffect(() => {
-    const currentPatientCode = form.getValues('patient_code');
+    const currentPatientId = form.getValues('patient_id');
     const district = form.getValues('district');
     
-    // If no patient code (new patient) or invalid format, generate a new one
-    if (district && (!currentPatientCode || !isValidPatientCodeFormat(currentPatientCode))) {
-      const newCode = generatePatientCode(district);
-      form.setValue('patient_code', newCode);
+    // If no patient ID (new patient) or invalid format, generate a new one
+    if (district && (!currentPatientId || !isValidPatientIdFormat(currentPatientId))) {
+      const newId = generatePatientId(district);
+      form.setValue('patient_id', newId);
     }
   }, [watchedDistrict, form]);
 
-  // Generate patient code when creating new patient (no initialData)
+  // Generate patient ID when creating new patient (no initialData)
   useEffect(() => {
     if (!initialData && watchedDistrict) {
-      const newCode = generatePatientCode(watchedDistrict);
-      form.setValue('patient_code', newCode);
+      const newId = generatePatientId(watchedDistrict);
+      form.setValue('patient_id', newId);
     }
   }, [initialData, watchedDistrict, form]);
 
@@ -286,6 +291,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
         alternative_number: initialData.alternative_number || '',
         next_of_kin_name: initialData.next_kin || '',
         next_of_kin_contact: initialData.next_kin_contact || '',
+        patient_id: initialData.patient_id || '',
         patient_code: initialData.patient_code || '',
         registration_date: formatDateForInput(initialData.registration_date),
         region: initialData.region || '',
@@ -310,6 +316,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
         form.setValue('alternative_number', initialData.alternative_number || '');
         form.setValue('next_of_kin_name', initialData.next_kin || '');
         form.setValue('next_of_kin_contact', initialData.next_kin_contact || '');
+        form.setValue('patient_id', initialData.patient_id || '');
         form.setValue('patient_code', initialData.patient_code || '');
         form.setValue('registration_date', formatDateForInput(initialData.registration_date));
         form.setValue('region', initialData.region || '');
@@ -485,32 +492,101 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
     // Remove all non-numeric characters
     const numericValue = value.replace(/\D/g, '');
     
+    // Limit to 10 digits to fit database constraints (varchar 20 with formatting)
+    const limitedValue = numericValue.slice(0, 10);
+    
     // Format as XXX-XXX-XXXX
-    if (numericValue.length >= 6) {
-      return `${numericValue.slice(0, 3)}-${numericValue.slice(3, 6)}-${numericValue.slice(6, 10)}`;
-    } else if (numericValue.length >= 3) {
-      return `${numericValue.slice(0, 3)}-${numericValue.slice(3)}`;
+    if (limitedValue.length >= 6) {
+      return `${limitedValue.slice(0, 3)}-${limitedValue.slice(3, 6)}-${limitedValue.slice(6, 10)}`;
+    } else if (limitedValue.length >= 3) {
+      return `${limitedValue.slice(0, 3)}-${limitedValue.slice(3)}`;
     }
-    return numericValue;
+    return limitedValue;
   };
 
   const onSubmit = async (data: PersonDetailsFormData) => {
     try {
       setIsSubmitting(true);
+
+      // Generate patient ID just before submission if it's a new patient
+      if (!initialData?.patient_id) {
+        const district = form.getValues('district');
+        if (district) {
+          const newId = generatePatientId(district);
+          form.setValue('patient_id', newId);
+          data.patient_id = newId; // Update data object as well
+        } else {
+          throw new Error('District is required to generate a patient ID.');
+        }
+      }
       
-      // Clean up "None" values and map surname to name for backend
-      const cleanedData = {
-        ...data,
-        name: data.surname, // Map surname to name for backend compatibility
-        othernames: data.other_names, // Map other_names to othernames for backend compatibility
-        region: data.region === 'None' ? '' : data.region,
-        district: data.district === 'None' ? '' : data.district,
-        subdistrict: data.subdistrict === 'None' ? '' : data.subdistrict,
-        community_name: data.community_name === 'None' ? '' : data.community_name,
-        // Remove surname and other_names since we mapped them
-        surname: undefined,
-        other_names: undefined,
+      // Prepare data for API submission, ensuring all fields match database schema
+      const cleanedData: any = {
+        // Required fields - ensure they have values
+        patient_id: data.patient_id, // Now it's guaranteed to be here
+        name: data.surname || '', // Map surname to name for backend compatibility
+        dob: data.date_of_birth || '', // Map date_of_birth to dob for backend
+        contact_number: data.contact_number || '',
+        region: data.region && data.region !== 'None' ? data.region : '',
+        district: data.district && data.district !== 'None' ? data.district : '',
+        address: data.address || '',
+        next_kin: data.next_of_kin_name || '',
+        next_kin_contact: data.next_of_kin_contact || '',
+        registration_date: data.registration_date || new Date().toISOString().split('T')[0], // Default to today if not set
+        
+        // Add assigned_user_id from logged-in user
+        ...(user?.user_id && { assigned_user_id: user.user_id }),
+
+        // Optional fields - only include if they have values
+        ...(data.other_names && { othernames: data.other_names }),
+        ...(data.alternative_number && { alternative_number: data.alternative_number }),
+        ...(data.next_of_kin_name && { next_kin: data.next_of_kin_name }),
+        ...(data.next_of_kin_contact && { next_kin_contact: data.next_of_kin_contact }),
+        ...(data.patient_id && { patient_id: data.patient_id }),
+        ...(data.patient_code && { patient_code: data.patient_code }),
+        ...(data.registration_date && { registration_date: data.registration_date }),
+        ...(data.address && { address: data.address }),
+        ...(data.subdistrict && data.subdistrict !== 'None' && { subdistrict: data.subdistrict }),
+        ...(data.community_name && data.community_name !== 'None' && { community: data.community_name }),
+        ...(typeof data.reg_loc_lat === 'number' && { reg_loc_lat: data.reg_loc_lat }),
+        ...(typeof data.reg_loc_lng === 'number' && { reg_loc_lng: data.reg_loc_lng }),
       };
+
+      // For updates, include the patient_id
+      if (initialData?.patient_id) {
+        cleanedData.patient_id = initialData.patient_id;
+      }
+
+      console.log('Submitting cleaned data:', cleanedData);
+
+      // Validate required fields before submission
+      if (!cleanedData.name) {
+        throw new Error('Patient name is required');
+      }
+      if (!cleanedData.dob) {
+        throw new Error('Date of birth is required');
+      }
+      if (!cleanedData.contact_number) {
+        throw new Error('Contact number is required');
+      }
+      if (!cleanedData.region) {
+        throw new Error('Region is required');
+      }
+      if (!cleanedData.district) {
+        throw new Error('District is required');
+      }
+
+      // Ensure assigned_user_id is present for new patients
+      if (!cleanedData.assigned_user_id && !initialData?.patient_id) {
+        throw new Error('Could not identify the logged-in user. Please log in again.');
+      }
+
+      // Remove any undefined values from the object
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === undefined) {
+          delete cleanedData[key];
+        }
+      });
 
       const response = await request<Patient>({
         path: initialData?.patient_id ? `patients/${initialData.patient_id}` : 'patients',
@@ -545,10 +621,10 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
             <CardTitle>Personal Details</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            {form.watch('patient_code') && (
+            {form.watch('patient_id') && (
               <div className="px-3 py-1 bg-blue-50 border border-blue-200 rounded-md">
                 <span className="text-sm font-mono text-blue-700">
-                  {form.watch('patient_code')}
+                  {form.watch('patient_id')}
                 </span>
               </div>
             )}
@@ -649,6 +725,27 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                   )}
                 />
               </div>
+
+              {/* Patient Code Field */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="patient_code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Patient Code</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Optional patient reference code" 
+                          disabled={isFormDisabled}
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             {/* SECTION B: Contact Information */}
@@ -665,6 +762,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                       <FormControl>
                         <Input 
                           placeholder="XXX-XXX-XXXX" 
+                          disabled={isFormDisabled}
                           {...field}
                           onChange={(e) => {
                             const formatted = formatPhoneNumber(e.target.value);
@@ -686,6 +784,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                       <FormControl>
                         <Input 
                           placeholder="XXX-XXX-XXXX" 
+                          disabled={isFormDisabled}
                           {...field}
                           onChange={(e) => {
                             const formatted = formatPhoneNumber(e.target.value);
@@ -712,7 +811,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                     <FormItem>
                       <FormLabel>Next of Kin Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter next of kin name" {...field} />
+                        <Input placeholder="Enter next of kin name" disabled={isFormDisabled} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -728,6 +827,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                       <FormControl>
                         <Input 
                           placeholder="XXX-XXX-XXXX" 
+                          disabled={isFormDisabled}
                           {...field}
                           onChange={(e) => {
                             const formatted = formatPhoneNumber(e.target.value);
@@ -759,7 +859,11 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Region *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value || ""} 
+                          disabled={isFormDisabled}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select region" />
@@ -787,7 +891,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                         <Select 
                           onValueChange={field.onChange} 
                           value={field.value || ""}
-                          disabled={!watchedRegion || watchedRegion === 'None'}
+                          disabled={isFormDisabled || !watchedRegion || watchedRegion === 'None'}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -818,7 +922,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                         <Select 
                           onValueChange={field.onChange} 
                           value={field.value || ""}
-                          disabled={!watchedDistrict || watchedDistrict === 'None'}
+                          disabled={isFormDisabled || !watchedDistrict || watchedDistrict === 'None'}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -847,7 +951,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                         <Select 
                           onValueChange={field.onChange} 
                           value={field.value || ""}
-                          disabled={!watchedDistrict || watchedDistrict === 'None'}
+                          disabled={isFormDisabled || !watchedDistrict || watchedDistrict === 'None'}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -883,7 +987,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                       <FormItem>
                         <FormLabel>Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter detailed address" {...field} />
+                          <Input placeholder="Enter detailed address" disabled={isFormDisabled} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -896,7 +1000,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                       <button
                         type="button"
                         onClick={captureLocation}
-                        disabled={isCapturingLocation}
+                        disabled={isCapturingLocation || isFormDisabled}
                         className="flex items-center gap-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                       >
                         <MapPin size={14} />

@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const parsedUser: Account = JSON.parse(storedUser);
         updateUserAndPermissions(parsedUser);
         setToken(storedToken);
-      } catch (_e) {
+      } catch {
         // If parsing fails, clear the bad value
         localStorage.removeItem('user');
         localStorage.removeItem('token');

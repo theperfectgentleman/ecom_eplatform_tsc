@@ -169,7 +169,7 @@ export const useApi = () => {
     async <T = any>(options: Omit<ApiRequestOptions, 'suppressToast'>): Promise<T | null> => {
       try {
         return await request<T>({ ...options, suppressToast: { error: true, warning: true } });
-      } catch (error) {
+      } catch {
         // Return null for optional requests that fail
         return null;
       }

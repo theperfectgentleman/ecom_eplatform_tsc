@@ -201,6 +201,7 @@ export interface AntenatalRegistration {
   tb_treatment_started?: boolean;
   blood_pressure?: string;
   weight?: number;
+  height?: number;
   antenatal_status?: string;
   created_at?: string;
   updated_at?: string;
