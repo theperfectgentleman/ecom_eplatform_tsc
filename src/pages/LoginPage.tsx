@@ -48,7 +48,7 @@ const LoginPage = () => {
       try {
         // Test basic API connectivity by trying to reach the API base URL
         // This is a more reliable test than specific endpoints
-        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org/api').replace(/\/$/, '');
+        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompass.org/api').replace(/\/$/, '');
         
         const response = await fetch(apiBaseUrl, {
           method: "GET",

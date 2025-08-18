@@ -214,9 +214,9 @@ The navigation sub-menu system is now fully implemented and ready for production
 
 
 
-# Environment variables for Encompas E-Platform
-VITE_API_BASE_URL=https://api.encompas.org/api
+# Environment variables for Encompass E-Platform
+VITE_API_BASE_URL=https://api.encompass.org/api
 VITE_SYNCFUSION_LICENSE_KEY=ORg4AjUWIQA/Gnt3VVhhQlJDfV5AQmBIYVp/TGpJfl96cVxMZVVBJAtUQF1hTH5UdkNiWHtYcXBQQ2NaWkd2
 # VITE_SOME_OTHER_KEY=your_value
-ENCOMPAS_API_KEY=ab6dd734ad8cf02ca3711483155e8561cb7acb9eebf7fb3a9bc76669a412a060
-VITE_ENCOMPAS_API_KEY=ab6dd734ad8cf02ca3711483155e8561cb7acb9eebf7fb3a9bc76669a412a060
+ENCOMPASS_API_KEY=ab6dd734ad8cf02ca3711483155e8561cb7acb9eebf7fb3a9bc76669a412a060
+VITE_ENCOMPASS_API_KEY=ab6dd734ad8cf02ca3711483155e8561cb7acb9eebf7fb3a9bc76669a412a060

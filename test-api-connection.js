@@ -1,7 +1,7 @@
 // Test script to verify API connection
 // Run with: node test-api-connection.js
 
-const API_BASE_URL = 'https://api.encompas.org/api';
+const API_BASE_URL = 'https://api.encompass.org/api';
 const API_KEY = 'ab6dd734ad8cf02ca3711483155e8561cb7acb9eebf7fb3a9bc76669a412a060';
 
 async function testApiConnection() {

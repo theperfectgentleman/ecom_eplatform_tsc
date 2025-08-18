@@ -29,7 +29,6 @@ import {
   Droplets,
   Shield,
   ShieldCheck,
-  Ruler, // Added for height
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
