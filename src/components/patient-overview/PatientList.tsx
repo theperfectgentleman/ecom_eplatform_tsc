@@ -35,10 +35,10 @@ const PatientList: React.FC<PatientListProps> = ({
 	const { toast } = useToast();
 	const { filterByAccessLevel } = useAccessLevelFilter();
 
-	const calculateAge = (yearOfBirth: number): number => {
+	const calculateAge = useCallback((yearOfBirth: number): number => {
 		const currentYear = new Date().getFullYear();
 		return currentYear - yearOfBirth;
-	};
+	}, []);
 
 	// Helper function to format full name
 	const formatFullName = (patient: PatientOverviewData): string => {
@@ -90,7 +90,7 @@ const PatientList: React.FC<PatientListProps> = ({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [request, filterByAccessLevel, toast]);
+	}, [request, filterByAccessLevel, toast, calculateAge]);
 
 	const fetchPatientWithUserDetails = useCallback(async (patientId: string) => {
 		try {

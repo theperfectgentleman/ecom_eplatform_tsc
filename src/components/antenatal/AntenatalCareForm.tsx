@@ -86,7 +86,7 @@ const AntenatalCareForm = ({ formState, onStageChange, onSuccess, onPatientUpdat
     };
 
     loadRegistrationData();
-  }, [selectedPatient, request]);
+  }, [selectedPatient, request, quietRequest]);
 
   const isStageAccessible = (stage: ANCStage) => {
     switch (stage) {

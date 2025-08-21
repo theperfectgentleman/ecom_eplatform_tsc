@@ -25,6 +25,8 @@ import {
   UserCheck,
   Package,
   MapPin,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import {
   LineChart,
@@ -43,6 +45,16 @@ import {
 } from "recharts";
 import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
 import { useFilteredApi } from "@/hooks/useFilteredApi";
+
+// Community interface for geographic filters
+interface Community {
+  community_id?: number;
+  community_name: string;
+  region: string;
+  district: string;
+  subdistrict?: string;
+  sub_district?: string;
+}
 
 interface MonthlyTrendsData {
   month: string;
@@ -75,16 +87,21 @@ interface DashboardStats {
 interface PatientBio {
   patient_id: string;
   name: string;
-  year_of_birth: number;
-  gender: string;
+  dob?: string; // Backend uses 'dob' not 'year_of_birth'
+  year_of_birth?: number; // Keep for backward compatibility
+  gender?: string;
   contact_number?: string;
   region: string;
   district: string;
-  sub_district: string;
-  community: string;
+  subdistrict?: string; // Backend uses 'subdistrict' not 'sub_district'
+  sub_district?: string; // Keep for compatibility
+  community?: string;
   national_id?: string;
   insurance_status?: string;
   registration_date: string;
+  address?: string; // Additional field from backend
+  next_kin?: string; // Additional field from backend
+  next_kin_contact?: string; // Additional field from backend
 }
 
 interface ANCRegistration {
@@ -93,13 +110,15 @@ interface ANCRegistration {
   registration_date: string;
   registration_number: string;
   parity?: number;
+  gravida?: number; // Additional field from backend
   gestation_weeks?: number;
   estimated_delivery_date?: string;
   antenatal_status: string;
   region: string;
   district: string;
-  sub_district: string;
-  community: string;
+  subdistrict?: string; // Backend uses 'subdistrict'
+  sub_district?: string; // Keep for compatibility
+  community?: string;
 }
 
 interface ANCVisit {
@@ -107,14 +126,25 @@ interface ANCVisit {
   patient_id: string;
   antenatal_registration_id: string;
   visit_date: string;
+  visit_type?: string; // Backend field
+  visit_number?: number; // Additional field from backend
   gestation_weeks?: number;
   blood_pressure?: string;
   weight_kg?: number;
+  weight?: number; // Backend field
+  fetal_heart_rate?: number; // Backend field
+  temperature?: number; // Backend field
+  pulse?: number; // Backend field
+  notes?: string; // Backend field
+  nurse_id?: string; // Backend field
   next_visit_date?: string;
   region: string;
   district: string;
   sub_district: string;
+  subdistrict?: string; // Backend compatibility
   community: string;
+  created_at?: string; // Backend timestamp field
+  updated_at?: string; // Backend timestamp field
 }
 
 interface CaseFile {
@@ -123,12 +153,17 @@ interface CaseFile {
   priority_level: string;
   status: string;
   date_created: string;
+  created_at?: string; // Backend timestamp field
+  updated_at?: string; // Backend timestamp field
   region: string;
   district: string;
   sub_district: string;
+  subdistrict?: string; // Backend compatibility
   community: string;
   referral_reason_notes?: string;
   facility_referred_to?: string;
+  assigned_nurse_id?: string; // Backend field
+  notes?: string; // Backend field
 }
 
 interface KitDistroLog {
@@ -139,10 +174,14 @@ interface KitDistroLog {
   vol_user_confirm: boolean;
   adm_user_confirm: boolean;
   distro_date: string;
+  created_at?: string; // Backend timestamp field
+  updated_at?: string; // Backend timestamp field
   region: string;
   district: string;
   sub_district: string;
+  subdistrict?: string; // Backend compatibility
   community: string;
+  notes?: string; // Backend field
 }
 
 interface KitUsageLog {
@@ -154,10 +193,14 @@ interface KitUsageLog {
   lng?: number;
   result: string;
   usage_date: string;
+  created_at?: string; // Backend timestamp field
+  updated_at?: string; // Backend timestamp field
   region: string;
   district: string;
   sub_district: string;
+  subdistrict?: string; // Backend compatibility
   community: string;
+  notes?: string; // Backend field
 }
 
 // Sample data - will be replaced with API calls when backend is ready
@@ -360,55 +403,106 @@ const generateMonthlyData = () => {
   }));
 };
 
-const regions = ["All Regions", "Greater Accra", "Ashanti", "Western"];
-const districtsByRegion: { [key: string]: string[] } = {
-  "Greater Accra": ["All Districts", "Accra Metropolitan", "Tema Metropolitan"],
-  "Ashanti": ["All Districts", "Kumasi Metropolitan", "Obuasi Municipal"],
-  "Western": ["All Districts", "Sekondi-Takoradi Metropolitan", "Tarkwa-Nsuaem Municipal"],
+// Helper function to ensure array data safety
+const ensureArray = <T,>(data: T[] | null | undefined): T[] => {
+  return Array.isArray(data) ? data : [];
+};
+
+// Normalize priority levels to handle both systems (critical/urgent/routine -> high/medium/low)
+const normalizePriorityLevel = (level: string | null | undefined): string => {
+  const normalized = level?.toLowerCase();
+  switch (normalized) {
+    case 'critical':
+      return 'high';
+    case 'urgent':
+      return 'medium';
+    case 'routine':
+      return 'low';
+    default:
+      return normalized || 'low';
+  }
+};
+
+// Safe date parsing function
+const safeParseDate = (dateString: string | null | undefined): Date => {
+  if (!dateString) return new Date();
+  const parsed = new Date(dateString);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
 };
 
 const Dashboard = () => {
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
-  const [useLiveData, setUseLiveData] = useState(false);
+  const [useLiveData, setUseLiveData] = useState(true); // Default to live data to avoid misleading sample data
+  const [isLiveDataStatusExpanded, setIsLiveDataStatusExpanded] = useState(false); // Collapsed by default
   const { filterByAccessLevel } = useAccessLevelFilter();
   const { token } = useAuth();
 
+  // Helper function to build query parameters for API calls
+  const buildQueryParams = (region: string, district: string): string => {
+    const params = new URLSearchParams();
+    
+    // Only add region parameter if not "All Regions"
+    if (region && region !== "All Regions") {
+      params.append('region', region);
+    }
+    
+    // Only add district parameter if not "All Districts" and region is selected
+    if (district && district !== "All Districts" && region !== "All Regions") {
+      params.append('district', district);
+    }
+    
+    const queryString = params.toString();
+    return queryString ? `?${queryString}` : '';
+  };
+
+  // Generate query parameters based on current selection
+  const queryParams = buildQueryParams(selectedRegion, selectedDistrict);
+
   // API calls for live data - using the correct dashboard endpoints that exist in your API
   const { data: livePatients, loading: patientsLoading } = useFilteredApi<PatientBio>({
-    path: 'dashboard/patient-bio',
+    path: `dashboard/patient-bio${queryParams}`,
     autoFetch: useLiveData,
-    applyFilter: false // Dashboard endpoints already handle filtering
+    applyFilter: false, // Dashboard endpoints already handle filtering
+    dependencies: [selectedRegion, selectedDistrict] // Re-fetch when filters change
   });
 
   const { data: liveANCRegistrations, loading: ancLoading } = useFilteredApi<ANCRegistration>({
-    path: 'dashboard/antenatal-registration',
+    path: `dashboard/antenatal-registration${queryParams}`,
     autoFetch: useLiveData,
+    applyFilter: false,
+    dependencies: [selectedRegion, selectedDistrict]
+  });
+
+  // Fetch communities for geographic filters
+  const { data: communities } = useFilteredApi<Community>({
+    path: 'communities',
+    autoFetch: true, // Always fetch communities for filters
     applyFilter: false
   });
 
-  // Sample data for analytics
-  const sampleAgeDistribution = [
+  // Sample data for analytics - wrapped in useMemo to prevent re-creation on every render
+  const sampleAgeDistribution = useMemo(() => [
     { age_group: 'Under 20', count: 45 },
     { age_group: '20-24', count: 123 },
     { age_group: '25-29', count: 89 },
     { age_group: '30-34', count: 67 },
     { age_group: '35+', count: 32 }
-  ];
+  ], []);
 
-  const sampleInsuranceCoverage = [
+  const sampleInsuranceCoverage = useMemo(() => [
     { status: 'active', count: 248 },
     { status: 'inactive', count: 89 },
     { status: 'unknown', count: 19 }
-  ];
+  ], []);
 
-  const sampleRiskDistribution = [
+  const sampleRiskDistribution = useMemo(() => [
     { priority_level: 'low', count: 178 },
     { priority_level: 'medium', count: 134 },
     { priority_level: 'high', count: 44 }
-  ];
+  ], []);
 
-  const sampleANCPerformance = {
+  const sampleANCPerformance = useMemo(() => ({
     total_registrations: 356,
     total_visits: 892,
     avg_gestation_at_registration: 18.5,
@@ -420,51 +514,90 @@ const Dashboard = () => {
     two_visit_patients: 89,
     three_visit_patients: 134,
     four_plus_visit_patients: 88
-  };
+  }), []);
 
-  const sampleKitPerformance = {
+  const sampleKitPerformance = useMemo(() => ({
     total_distributed: 245,
     total_used: 189,
     utilization_rate: 77.1,
     positive_rate: 23.8,
     active_volunteers: 12
-  };
+  }), []);
 
-  const sampleVolunteerPerformance = [
+  const sampleVolunteerPerformance = useMemo(() => [
     { vol_user_id: 1, total_kits_received: 45, kits_used: 38, confirmation_rate: 84.4, usage_rate: 76.2 },
     { vol_user_id: 2, total_kits_received: 32, kits_used: 28, confirmation_rate: 87.5, usage_rate: 81.3 },
     { vol_user_id: 3, total_kits_received: 28, kits_used: 23, confirmation_rate: 82.1, usage_rate: 78.9 }
-  ];
+  ], []);
+
+  // Generate dynamic regions and districts from communities data
+  const regions = useMemo(() => {
+    if (!communities || communities.length === 0) {
+      return ["All Regions"];
+    }
+    const uniqueRegions = Array.from(new Set(communities.map(c => c.region))).sort();
+    return ["All Regions", ...uniqueRegions];
+  }, [communities]);
+
+  const districtsByRegion = useMemo(() => {
+    if (!communities || communities.length === 0) {
+      return {};
+    }
+    
+    const result: { [key: string]: string[] } = {};
+    
+    communities.forEach(community => {
+      if (!result[community.region]) {
+        result[community.region] = ["All Districts"];
+      }
+      if (!result[community.region].includes(community.district)) {
+        result[community.region].push(community.district);
+      }
+    });
+    
+    // Sort districts for each region
+    Object.keys(result).forEach(region => {
+      const districts = result[region].filter(d => d !== "All Districts").sort();
+      result[region] = ["All Districts", ...districts];
+    });
+    
+    return result;
+  }, [communities]);
 
   const { data: liveANCVisits, loading: visitsLoading } = useFilteredApi<ANCVisit>({
-    path: 'dashboard/antenatal-visits',
+    path: `dashboard/antenatal-visits${queryParams}`,
     autoFetch: useLiveData,
-    applyFilter: false
+    applyFilter: false,
+    dependencies: [selectedRegion, selectedDistrict]
   });
 
   const { data: liveCases, loading: casesLoading } = useFilteredApi<CaseFile>({
-    path: 'dashboard/case-files',
+    path: `dashboard/case-files${queryParams}`,
     autoFetch: useLiveData,
-    applyFilter: false
+    applyFilter: false,
+    dependencies: [selectedRegion, selectedDistrict]
   });
 
   const { data: liveKitDistro, loading: kitDistroLoading } = useFilteredApi<KitDistroLog>({
-    path: 'dashboard/kit-distribution',
+    path: `dashboard/kit-distribution${queryParams}`,
     autoFetch: useLiveData,
-    applyFilter: false
+    applyFilter: false,
+    dependencies: [selectedRegion, selectedDistrict]
   });
 
   const { data: liveKitUsage, loading: kitUsageLoading } = useFilteredApi<KitUsageLog>({
-    path: 'dashboard/kit-usage',
+    path: `dashboard/kit-usage${queryParams}`,
     autoFetch: useLiveData,
-    applyFilter: false
+    applyFilter: false,
+    dependencies: [selectedRegion, selectedDistrict]
   });
 
   // Enable the geographic data call since the endpoint exists
   const { data: liveGeographicData } = useFilteredApi<{region: string, district: string, patient_count: number}>({
-    path: 'dashboard/geographic-distribution',
+    path: `dashboard/geographic-distribution${queryParams}`,
     autoFetch: useLiveData,
-    applyFilter: false
+    applyFilter: false,
+    dependencies: [selectedRegion, selectedDistrict]
   });
 
   // Additional API calls for analytics (using regular fetch since they don't return FilterableData)
@@ -474,8 +607,11 @@ const Dashboard = () => {
   const [liveANCPerformance, setLiveANCPerformance] = useState<any>(null);
   const [liveKitPerformance, setLiveKitPerformance] = useState<any>(null);
   const [liveVolunteerPerformance, setLiveVolunteerPerformance] = useState<any[]>([]);
+  
+  // Track API failures for user notification
+  const [apiFailures, setApiFailures] = useState<string[]>([]);
 
-  // Fetch analytics data when live data is enabled
+  // Fetch analytics data when live data is enabled with enhanced error handling
   useEffect(() => {
     if (useLiveData && token) {
       const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org/api').replace(/\/$/, '');
@@ -484,133 +620,156 @@ const Dashboard = () => {
         'Content-Type': 'application/json'
       };
       
-      // Age distribution
-      fetch(`${apiBaseUrl}/dashboard/age-distribution`, { headers })
-        .then(res => res.ok ? res.json() : Promise.reject(`Status: ${res.status}`))
-        .then(data => setLiveAgeDistribution(data.data || data))
-        .catch(err => {
-          console.warn('Age distribution API failed:', err);
-          setLiveAgeDistribution(sampleAgeDistribution);
-        });
+      // Reset failures when starting fresh fetch
+      setApiFailures([]);
 
-      // Insurance coverage
-      fetch(`${apiBaseUrl}/dashboard/insurance-coverage`, { headers })
-        .then(res => res.ok ? res.json() : Promise.reject(`Status: ${res.status}`))
-        .then(data => setLiveInsuranceCoverage(data.data || data))
-        .catch(err => {
-          console.warn('Insurance coverage API failed:', err);
-          setLiveInsuranceCoverage(sampleInsuranceCoverage);
-        });
-
-      // Risk distribution
-      fetch(`${apiBaseUrl}/dashboard/risk-distribution`, { headers })
-        .then(res => res.ok ? res.json() : Promise.reject(`Status: ${res.status}`))
-        .then(data => setLiveRiskDistribution(data.data || data))
-        .catch(err => {
-          console.warn('Risk distribution API failed:', err);
-          setLiveRiskDistribution(sampleRiskDistribution);
-        });
-
-      // ANC Performance
-      fetch(`${apiBaseUrl}/dashboard/anc-performance`, { headers })
-        .then(res => res.ok ? res.json() : Promise.reject(`Status: ${res.status}`))
-        .then(data => setLiveANCPerformance(data.data || data))
-        .catch(err => {
-          console.warn('ANC performance API failed:', err);
-          setLiveANCPerformance(sampleANCPerformance);
-        });
-
-      // Kit Performance
-      fetch(`${apiBaseUrl}/dashboard/kit-performance`, { headers })
-        .then(res => res.ok ? res.json() : Promise.reject(`Status: ${res.status}`))
-        .then(data => setLiveKitPerformance(data.data || data))
-        .catch(err => {
-          console.warn('Kit performance API failed:', err);
-          setLiveKitPerformance(sampleKitPerformance);
-        });
-
-      // Volunteer Performance
-      fetch(`${apiBaseUrl}/dashboard/volunteer-performance`, { headers })
-        .then(res => res.ok ? res.json() : Promise.reject(`Status: ${res.status}`))
-        .then(data => setLiveVolunteerPerformance(data.data || data))
-        .catch(err => {
-          console.warn('Volunteer performance API failed:', err);
-          setLiveVolunteerPerformance(sampleVolunteerPerformance);
-        });
+      // Helper function for safe API calls with query parameters
+      const safeApiCall = async (endpoint: string, setter: Function, fallback: any, label: string) => {
+        try {
+          const response = await fetch(`${apiBaseUrl}/${endpoint}${queryParams}`, { headers });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          // Handle different response formats safely
+          const processedData = data?.data ?? data ?? fallback;
+          setter(Array.isArray(processedData) || typeof processedData === 'object' ? processedData : fallback);
+          
+        } catch (err: any) {
+          console.warn(`${label} API failed:`, err?.message || err);
+          setter(fallback);
+          setApiFailures(prev => [...prev, label]);
+        }
+      };
+      
+      // Execute all API calls with better error handling and query parameters
+      safeApiCall('dashboard/age-distribution', setLiveAgeDistribution, sampleAgeDistribution, 'Age Distribution');
+      safeApiCall('dashboard/insurance-coverage', setLiveInsuranceCoverage, sampleInsuranceCoverage, 'Insurance Coverage');
+      safeApiCall('dashboard/risk-distribution', setLiveRiskDistribution, sampleRiskDistribution, 'Risk Distribution');
+      safeApiCall('dashboard/anc-performance', setLiveANCPerformance, sampleANCPerformance, 'ANC Performance');
+      safeApiCall('dashboard/kit-performance', setLiveKitPerformance, sampleKitPerformance, 'Kit Performance');
+      safeApiCall('dashboard/volunteer-performance', setLiveVolunteerPerformance, sampleVolunteerPerformance, 'Volunteer Performance');
     }
-  }, [useLiveData, token]);
+  }, [useLiveData, token, queryParams, sampleAgeDistribution, sampleInsuranceCoverage, sampleRiskDistribution, sampleANCPerformance, sampleKitPerformance, sampleVolunteerPerformance]);
 
   const { data: liveMonthlyTrends } = useFilteredApi<MonthlyTrendsData>({
-    path: 'dashboard/monthly-trends',
+    path: `dashboard/monthly-trends${queryParams}`,
     autoFetch: useLiveData,
-    applyFilter: false
+    applyFilter: false,
+    dependencies: [selectedRegion, selectedDistrict]
   });
 
-  // Data source selection
-  const patients = useLiveData ? (livePatients || []) : samplePatientBio;
-  const ancRegistrations = useLiveData ? (liveANCRegistrations || []) : sampleANCRegistrations;
-  const ancVisits = useLiveData ? (liveANCVisits || []) : sampleANCVisits;
-  const cases = useLiveData ? (liveCases || []) : sampleCaseFiles;
-  const kitDistro = useLiveData ? (liveKitDistro || []) : sampleKitDistroLogs;
-  const kitUsage = useLiveData ? (liveKitUsage || []) : sampleKitUsageLogs;
+  // Enhanced data source selection with robust null handling
+  const dataSelection = useMemo(() => {
+    if (useLiveData) {
+      return {
+        patients: ensureArray(livePatients),
+        ancRegistrations: ensureArray(liveANCRegistrations),
+        ancVisits: ensureArray(liveANCVisits),
+        cases: ensureArray(liveCases),
+        kitDistro: ensureArray(liveKitDistro),
+        kitUsage: ensureArray(liveKitUsage)
+      };
+    } else {
+      return {
+        patients: ensureArray(samplePatientBio),
+        ancRegistrations: ensureArray(sampleANCRegistrations),
+        ancVisits: ensureArray(sampleANCVisits),
+        cases: ensureArray(sampleCaseFiles),
+        kitDistro: ensureArray(sampleKitDistroLogs),
+        kitUsage: ensureArray(sampleKitUsageLogs)
+      };
+    }
+  }, [useLiveData, livePatients, liveANCRegistrations, liveANCVisits, liveCases, liveKitDistro, liveKitUsage]);
 
   const handleRegionChange = (region: string) => {
     setSelectedRegion(region);
     setSelectedDistrict("All Districts");
   };
 
-  // Apply manual filters (region/district dropdowns) with safety checks
+  // Apply manual filters (region/district dropdowns) with enhanced safety checks
   const manuallyFilteredData = useMemo(() => {
-    const filterByRegionDistrict = <T extends { region: string; district: string }>(data: T[]) => {
+    const filterByRegionDistrict = <T extends { region?: string; district?: string }>(data: T[]): T[] => {
       if (!Array.isArray(data)) return [];
-      return data.filter(item => 
-        (selectedRegion === "All Regions" || item.region === selectedRegion) &&
-        (selectedDistrict === "All Districts" || item.district === selectedDistrict)
-      );
+      return data.filter(item => {
+        const itemRegion = item.region || '';
+        const itemDistrict = item.district || '';
+        const regionMatch = selectedRegion === "All Regions" || itemRegion === selectedRegion;
+        const districtMatch = selectedDistrict === "All Districts" || itemDistrict === selectedDistrict;
+        return regionMatch && districtMatch;
+      });
     };
 
     return {
-      patients: filterByRegionDistrict(patients || []),
-      ancRegistrations: filterByRegionDistrict(ancRegistrations || []),
-      ancVisits: filterByRegionDistrict(ancVisits || []),
-      cases: filterByRegionDistrict(cases || []),
-      kitDistro: filterByRegionDistrict(kitDistro || []),
-      kitUsage: filterByRegionDistrict(kitUsage || [])
+      patients: filterByRegionDistrict(dataSelection.patients),
+      ancRegistrations: filterByRegionDistrict(dataSelection.ancRegistrations),
+      ancVisits: filterByRegionDistrict(dataSelection.ancVisits),
+      cases: filterByRegionDistrict(dataSelection.cases),
+      kitDistro: filterByRegionDistrict(dataSelection.kitDistro),
+      kitUsage: filterByRegionDistrict(dataSelection.kitUsage)
     };
-  }, [patients, ancRegistrations, ancVisits, cases, kitDistro, kitUsage, selectedRegion, selectedDistrict]);
+  }, [dataSelection, selectedRegion, selectedDistrict]);
 
-  // Apply access level filters with safety checks
+  // Apply access level filters with enhanced safety checks
   const filteredData = useMemo(() => {
+    const safeFilter = (data: any[]): any[] => {
+      try {
+        return Array.isArray(data) ? filterByAccessLevel(data) : [];
+      } catch (error) {
+        console.warn('Access level filtering failed, returning unfiltered data:', error);
+        return Array.isArray(data) ? data : [];
+      }
+    };
+
     return {
-      patients: filterByAccessLevel(manuallyFilteredData.patients || []),
-      ancRegistrations: filterByAccessLevel(manuallyFilteredData.ancRegistrations || []),
-      ancVisits: filterByAccessLevel(manuallyFilteredData.ancVisits || []),
-      cases: filterByAccessLevel(manuallyFilteredData.cases || []),
-      kitDistro: filterByAccessLevel(manuallyFilteredData.kitDistro || []),
-      kitUsage: filterByAccessLevel(manuallyFilteredData.kitUsage || [])
+      patients: safeFilter(manuallyFilteredData.patients),
+      ancRegistrations: safeFilter(manuallyFilteredData.ancRegistrations),
+      ancVisits: safeFilter(manuallyFilteredData.ancVisits),
+      cases: safeFilter(manuallyFilteredData.cases),
+      kitDistro: safeFilter(manuallyFilteredData.kitDistro),
+      kitUsage: safeFilter(manuallyFilteredData.kitUsage)
     };
   }, [manuallyFilteredData, filterByAccessLevel]);
 
-  // Calculate statistics - use live data when available
+  // Calculate statistics with enhanced null safety
   const stats = useMemo((): DashboardStats => {
+    const safeLengthCalc = (data: any[] | null | undefined): number => {
+      return Array.isArray(data) ? data.length : 0;
+    };
+
+    const safeFilter = (data: any[] | null | undefined, predicate: (item: any) => boolean): any[] => {
+      return Array.isArray(data) ? data.filter(predicate) : [];
+    };
+
+    const safeReduce = (data: any[] | null | undefined, reducer: (acc: number, item: any) => number, initial: number = 0): number => {
+      return Array.isArray(data) ? data.reduce(reducer, initial) : initial;
+    };
+
     if (useLiveData && livePatients && liveANCRegistrations) {
-      // Calculate from live data
-      const totalPatients = livePatients.length;
-      const activePregnancies = liveANCRegistrations.filter(reg => reg.antenatal_status === 'active').length;
-      const openCases = liveCases?.filter(c => c.status === 'open').length || 0;
-      const highRiskPatients = liveCases?.filter(c => c.priority_level === 'high').length || 0;
-      const visitsThisMonth = liveANCVisits?.filter(v => 
-        new Date(v.visit_date).getMonth() === new Date().getMonth()
-      ).length || 0;
-      const kitsDistributed = liveKitDistro?.reduce((sum: number, log: any) => sum + log.quantity, 0) || 0;
-      const kitsUsed = liveKitUsage?.length || 0;
-      const ancRegistrations = liveANCRegistrations.length;
+      // Calculate from live data with null safety
+      const totalPatients = safeLengthCalc(livePatients);
+      const activePregnancies = safeFilter(liveANCRegistrations, reg => reg?.antenatal_status === 'active').length;
+      const openCases = safeFilter(liveCases, c => c?.status === 'open').length;
+      const highRiskPatients = safeFilter(liveCases, c => normalizePriorityLevel(c?.priority_level) === 'high').length;
+      
+      const currentMonth = new Date().getMonth();
+      const visitsThisMonth = safeFilter(liveANCVisits, v => {
+        if (!v?.visit_date) return false;
+        const visitDate = safeParseDate(v.visit_date);
+        return visitDate.getMonth() === currentMonth;
+      }).length;
+      
+      const kitsDistributed = safeReduce(liveKitDistro, (sum, log) => sum + (Number(log?.quantity) || 0), 0);
+      const kitsUsed = safeLengthCalc(liveKitUsage);
+      const ancRegistrations = safeLengthCalc(liveANCRegistrations);
       
       // Calculate derived stats from live data
-      const scheduledAppointments = ancRegistrations * 2;
-      const patientMessages = totalPatients * 3;
-      const upcomingAppointments = Math.ceil(ancRegistrations * 0.8);
-      const newRegistrations = Math.ceil(totalPatients * 0.1);
+      const scheduledAppointments = Math.max(0, ancRegistrations * 2);
+      const patientMessages = Math.max(0, totalPatients * 3);
+      const upcomingAppointments = Math.max(0, Math.ceil(ancRegistrations * 0.8));
+      const newRegistrations = Math.max(0, Math.ceil(totalPatients * 0.1));
 
       return {
         totalPatients,
@@ -627,23 +786,28 @@ const Dashboard = () => {
         ancRegistrations
       };
     } else {
-      // Calculate from sample data (existing logic)
-      const totalPatients = filteredData.patients.length;
-      const activePregnancies = filteredData.ancRegistrations.filter(reg => reg.antenatal_status === 'active').length;
-      const openCases = (filteredData.cases || []).filter(c => c.status === 'open').length;
-      const highRiskPatients = (filteredData.cases || []).filter(c => c.priority_level === 'high').length;
-      const visitsThisMonth = (filteredData.ancVisits || []).filter(v => 
-        new Date(v.visit_date).getMonth() === new Date().getMonth()
-      ).length;
-      const kitsDistributed = (filteredData.kitDistro || []).reduce((sum, log) => sum + log.quantity, 0);
-      const kitsUsed = (filteredData.kitUsage || []).length;
-      const ancRegistrations = (filteredData.ancRegistrations || []).length;
+      // Calculate from sample data (existing logic) with enhanced safety
+      const totalPatients = safeLengthCalc(filteredData.patients);
+      const activePregnancies = safeFilter(filteredData.ancRegistrations, reg => reg?.antenatal_status === 'active').length;
+      const openCases = safeFilter(filteredData.cases, c => c?.status === 'open').length;
+      const highRiskPatients = safeFilter(filteredData.cases, c => normalizePriorityLevel(c?.priority_level) === 'high').length;
+      
+      const currentMonth = new Date().getMonth();
+      const visitsThisMonth = safeFilter(filteredData.ancVisits, v => {
+        if (!v?.visit_date) return false;
+        const visitDate = safeParseDate(v.visit_date);
+        return visitDate.getMonth() === currentMonth;
+      }).length;
+      
+      const kitsDistributed = safeReduce(filteredData.kitDistro, (sum, log) => sum + (Number(log?.quantity) || 0), 0);
+      const kitsUsed = safeLengthCalc(filteredData.kitUsage);
+      const ancRegistrations = safeLengthCalc(filteredData.ancRegistrations);
       
       // Mock some additional stats
-      const scheduledAppointments = ancRegistrations * 2;
-      const patientMessages = totalPatients * 3;
-      const upcomingAppointments = Math.ceil(ancRegistrations * 0.8);
-      const newRegistrations = Math.ceil(totalPatients * 0.1);
+      const scheduledAppointments = Math.max(0, ancRegistrations * 2);
+      const patientMessages = Math.max(0, totalPatients * 3);
+      const upcomingAppointments = Math.max(0, Math.ceil(ancRegistrations * 0.8));
+      const newRegistrations = Math.max(0, Math.ceil(totalPatients * 0.1));
 
       return {
         totalPatients,
@@ -662,17 +826,21 @@ const Dashboard = () => {
     }
   }, [useLiveData, livePatients, liveANCRegistrations, liveCases, liveANCVisits, liveKitDistro, liveKitUsage, filteredData]);
 
-  // Aggregate all chart data from various sources
+  // Aggregate all chart data from various sources with null safety
   const chartData = useMemo(() => {
+    const safeData = (data: any, fallback: any): any => {
+      return data != null ? data : fallback;
+    };
+
     if (useLiveData) {
       return {
-        monthlyTrends: liveMonthlyTrends || generateMonthlyData(),
-        ageDistribution: liveAgeDistribution || sampleAgeDistribution,
-        insuranceCoverage: liveInsuranceCoverage || sampleInsuranceCoverage,
-        riskDistribution: liveRiskDistribution || sampleRiskDistribution,
-        ancPerformance: liveANCPerformance || sampleANCPerformance,
-        kitPerformance: liveKitPerformance || sampleKitPerformance,
-        volunteerPerformance: liveVolunteerPerformance || sampleVolunteerPerformance
+        monthlyTrends: safeData(liveMonthlyTrends, generateMonthlyData()),
+        ageDistribution: safeData(liveAgeDistribution, sampleAgeDistribution),
+        insuranceCoverage: safeData(liveInsuranceCoverage, sampleInsuranceCoverage),
+        riskDistribution: safeData(liveRiskDistribution, sampleRiskDistribution),
+        ancPerformance: safeData(liveANCPerformance, sampleANCPerformance),
+        kitPerformance: safeData(liveKitPerformance, sampleKitPerformance),
+        volunteerPerformance: safeData(liveVolunteerPerformance, sampleVolunteerPerformance)
       };
     } else {
       return {
@@ -686,32 +854,51 @@ const Dashboard = () => {
       };
     }
   }, [useLiveData, liveMonthlyTrends, liveAgeDistribution, liveInsuranceCoverage, 
-      liveRiskDistribution, liveANCPerformance, liveKitPerformance, liveVolunteerPerformance]);
+      liveRiskDistribution, liveANCPerformance, liveKitPerformance, liveVolunteerPerformance,
+      sampleAgeDistribution, sampleInsuranceCoverage, sampleRiskDistribution, 
+      sampleANCPerformance, sampleKitPerformance, sampleVolunteerPerformance]);
 
   // Chart data - use live data when available, otherwise use sample data
   const monthlyChartData = chartData.monthlyTrends;
 
-  // Kit usage pie chart data with safety checks
+  // Kit usage pie chart data with enhanced safety checks
   const kitUsageByResult = useMemo(() => {
-    if (!filteredData.kitUsage || !Array.isArray(filteredData.kitUsage)) {
+    // Safety checks for data existence and validity
+    if (!filteredData?.kitUsage || !Array.isArray(filteredData.kitUsage) || filteredData.kitUsage.length === 0) {
       return [
         { name: 'No Data', value: 1, fill: '#94a3b8' }
       ];
     }
 
-    const results = filteredData.kitUsage.reduce((acc, usage) => {
-      acc[usage.result] = (acc[usage.result] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    try {
+      const results = filteredData.kitUsage.reduce((acc, usage) => {
+        // Handle null/undefined usage objects and results
+        const result = usage?.result || 'unknown';
+        acc[result] = (acc[result] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
 
-    return Object.entries(results).map(([name, value]) => ({
-      name,
-      value,
-      fill: name === 'positive' ? '#ef4444' : name === 'negative' ? '#22c55e' : '#f59e0b'
-    }));
+      // Ensure we have valid data
+      const entries = Object.entries(results);
+      if (entries.length === 0) {
+        return [{ name: 'No Data', value: 1, fill: '#94a3b8' }];
+      }
+
+      return entries.map(([name, value]) => ({
+        name: name || 'Unknown',
+        value: Math.max(Number(value) || 0, 0),
+        fill: name === 'positive' ? '#ef4444' : name === 'negative' ? '#22c55e' : '#f59e0b'
+      }));
+    } catch (error) {
+      console.warn('Error processing kit usage data:', error);
+      return [{ name: 'Error', value: 1, fill: '#94a3b8' }];
+    }
   }, [filteredData.kitUsage]);
 
   const isLoading = useLiveData && (patientsLoading || ancLoading || visitsLoading || casesLoading || kitDistroLoading || kitUsageLoading);
+  const hasData = useLiveData ? 
+    (livePatients?.length || 0) > 0 || (liveANCRegistrations?.length || 0) > 0 : 
+    true; // Sample data is always available
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -720,12 +907,12 @@ const Dashboard = () => {
         <div className="flex items-center space-x-2">
           {/* Data Source Toggle */}
           <div className="flex items-center space-x-2 mr-4">
-            <span className="text-sm font-medium">Sample Data</span>
+            <span className="text-sm font-medium">Demo Data</span>
             <Switch
               checked={useLiveData}
               onCheckedChange={setUseLiveData}
             />
-            <span className="text-sm font-medium">Live Data</span>
+            <span className="text-sm font-medium">Real Data</span>
           </div>
           
           {/* Regional Filters */}
@@ -750,34 +937,104 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Debug information for live data */}
+      {/* Enhanced debug information for live data - Collapsible */}
       {useLiveData && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-medium text-blue-900 mb-2">Live Data Status:</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div 
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setIsLiveDataStatusExpanded(!isLiveDataStatusExpanded)}
+          >
+            <h3 className="font-medium text-blue-900">Live Data Status:</h3>
+            {isLiveDataStatusExpanded ? (
+              <ChevronDown className="h-4 w-4 text-blue-700" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-blue-700" />
+            )}
+          </div>
+          
+          {isLiveDataStatusExpanded && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-3">
+                <div>
+                  <span className="font-medium">Patients:</span> 
+                  <span className={`ml-2 px-2 py-1 rounded ${livePatients ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {patientsLoading ? 'Loading...' : livePatients ? `${livePatients.length} loaded` : 'No data'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">ANC Registrations:</span>
+                  <span className={`ml-2 px-2 py-1 rounded ${liveANCRegistrations ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {ancLoading ? 'Loading...' : liveANCRegistrations ? `${liveANCRegistrations.length} loaded` : 'No data'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">Visits:</span>
+                  <span className={`ml-2 px-2 py-1 rounded ${liveANCVisits ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {visitsLoading ? 'Loading...' : liveANCVisits ? `${liveANCVisits.length} loaded` : 'No data'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">Cases:</span>
+                  <span className={`ml-2 px-2 py-1 rounded ${liveCases ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {casesLoading ? 'Loading...' : liveCases ? `${liveCases.length} loaded` : 'No data'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">Kit Distribution:</span>
+                  <span className={`ml-2 px-2 py-1 rounded ${liveKitDistro ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {kitDistroLoading ? 'Loading...' : liveKitDistro ? `${liveKitDistro.length} loaded` : 'No data'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">Kit Usage:</span>
+                  <span className={`ml-2 px-2 py-1 rounded ${liveKitUsage ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {kitUsageLoading ? 'Loading...' : liveKitUsage ? `${liveKitUsage.length} loaded` : 'No data'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">Data Quality:</span>
+                  <span className={`ml-2 px-2 py-1 rounded ${hasData ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {hasData ? 'Good' : 'Limited'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">API Status:</span>
+                  <span className={`ml-2 px-2 py-1 rounded ${apiFailures.length === 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {apiFailures.length === 0 ? 'All OK' : `${apiFailures.length} failed`}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Show API failures warning with details */}
+              {apiFailures.length > 0 && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <span className="text-yellow-600 font-medium text-sm">⚠️ API Endpoints with Issues:</span>
+                  </div>
+                  <div className="text-sm text-yellow-700">
+                    <strong>Failed Endpoints:</strong> {apiFailures.join(', ')}
+                    <br />
+                    <strong>Status:</strong> Using fallback data for unavailable endpoints
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Warning when using demo/sample data */}
+      {!useLiveData && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <span className="text-2xl mr-3">⚠️</span>
             <div>
-              <span className="font-medium">Patients:</span> 
-              <span className={`ml-2 px-2 py-1 rounded ${livePatients ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {patientsLoading ? 'Loading...' : livePatients ? `${livePatients.length} loaded` : 'No data'}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium">ANC Registrations:</span>
-              <span className={`ml-2 px-2 py-1 rounded ${liveANCRegistrations ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {ancLoading ? 'Loading...' : liveANCRegistrations ? `${liveANCRegistrations.length} loaded` : 'No data'}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium">Visits:</span>
-              <span className={`ml-2 px-2 py-1 rounded ${liveANCVisits ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {visitsLoading ? 'Loading...' : liveANCVisits ? `${liveANCVisits.length} loaded` : 'No data'}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium">Cases:</span>
-              <span className={`ml-2 px-2 py-1 rounded ${liveCases ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {casesLoading ? 'Loading...' : liveCases ? `${liveCases.length} loaded` : 'No data'}
-              </span>
+              <h3 className="font-medium text-amber-900 mb-1">Demo Data Mode Active</h3>
+              <p className="text-sm text-amber-700">
+                You are currently viewing <strong>simulated demo data</strong> for demonstration purposes. 
+                This data is not real and should not be used for actual decision making. 
+                Switch to "Real Data" mode to view live system data.
+              </p>
             </div>
           </div>
         </div>
@@ -788,15 +1045,6 @@ const Dashboard = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading dashboard data...</p>
-          </div>
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-2 text-sm text-muted-foreground">Loading dashboard data...</p>
           </div>
         </div>
       )}
@@ -1105,7 +1353,8 @@ const Dashboard = () => {
                 <Pie
                   data={Object.entries(
                     filteredData.cases.reduce((acc, caseItem) => {
-                      acc[caseItem.priority_level] = (acc[caseItem.priority_level] || 0) + 1;
+                      const normalizedLevel = normalizePriorityLevel(caseItem.priority_level);
+                      acc[normalizedLevel] = (acc[normalizedLevel] || 0) + 1;
                       return acc;
                     }, {} as Record<string, number>)
                   ).map(([level, count]) => ({
@@ -1296,23 +1545,25 @@ const Dashboard = () => {
         {/* Volunteer Performance */}
         <Card>
           <CardHeader>
-            <CardTitle>Volunteer Kit Distribution</CardTitle>
+            <CardTitle>Volunteer Performance</CardTitle>
             <CardDescription>
-              Distribution confirmation rates by volunteers
+              Kit usage rates and confirmation rates by volunteers
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(filteredData.kitDistro || []).slice(0, 5).map((distro) => (
-                <div key={distro.distro_id} className="flex items-center justify-between">
+              {chartData.volunteerPerformance.slice(0, 5).map((volunteer: any) => (
+                <div key={volunteer.vol_user_id} className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 rounded-full bg-primary"></div>
-                    <span className="text-sm font-medium">Vol-{distro.vol_user_id}</span>
+                    <span className="text-sm font-medium">Vol-{volunteer.vol_user_id}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground">{distro.quantity} kits</span>
-                    <Badge variant={distro.vol_user_confirm && distro.adm_user_confirm ? "default" : "secondary"}>
-                      {distro.vol_user_confirm && distro.adm_user_confirm ? "Confirmed" : "Pending"}
+                    <span className="text-sm text-muted-foreground">
+                      {volunteer.kits_used}/{volunteer.total_kits_received} kits
+                    </span>
+                    <Badge variant={volunteer.usage_rate > 75 ? "default" : "secondary"}>
+                      {volunteer.usage_rate.toFixed(1)}% usage
                     </Badge>
                   </div>
                 </div>
@@ -1334,16 +1585,16 @@ const Dashboard = () => {
           <div className="grid gap-4 md:grid-cols-3">
             {(useLiveData && liveGeographicData ? 
               liveGeographicData.map(item => ({
-                location: `${item.region} - ${item.district}`,
-                count: item.patient_count
+                location: `${item?.region || 'Unknown'} - ${item?.district || 'Unknown'}`,
+                count: Number(item?.patient_count) || 0
               })) :
               Object.entries(
                 filteredData.patients.reduce((acc, patient) => {
-                  const key = `${patient.region} - ${patient.district}`;
+                  const key = `${patient?.region || 'Unknown'} - ${patient?.district || 'Unknown'}`;
                   acc[key] = (acc[key] || 0) + 1;
                   return acc;
                 }, {} as Record<string, number>)
-              ).map(([location, count]) => ({ location, count }))
+              ).map(([location, count]) => ({ location, count: Number(count) || 0 }))
             ).map(({ location, count }) => (
               <div key={location} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center space-x-2">

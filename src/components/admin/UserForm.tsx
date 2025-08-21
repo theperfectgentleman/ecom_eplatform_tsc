@@ -50,12 +50,20 @@ const createUserSchema = baseSchema.extend({
   path: ["confirmPassword"],
 });
 
-const updateUserSchema = baseSchema;
-
-const formSchema = baseSchema.extend({
-    password: z.string().min(8, "Password must be at least 8 characters.").optional(),
-    confirmPassword: z.string().optional(),
+const updateUserSchema = baseSchema.extend({
+  password: z.string().min(8, "Password must be at least 8 characters.").optional(),
+  confirmPassword: z.string().optional(),
+}).refine((data) => {
+  if (data.password && data.confirmPassword) {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
+
+type UserFormData = z.infer<typeof updateUserSchema>; // Use the more flexible schema for typing
 
 interface UserFormProps {
   user?: Account;
@@ -78,7 +86,7 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
 
   const schema = showPasswordFields ? createUserSchema : updateUserSchema;
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<UserFormData>({
     resolver: zodResolver(schema),
     defaultValues: user ? {
       ...user,
@@ -266,7 +274,7 @@ export function UserForm({ user, onSuccess, showPasswordFields = false, communit
     }
   }, [watchedSubdistrict, watchedRegion, watchedDistrict, communities, form, user]);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: UserFormData) {
     try {
       const payload = { ...values };
       // Remove confirmPassword from payload as it's not needed by the API

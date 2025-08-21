@@ -1,3 +1,4 @@
+import React from 'react';
 import { LayoutDashboard, Send, BarChart, Contact, Calendar, Users, BookOpen, MessageSquare, FileText, Settings, HelpCircle, Eye, Package, Heart } from 'lucide-react';
 
 export interface NavItem {

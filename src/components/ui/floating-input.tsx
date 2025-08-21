@@ -18,33 +18,31 @@ const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
 
     const applyMask = (value: string, maskPattern: string) => {
       if (!maskPattern) return value;
-      
       switch (maskPattern) {
-        case 'bp': // nnn/nnn (blood pressure) - max 3 digits on each side
-          // Remove all non-numeric characters except /
-          const bpValue = value.replace(/[^\d/]/g, '');
-          const numericOnly = bpValue.replace(/\D/g, '');
-          
+        case 'bp': {
+          const cleaned = value.replace(/[^\d/]/g, '');
+          const numericOnly = cleaned.replace(/\D/g, '');
           if (numericOnly.length === 0) return '';
-          if (numericOnly.length <= 3) {
-            return numericOnly;
-          } else if (numericOnly.length <= 6) {
-            return numericOnly.slice(0, 3) + '/' + numericOnly.slice(3);
-          } else {
-            return numericOnly.slice(0, 3) + '/' + numericOnly.slice(3, 6);
-          }
-        case 'weight': // nnn (weight in kg) - max 3 digits
-          const weightValue = value.replace(/\D/g, '');
-          return weightValue.slice(0, 3);
-        case 'temp': // nn (temperature) - max 2 digits
-          const tempValue = value.replace(/\D/g, '');
-          return tempValue.slice(0, 2);
-        case 'pulse': // nnn (pulse rate) - max 3 digits
-          const pulseValue = value.replace(/\D/g, '');
-          return pulseValue.slice(0, 3);
-        case 'year': // nnnn (year of birth)
-          const yearValue = value.replace(/\D/g, '');
-          return yearValue.slice(0, 4);
+          if (numericOnly.length <= 3) return numericOnly;
+          if (numericOnly.length <= 6) return numericOnly.slice(0, 3) + '/' + numericOnly.slice(3);
+          return numericOnly.slice(0, 3) + '/' + numericOnly.slice(3, 6);
+        }
+        case 'weight': {
+          const digits = value.replace(/\D/g, '');
+          return digits.slice(0, 3);
+        }
+        case 'temp': {
+          const digits = value.replace(/\D/g, '');
+          return digits.slice(0, 2);
+        }
+        case 'pulse': {
+          const digits = value.replace(/\D/g, '');
+          return digits.slice(0, 3);
+        }
+        case 'year': {
+          const digits = value.replace(/\D/g, '');
+          return digits.slice(0, 4);
+        }
         default:
           return value;
       }

@@ -41,16 +41,16 @@ const LoginPage = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [systemStatus, setSystemStatus] = useState<"checking" | "live" | "down">("checking");
+  const [apiVersion, setApiVersion] = useState<string | null>(null);
 
   // Check system status on mount
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        // Test basic API connectivity by trying to reach the API base URL
-        // This is a more reliable test than specific endpoints
-        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompass.org/api').replace(/\/$/, '');
+        // Use the public health endpoint that doesn't require authentication
+        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org/api').replace(/\/$/, '');
         
-        const response = await fetch(apiBaseUrl, {
+        const response = await fetch(`${apiBaseUrl}/health`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -59,13 +59,21 @@ const LoginPage = () => {
           signal: AbortSignal.timeout(10000), // 10 second timeout
         });
         
-        // If we get any response (even 404), the API server is reachable
-        // Only network errors or server completely down will throw
-        console.log("API connectivity check - Status:", response.status);
-        setSystemStatus("live");
+        if (response.ok) {
+          const healthData = await response.json();
+          console.log("API health check - Status:", response.status, "Data:", healthData);
+          setSystemStatus("live");
+          // Store API version if available
+          if (healthData.version) {
+            setApiVersion(healthData.version);
+          }
+        } else {
+          console.warn("API health check returned non-OK status:", response.status);
+          setSystemStatus("down");
+        }
         
       } catch (error) {
-        console.error("API connectivity check failed:", error);
+        console.error("API health check failed:", error);
         setSystemStatus("down");
       }
     };
@@ -208,7 +216,7 @@ const LoginPage = () => {
       },
       live: {
         icon: <CheckCircle className="mr-2 h-4 w-4" />,
-        text: "API server is reachable",
+        text: apiVersion ? `API server is reachable (v${apiVersion})` : "API server is reachable",
         color: "text-green-500",
       },
       down: {

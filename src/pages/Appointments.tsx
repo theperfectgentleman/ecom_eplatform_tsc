@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import AppointmentForm from '@/components/appointments/AppointmentForm';
 import { useApi } from '@/lib/useApi';
@@ -27,7 +27,7 @@ const AppointmentsPage: React.FC = () => {
   const { toast } = useToast();
   const { filterByAccessLevel } = useAccessLevelFilter();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [meetingsResponse, patientsResponse, practitionersResponse] = await Promise.all([
         request<Meeting[]>({ path: '/meetings' }),
@@ -54,11 +54,11 @@ const AppointmentsPage: React.FC = () => {
         variant: "error",
       });
     }
-  };
+  }, [request, toast, filterByAccessLevel]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleEdit = (meeting: Meeting) => {
     setSelectedMeeting(meeting);

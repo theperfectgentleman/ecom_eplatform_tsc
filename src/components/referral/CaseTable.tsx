@@ -71,7 +71,7 @@ const CaseTable: React.FC<CaseTableProps> = ({
 			// Apply access level filtering
 			const filteredData = filterByAccessLevel(sortedData);
 			setCases(filteredData);
-		} catch (error) {
+		} catch {
 			toast({
 				title: "Error",
 				description: "Failed to fetch cases.",
@@ -94,7 +94,7 @@ const CaseTable: React.FC<CaseTableProps> = ({
 			});
 			fetchCases(); // Refresh the list
 			onClearForm(); // Clear the form if the deleted case was selected
-		} catch (error) {
+		} catch {
 			toast({
 				title: "Error",
 				description: "Failed to delete case.",

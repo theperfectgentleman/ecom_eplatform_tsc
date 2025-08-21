@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -44,7 +45,8 @@ const ancRegistrationSchema = z.object({
   registrationDate: z.string().min(1, 'Registration date is required'),
   registrationNumber: z.string().min(1, 'Registration number is required'),
   antenatalStatus: z.string().optional(),
-  parity: z.string().optional(),
+  parity: z.number().min(0).optional(),
+  gravida: z.number().min(0).optional(),
   gestationWeeks: z.number().min(0).max(42).optional(),
   estimatedDeliveryDate: z.string().optional(),
   bloodPressure: z.string().optional(),
@@ -158,7 +160,8 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
       registrationDate: formatDateForInput(initialData?.registration_date || '') || new Date().toISOString().split('T')[0],
       registrationNumber: initialData?.registration_number || '',
       antenatalStatus: initialData?.antenatal_status || 'Active',
-      parity: typeof initialData?.parity === 'string' ? initialData.parity : (initialData?.parity?.toString() || ''),
+      parity: initialData?.parity || undefined,
+      gravida: initialData?.gravida || undefined,
       gestationWeeks: initialData?.gestation_weeks || undefined,
       estimatedDeliveryDate: formatDateForInput(initialData?.estimated_delivery_date || ''),
       bloodPressure: initialData?.blood_pressure || '',
@@ -197,7 +200,8 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
         registrationDate: formatDateForInput(initialData?.registration_date || '') || new Date().toISOString().split('T')[0],
         registrationNumber: initialData?.registration_number || '',
         antenatalStatus: initialData?.antenatal_status || 'Active',
-        parity: typeof initialData?.parity === 'string' ? initialData.parity : (initialData?.parity?.toString() || ''),
+        parity: initialData?.parity || undefined,
+        gravida: initialData?.gravida || undefined,
         gestationWeeks: initialData?.gestation_weeks || undefined,
         estimatedDeliveryDate: formatDateForInput(initialData?.estimated_delivery_date || ''),
         bloodPressure: initialData?.blood_pressure || '',
@@ -241,7 +245,8 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
         registration_number: data.registrationNumber || generateAntenatalRegistrationNumber(patient.patient_id),
         registration_date: data.registrationDate,
         antenatal_status: data.antenatalStatus || undefined,
-        parity: data.parity ? parseInt(data.parity, 10) : undefined,
+        parity: data.parity ?? undefined,
+        gravida: data.gravida ?? undefined,
         gestation_weeks: data.gestationWeeks ?? undefined,
         estimated_delivery_date: data.estimatedDeliveryDate || undefined,
         blood_pressure: data.bloodPressure || undefined,
@@ -387,16 +392,52 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
             <SectionHeader title="Pregnancy Information" icon={Baby} />
             
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="parity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Parity (G/P) *</FormLabel>
+                      <FormLabel>Parity *</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g., G2P1" disabled={isFormDisabled} />
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                          value={field.value || ''}
+                          placeholder="e.g., 4"
+                          disabled={isFormDisabled}
+                        />
                       </FormControl>
+                      <FormDescription className="text-xs">
+                        Number of previous births
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="gravida"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gravida</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                          value={field.value || ''}
+                          placeholder="e.g., 5"
+                          disabled={isFormDisabled}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Number of pregnancies (including current)
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

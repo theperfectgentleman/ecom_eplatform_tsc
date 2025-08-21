@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ANCPatient, Patient } from '@/types';
 import { useApi } from '@/lib/useApi';
 import { Input } from '@/components/ui/input';
@@ -38,11 +38,7 @@ const AntenatalCareList = ({
     return 'No name';
   };
 
-  useEffect(() => {
-    loadPatients();
-  }, [refreshTrigger]);
-
-  const loadPatients = async () => {
+  const loadPatients = useCallback(async () => {
     try {
       setLoading(true);
       // Load regular patients with cache busting parameter
@@ -68,7 +64,11 @@ const AntenatalCareList = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [request]);
+
+  useEffect(() => {
+    loadPatients();
+  }, [refreshTrigger, loadPatients]);
 
   const filteredPatients = patients.filter(patient => {
     const searchLower = searchTerm.toLowerCase();

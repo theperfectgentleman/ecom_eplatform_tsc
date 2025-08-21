@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import { useForm } from 'react-hook-form';
@@ -92,7 +92,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
           description: 'Meeting URL copied to clipboard!', 
           variant: 'success' 
         });
-      } catch (error) {
+      } catch {
         toast({ 
           title: 'Error', 
           description: 'Failed to copy URL to clipboard.', 
@@ -124,27 +124,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
     }
   });
 
-  useEffect(() => {
-    const fetchDropdownData = async () => {
-      try {
-        // Fetch practitioners and case files
-        const practitionerRes = await request<Contact[]>({ path: '/contacts', method: 'GET' });
-        const filteredPractitioners = filterByAccessLevel(practitionerRes || []);
-        setPractitioners(filteredPractitioners);
-        await fetchCaseFiles();
-      } catch (error) {
-        console.error("Failed to fetch initial data", error);
-        toast({ title: 'Error', description: 'Could not load practitioner data.', variant: 'error' });
-      }
-    };
-    // Only fetch if we have a user
-    if (user) {
-      fetchDropdownData();
-    }
-  }, [request, toast, user]);
-
   // Fetch case files
-  const fetchCaseFiles = async () => {
+  const fetchCaseFiles = useCallback(async () => {
     try {
       console.log('Fetching case files...');
       const caseFilesRes = await request<any[]>({ path: '/case-files', method: 'GET' });
@@ -170,7 +151,26 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
       console.error("Failed to fetch case files", error);
       toast({ title: 'Error', description: 'Could not load case files. Please try the refresh button.', variant: 'error' });
     }
-  };
+  }, [request, filterByAccessLevel, toast]);
+
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        // Fetch practitioners and case files
+        const practitionerRes = await request<Contact[]>({ path: '/contacts', method: 'GET' });
+        const filteredPractitioners = filterByAccessLevel(practitionerRes || []);
+        setPractitioners(filteredPractitioners);
+        await fetchCaseFiles();
+      } catch (error) {
+        console.error("Failed to fetch initial data", error);
+        toast({ title: 'Error', description: 'Could not load practitioner data.', variant: 'error' });
+      }
+    };
+    // Only fetch if we have a user
+    if (user) {
+      fetchDropdownData();
+    }
+  }, [request, toast, user, fetchCaseFiles, filterByAccessLevel]);
 
   // Remove the search effect that was causing issues
 

@@ -70,12 +70,13 @@ export const useFilteredApi = <T extends FilterableData>({
     }
   }, [request, method, path, body, isPublic, applyFilter, filterByAccessLevel]);
 
-  // Auto-fetch on mount and dependency changes
+  // Auto-fetch on mount and when dependencies or autoFetch toggle changes
   useEffect(() => {
     if (autoFetch) {
       fetchData();
     }
-  }, dependencies);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFetch, fetchData, ...dependencies]);
 
   const refetch = useCallback(async (): Promise<T[]> => {
     return await fetchData();
