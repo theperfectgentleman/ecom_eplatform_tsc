@@ -247,7 +247,10 @@ const LoginPage = () => {
           <p className="text-xl mt-2 max-w-lg">
             Connecting Healthcare in Rural Communities. Secure, reliable, and always available.
           </p>
-          <p className="text-sm mt-4 opacity-75">v{packageJson.version}</p>
+          <div className="mt-6 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/30">
+            <p className="text-lg font-bold text-yellow-300">Version {packageJson.version}</p>
+            <p className="text-sm opacity-90">Release Build</p>
+          </div>
         </div>
       </div>
       <div className="flex items-center justify-center py-12">

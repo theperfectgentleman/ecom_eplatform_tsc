@@ -70,6 +70,19 @@ const ANCVisitForm = ({ patient, registration, onSuccess, readOnly = false }: AN
   const [editingVisit, setEditingVisit] = useState<AntenatalVisit | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'form' | 'details'>('list');
 
+  // Function to generate antenatal visit SID
+  const generateAntenatalVisitSid = (registrationNumber: string): string => {
+    // Characters allowed (excluding O, I, L, 0 for better readability)
+    const allowedChars = 'ABCDEFGHJKMNPQRSTUVWXYZ123456789';
+    
+    // Generate 8 random characters
+    const getRandomChar = () => allowedChars[Math.floor(Math.random() * allowedChars.length)];
+    
+    const randomChars = Array.from({ length: 8 }, getRandomChar).join('');
+    
+    return `${registrationNumber}-${randomChars}`;
+  };
+
   // Utility function to format date for display
   const formatDateForDisplay = (dateString: string) => {
     if (!dateString) return '';
@@ -131,6 +144,10 @@ const ANCVisitForm = ({ patient, registration, onSuccess, readOnly = false }: AN
         ...data,
         patient_id: patient.patient_id,
         antenatal_registration_id: registration.antenatal_registration_id,
+        // Generate antenatal_visit_sid for new visits, preserve existing for edits
+        antenatal_visit_sid: editingVisit 
+          ? editingVisit.antenatal_visit_sid 
+          : generateAntenatalVisitSid(registration.registration_number),
       };
 
       const response = await request<AntenatalVisit>({

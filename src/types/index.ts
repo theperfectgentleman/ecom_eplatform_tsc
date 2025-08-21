@@ -209,6 +209,7 @@ export interface AntenatalRegistration {
 
 export interface AntenatalVisit {
   id: number;
+  antenatal_visit_sid: string; // String identifier for the visit
   patient_id: string;
   antenatal_registration_id: string;
   visit_date: string;

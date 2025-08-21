@@ -153,9 +153,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               {sidebarLinks}
             </div>
             <div className="flex-shrink-0 p-6 border-t border-gray-200">
-              <div className="flex items-end space-x-2">
-                <img src={logo} alt="Encompass Logo" className="h-14 w-auto" />
-                <p className="text-xs text-gray-400 pb-1">v{packageJson.version}</p>
+              <div className="flex items-center justify-between mb-2">
+                <img src={logo} alt="Encompass Logo" className="h-12 w-auto" />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <p className="text-sm font-semibold text-blue-800">Version {packageJson.version}</p>
+                <p className="text-xs text-blue-600">Production Release</p>
               </div>
             </div>
           </div>
@@ -171,10 +174,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               {sidebarLinks}
             </div>
             <div className="flex-shrink-0 p-6 border-t border-gray-200">
-                <div className="flex items-end space-x-2">
-                    <img src={logo} alt="Encompass Logo" className="h-14 w-auto" />
-                    <p className="text-xs text-gray-400 pb-1">v{packageJson.version}</p>
-                </div>
+              <div className="flex items-center justify-between mb-2">
+                <img src={logo} alt="Encompass Logo" className="h-12 w-auto" />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <p className="text-sm font-semibold text-blue-800">Version {packageJson.version}</p>
+                <p className="text-xs text-blue-600">Production Release</p>
+              </div>
             </div>
           </div>
         </SheetContent>
