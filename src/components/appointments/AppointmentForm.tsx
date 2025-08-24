@@ -371,7 +371,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSuccess, meeting, o
       const payload = {
         title: data.title || '',
         case_file_id: data.case_file_id || '', // Keep as string, don't parse as int
-        patient_id: selectedCaseFile?.patient_id || 0, // Add patient_id from the selected case
+        patient_id: selectedCaseFile?.patient_id || "", // Add patient_id from the selected case - use string default
         notes_for_attendees: data.notes_for_attendees || '',
         date: date || '',
         time: time || '',
