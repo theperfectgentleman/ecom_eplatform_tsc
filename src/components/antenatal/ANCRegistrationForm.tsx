@@ -47,6 +47,7 @@ const ancRegistrationSchema = z.object({
   antenatalStatus: z.string().optional(),
   parity: z.number().min(0).optional(),
   gravida: z.number().min(0).optional(),
+  gravidaParityComment: z.string().optional(),
   gestationWeeks: z.number().min(0).max(42).optional(),
   estimatedDeliveryDate: z.string().optional(),
   bloodPressure: z.string().optional(),
@@ -162,6 +163,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
       antenatalStatus: initialData?.antenatal_status || 'Active',
       parity: initialData?.parity || undefined,
       gravida: initialData?.gravida || undefined,
+      gravidaParityComment: initialData?.gravida_parity_comment || '',
       gestationWeeks: initialData?.gestation_weeks || undefined,
       estimatedDeliveryDate: formatDateForInput(initialData?.estimated_delivery_date || ''),
       bloodPressure: initialData?.blood_pressure || '',
@@ -202,6 +204,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
         antenatalStatus: initialData?.antenatal_status || 'Active',
         parity: initialData?.parity || undefined,
         gravida: initialData?.gravida || undefined,
+        gravidaParityComment: initialData?.gravida_parity_comment || '',
         gestationWeeks: initialData?.gestation_weeks || undefined,
         estimatedDeliveryDate: formatDateForInput(initialData?.estimated_delivery_date || ''),
         bloodPressure: initialData?.blood_pressure || '',
@@ -247,6 +250,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
         antenatal_status: data.antenatalStatus || undefined,
         parity: data.parity ?? undefined,
         gravida: data.gravida ?? undefined,
+        gravida_parity_comment: data.gravidaParityComment || undefined,
         gestation_weeks: data.gestationWeeks ?? undefined,
         estimated_delivery_date: data.estimatedDeliveryDate || undefined,
         blood_pressure: data.bloodPressure || undefined,
@@ -392,6 +396,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
             <SectionHeader title="Pregnancy Information" icon={Baby} />
             
             <div className="space-y-4">
+              {/* Gravida, Parity and Comment Section */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -443,6 +448,32 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
                   )}
                 />
                 
+                <FormField
+                  control={form.control}
+                  name="gravidaParityComment"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gravida/Parity Comment</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="text" 
+                          {...field}
+                          value={field.value || ''}
+                          placeholder="e.g G3P2 1D"
+                          disabled={isFormDisabled}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Additional gravida/parity details
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Gestation Weeks */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="gestationWeeks"

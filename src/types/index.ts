@@ -183,6 +183,7 @@ export interface AntenatalRegistration {
   registration_number: string;
   parity?: number;
   gravida?: number;
+  gravida_parity_comment?: string;
   folic_acid_iron_supplements?: string;
   hemoglobin_at_registration?: number;
   gestation_weeks?: number;
