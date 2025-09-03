@@ -376,7 +376,7 @@ const Dashboard = () => {
       {/* Header with Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">EnComPAS Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Encompas Dashboard</h1>
           <p className="text-muted-foreground">Comprehensive maternal health insights • Optimized for performance</p>
         </div>
 
@@ -470,9 +470,9 @@ const Dashboard = () => {
             <Baby className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.referrals.percentRegistrationsWithVisit.toFixed(1) || 0}%</div>
+            <div className="text-2xl font-bold">{Number(dashboardData?.referrals?.percentRegistrationsWithVisit || 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              {dashboardData?.antenatal.earlyRegistrationPercent.toFixed(1) || 0}% early registration
+              {Number(dashboardData?.antenatal?.earlyRegistrationPercent || 0).toFixed(1)}% early registration
             </p>
           </CardContent>
         </Card>
@@ -483,7 +483,7 @@ const Dashboard = () => {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.kits.usageRatePercent.toFixed(1) || 0}%</div>
+            <div className="text-2xl font-bold">{Number(dashboardData?.kits?.usageRatePercent || 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               {dashboardData?.kits.totalUsed || 0}/{dashboardData?.kits.totalDistributed || 0} kits used
             </p>
@@ -496,7 +496,7 @@ const Dashboard = () => {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.testing.positivityPercent.toFixed(1) || 0}%</div>
+            <div className="text-2xl font-bold">{Number(dashboardData?.testing?.positivityPercent || 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               {dashboardData?.testing.positives || 0} of {dashboardData?.testing.totalTests || 0} tests
             </p>
@@ -512,7 +512,7 @@ const Dashboard = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.referrals.avgVisitsPerRegistration.toFixed(1) || 0}</div>
+            <div className="text-2xl font-bold">{Number(dashboardData?.referrals?.avgVisitsPerRegistration || 0).toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
               Avg visits per registration
             </p>
@@ -525,7 +525,7 @@ const Dashboard = () => {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.referrals.avgDaysToFirstVisit.toFixed(1) || 0}</div>
+            <div className="text-2xl font-bold">{Number(dashboardData?.referrals?.avgDaysToFirstVisit || 0).toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
               Days to first visit
             </p>
@@ -551,9 +551,9 @@ const Dashboard = () => {
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.age.average.toFixed(1) || 0}</div>
+            <div className="text-2xl font-bold">{Number(dashboardData?.age?.average || 0).toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
-              Average age (median: {dashboardData?.age.median.toFixed(1) || 0})
+              Average age (median: {Number(dashboardData?.age?.median || 0).toFixed(1)})
             </p>
           </CardContent>
         </Card>
@@ -664,12 +664,12 @@ const Dashboard = () => {
                     <div>
                       <div className="font-medium">{volunteer.volunteer_name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {volunteer.kits_distributed} kits distributed • {volunteer.confirmation_rate.toFixed(1)}% confirmed
+                        {volunteer.kits_distributed} kits distributed • {Number(volunteer.confirmation_rate || 0).toFixed(1)}% confirmed
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant="outline">{volunteer.avg_days_to_confirm.toFixed(1)}d</Badge>
+                    <Badge variant="outline">{Number(volunteer.avg_days_to_confirm || 0).toFixed(1)}d</Badge>
                     <div className="text-xs text-muted-foreground mt-1">avg response</div>
                   </div>
                 </div>

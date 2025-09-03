@@ -5,6 +5,7 @@ import LoginPage from '@/pages/LoginPage';
 import Dashboard from '@/pages/Dashboard';
 import Referral from '@/pages/Referral';
 import PatientOverview from '@/pages/PatientOverview';
+import PatientSnapshot from '@/pages/PatientSnapshot';
 import Reports from '@/pages/Reports';
 import AddressBook from '@/pages/AddressBook';
 import Admin from '@/pages/Admin';
@@ -18,6 +19,7 @@ import TechnicalDocs from '@/pages/admin/TechnicalDocs';
 import ImplementationGuide from '@/pages/admin/ImplementationGuide';
 import AdminSettings from '@/pages/admin/AdminSettings';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { SessionProvider } from '@/contexts/SessionContext';
 import { ToastProvider } from '@/components/ui/toast/ToastContext';
 import { ToastContainer } from '@/components/ui/toast/Toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -31,31 +33,34 @@ const App = () => {
       <AuthProvider>
         <LoadingProvider>
           <Router>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/download" element={<DownloadPage />} />
-              <Route element={<ProtectedRoute />}>
-                <Route element={<MainLayout />}>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<RouteGuard><Dashboard /></RouteGuard>} />
-                  <Route path="/referral" element={<RouteGuard><Referral /></RouteGuard>} />
-                  <Route path="/patient-overview" element={<RouteGuard><PatientOverview /></RouteGuard>} />
-                  <Route path="/reports" element={<RouteGuard><Reports /></RouteGuard>} />
-                  <Route path="/address-book" element={<RouteGuard><AddressBook /></RouteGuard>} />
-                  <Route path="/appointments" element={<RouteGuard><AppointmentsPage /></RouteGuard>} />
-                  <Route path="/kit-distribution" element={<RouteGuard><KitDistributionPage /></RouteGuard>} />
-                  <Route path="/antenatal-care" element={<RouteGuard><AntenatalCarePage /></RouteGuard>} />
-                  <Route path="/admin" element={<RouteGuard><Admin /></RouteGuard>} />
-                  <Route path="/admin/settings" element={<RouteGuard><AdminSettings /></RouteGuard>} />
-                  <Route path="/admin/docs" element={<RouteGuard><TechnicalDocs /></RouteGuard>} />
-                  <Route path="/admin/implementation" element={<RouteGuard><ImplementationGuide /></RouteGuard>} />
-                  <Route path="/guide" element={<RouteGuard><GuidePage /></RouteGuard>} />
-                  <Route path="/feedback" element={<RouteGuard><FeedbackPage /></RouteGuard>} />
+            <SessionProvider>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/download" element={<DownloadPage />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<MainLayout />}>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<RouteGuard><Dashboard /></RouteGuard>} />
+                    <Route path="/referral" element={<RouteGuard><Referral /></RouteGuard>} />
+                    <Route path="/patient-overview" element={<RouteGuard><PatientOverview /></RouteGuard>} />
+                    <Route path="/patient-snapshot" element={<RouteGuard><PatientSnapshot /></RouteGuard>} />
+                    <Route path="/reports" element={<RouteGuard><Reports /></RouteGuard>} />
+                    <Route path="/address-book" element={<RouteGuard><AddressBook /></RouteGuard>} />
+                    <Route path="/appointments" element={<RouteGuard><AppointmentsPage /></RouteGuard>} />
+                    <Route path="/kit-distribution" element={<RouteGuard><KitDistributionPage /></RouteGuard>} />
+                    <Route path="/antenatal-care" element={<RouteGuard><AntenatalCarePage /></RouteGuard>} />
+                    <Route path="/admin" element={<RouteGuard><Admin /></RouteGuard>} />
+                    <Route path="/admin/settings" element={<RouteGuard><AdminSettings /></RouteGuard>} />
+                    <Route path="/admin/docs" element={<RouteGuard><TechnicalDocs /></RouteGuard>} />
+                    <Route path="/admin/implementation" element={<RouteGuard><ImplementationGuide /></RouteGuard>} />
+                    <Route path="/guide" element={<RouteGuard><GuidePage /></RouteGuard>} />
+                    <Route path="/feedback" element={<RouteGuard><FeedbackPage /></RouteGuard>} />
+                  </Route>
                 </Route>
-              </Route>
-            </Routes>
+              </Routes>
+              <ToastContainer />
+            </SessionProvider>
           </Router>
-          <ToastContainer />
         </LoadingProvider>
       </AuthProvider>
     </ToastProvider>

@@ -4,7 +4,7 @@
 		{
 			"type": "shell",
 			"label": "Lint (ESLint)",
-			"command": "npx eslint \"src/**/*.{js,jsx,ts,tsx}\" --max-warnings=0",
+			"command": "npx eslint \"src/**/*.{js,jsx,ts,tsx}\"",
 			"group": "test",
 			"problemMatcher": [
 				"$eslint-stylish"

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Send, BarChart, Contact, Calendar, Users, BookOpen, MessageSquare, FileText, Settings, HelpCircle, Eye, Package, Heart } from 'lucide-react';
+import { LayoutDashboard, Send, BarChart, Contact, Calendar, Users, BookOpen, MessageSquare, FileText, Settings, HelpCircle, Eye, Package, Heart, Camera } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -34,6 +34,11 @@ export const navConfig: NavItem[] = [
     title: 'Patient Overview',
     href: '/patient-overview',
     icon: Eye,
+  },
+  {
+    title: 'Patient Snapshot',
+    href: '/patient-snapshot',
+    icon: Camera,
   },
   {
     title: 'Reports',

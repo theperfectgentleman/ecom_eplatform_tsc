@@ -108,6 +108,30 @@ const LoginPage = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Check for logout reasons and show appropriate messages
+  useEffect(() => {
+    const logoutReason = sessionStorage.getItem('logout_reason');
+    const logoutMessage = sessionStorage.getItem('logout_message');
+    
+    if (logoutReason) {
+      // Clear the stored reason
+      sessionStorage.removeItem('logout_reason');
+      sessionStorage.removeItem('logout_message');
+      
+      const messages = {
+        expired: 'Your session has expired. Please log in again to continue.',
+        unauthorized: 'Your access has been revoked. Please log in again.',
+        manual: 'You have been logged out successfully.'
+      };
+      
+      toast({
+        variant: logoutReason === 'expired' ? 'warning' : 'info',
+        title: logoutReason === 'expired' ? 'Session Expired' : 'Logged Out',
+        description: logoutMessage || messages[logoutReason as keyof typeof messages] || messages.manual,
+      });
+    }
+  }, [toast]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { username: '', password: '' },

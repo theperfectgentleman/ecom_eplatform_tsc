@@ -264,3 +264,45 @@ export interface ANCFormState {
   currentVisit?: Partial<AntenatalVisit>;
   isReadOnly?: boolean;
 }
+
+// Patient Summary types for the snapshot page
+export interface PatientSummary {
+  patient_id: string;
+  name: string;
+  othernames?: string;
+  dob?: string;
+  contact_number?: string;
+  patient_code?: string;
+  
+  // ANC Registration Status
+  anc_registered: boolean;
+  registration_date?: string;
+  next_appointment_date?: string;
+  
+  // Visit Information
+  visits_attended: string[]; // Array of visit dates
+  total_visits: number;
+  last_visit_date?: string;
+  
+  // Priority Flags
+  priority_status: 'overdue' | 'due_soon' | 'on_track';
+  days_overdue?: number;
+  days_until_due?: number;
+}
+
+export interface PatientSummaryResponse {
+  data: PatientSummary[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface PatientSummaryRequest {
+  patient_ids?: string[];
+  patients?: (string | { patient_id: string })[];
+  page?: number;
+  limit?: number;
+}

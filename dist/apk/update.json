@@ -1,10 +1,10 @@
 {
-  "latestVersion": "1.1.5",
-  "latestVersionCode": 23,
-  "url": "https://app.encompas.org/apk/pregapp_115.apk",
+  "latestVersion": "1.2.0",
+  "latestVersionCode": 28,
+  "url": "https://app.encompas.org/apk/pregapp_120.apk",
   "releaseNotes": [
-    "- Version 1.1.5 released",
-    "- Build 20250823-014628",
+    "- Version 1.2.0 released",
+    "- Build 20250903-093934",
     "- Added comprehensive kits inventory management system",
     "- Redesigned antenatal visit section for improved user experience",
     "- Enhanced kit tracking and usage logging functionality",

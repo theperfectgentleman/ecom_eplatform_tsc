@@ -7,7 +7,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (userData: Account, token: string) => void;
-  logout: () => void;
+  logout: (options?: { message?: string; reason?: 'expired' | 'manual' | 'unauthorized' }) => void;
   checkPermission: (permission: string) => boolean;
   userPermissions: string[];
   isTokenExpired: () => boolean;
@@ -136,12 +136,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('AuthContext state updated.');
   }, [updateUserAndPermissions]);
 
-  const logout = useCallback(() => {
-    console.log('Logging out user.');
+  // Enhanced logout function with optional message and redirect
+  const logout = useCallback((options?: { 
+    message?: string; 
+    reason?: 'expired' | 'manual' | 'unauthorized' 
+  }) => {
+    const { message, reason = 'manual' } = options || {};
+    
+    console.log('Logging out user. Reason:', reason, 'Message:', message);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     updateUserAndPermissions(null);
     setToken(null);
+    
+    // If this is an expiration or unauthorized logout, we'll handle it via the session context
+    // The redirect will be handled by the ProtectedRoute component
+    if (reason === 'expired' || reason === 'unauthorized') {
+      // Store the reason in sessionStorage so it can be picked up by other components
+      sessionStorage.setItem('logout_reason', reason);
+      if (message) {
+        sessionStorage.setItem('logout_message', message);
+      }
+    }
   }, [updateUserAndPermissions]);
 
   const checkPermission = (permission: string) => {
@@ -189,7 +205,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkTokenPeriodically = setInterval(() => {
       if (isTokenExpired()) {
         console.log('Token expired during periodic check - logging out');
-        logout();
+        logout({ 
+          reason: 'expired', 
+          message: 'Your session has expired. Please log in again to continue.' 
+        });
       }
     }, 2 * 60 * 60 * 1000); // Check every 2 hours to minimize network usage
 

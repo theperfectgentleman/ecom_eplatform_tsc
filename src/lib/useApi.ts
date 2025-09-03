@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast/useToast";
+import { useSession } from "@/contexts/SessionContext";
 import { ApiRequestOptions } from "@/types";
 
 /**
@@ -41,6 +42,7 @@ import { ApiRequestOptions } from "@/types";
 export const useApi = () => {
   const { token, logout } = useAuth();
   const { toast } = useToast();
+  const { showSessionExpired } = useSession();
 
   const request = useCallback(
     async <T = any>(options: ApiRequestOptions): Promise<T> => {
@@ -78,15 +80,14 @@ export const useApi = () => {
           // Only logout if we actually have a token and it's rejected
           // Don't logout if we're using API key authentication
           if (token) {
-            console.log('401 received with token - logging out due to expired session');
-            logout();
-            if (!suppressToast.error && !suppressToast.all) {
-              toast({
-                variant: "error",
-                title: "Session expired",
-                description: "Please log in again.",
-              });
-            }
+            console.log('401 received with token - session expired');
+            // Use the enhanced logout with expiration reason
+            logout({ 
+              reason: 'expired', 
+              message: 'Your session has expired due to inactivity or token expiration.' 
+            });
+            // Show the session expired modal
+            showSessionExpired('expired');
           } else {
             console.log('401 received with API key - not logging out');
             if (!suppressToast.error && !suppressToast.all) {

@@ -20,16 +20,21 @@ const listStyles = `
 interface PatientListProps {
 	onPatientSelect: (patientData: PatientOverviewData) => void;
 	onClearForm: () => void;
+	initialPatientId?: string | null;
+	onPatientNotFound?: (patientId: string) => void;
 }
 
 const PatientList: React.FC<PatientListProps> = ({
 	onPatientSelect,
 	onClearForm,
+	initialPatientId,
+	onPatientNotFound,
 }) => {
 	const [patients, setPatients] = useState<PatientOverviewData[]>([]);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
+	const [hasInitialLoadCompleted, setHasInitialLoadCompleted] = useState(false);
 	
 	const { request } = useApi();
 	const { toast } = useToast();
@@ -89,6 +94,7 @@ const PatientList: React.FC<PatientListProps> = ({
 			setPatients([]);
 		} finally {
 			setIsLoading(false);
+			setHasInitialLoadCompleted(true);
 		}
 	}, [request, filterByAccessLevel, toast, calculateAge]);
 
@@ -166,6 +172,20 @@ const PatientList: React.FC<PatientListProps> = ({
 		setSelectedPatientId(patient.patient_id);
 		fetchPatientWithUserDetails(patient.patient_id);
 	}, [fetchPatientWithUserDetails]);
+
+	// Handle initial patient selection from query parameter
+	useEffect(() => {
+		// Only check for patient after initial load is complete
+		if (initialPatientId && hasInitialLoadCompleted) {
+			const patient = patients.find(p => p.patient_id === initialPatientId);
+			if (patient) {
+				handlePatientClick(patient);
+			} else {
+				// Patient not found, notify parent component
+				onPatientNotFound?.(initialPatientId);
+			}
+		}
+	}, [initialPatientId, patients, hasInitialLoadCompleted, handlePatientClick, onPatientNotFound]);
 
 	const handleClear = useCallback(() => {
 		setSelectedPatientId(null);
