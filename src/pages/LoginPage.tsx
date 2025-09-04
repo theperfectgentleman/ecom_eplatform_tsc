@@ -249,8 +249,8 @@ const LoginPage = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-10 left-10 text-white z-10">
           <div className="flex items-center mb-4">
-            <img src={logo} alt="Encompass Logo" className="h-12 mr-4" />
-            <h1 className="text-5xl font-bold tracking-tighter">Encompass</h1>
+            <img src={logo} alt="Encompas Logo" className="h-12 mr-4" />
+            <h1 className="text-5xl font-bold tracking-tighter">Encompas-UHAS</h1>
           </div>
           <p className="text-xl mt-2 max-w-lg">
             Connecting Healthcare in Rural Communities. Secure, reliable, and always available.
