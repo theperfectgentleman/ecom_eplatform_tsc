@@ -1016,7 +1016,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                         )}
                         {form.watch('reg_loc_lat') && form.watch('reg_loc_lng') && !isCapturingLocation && (
                           <span className="text-green-600">
-                            Lat: {(form.watch('reg_loc_lat') ?? 0).toFixed(4)}, Lng: {(form.watch('reg_loc_lng') ?? 0).toFixed(4)}
+                            Lat: {Number(form.watch('reg_loc_lat') ?? 0).toFixed(4)}, Lng: {Number(form.watch('reg_loc_lng') ?? 0).toFixed(4)}
                           </span>
                         )}
                         {!form.watch('reg_loc_lat') && !form.watch('reg_loc_lng') && !isCapturingLocation && !locationError && (
