@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ANCPatient, Patient } from '@/types';
 import { useApi } from '@/lib/useApi';
+import { useAccessLevelFilter } from '@/hooks/useAccessLevelFilter';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Search, Edit } from 'lucide-react';
@@ -20,6 +21,7 @@ const AntenatalCareList = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const { request } = useApi();
+  const { filterByAccessLevel } = useAccessLevelFilter();
 
   // Helper function to format full name
   const formatFullName = (patient: ANCPatient): string => {
@@ -57,14 +59,16 @@ const AntenatalCareList = ({
         gestational_age: undefined
       }));
       
-      setPatients(ancPatients);
+      // Apply access level filtering
+      const filteredPatients = filterByAccessLevel(ancPatients);
+      setPatients(filteredPatients);
     } catch (error) {
       console.error('Failed to load ANC patients:', error);
       setPatients([]);
     } finally {
       setLoading(false);
     }
-  }, [request]);
+  }, [request, filterByAccessLevel]);
 
   useEffect(() => {
     loadPatients();

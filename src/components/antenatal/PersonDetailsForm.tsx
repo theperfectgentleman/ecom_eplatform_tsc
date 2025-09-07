@@ -726,17 +726,17 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                 />
               </div>
 
-              {/* Patient Code Field */}
+              {/* NHIS Number Field */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="patient_code"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Patient Code</FormLabel>
+                      <FormLabel>NHIS Number</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Optional patient reference code" 
+                          placeholder="Enter NHIS number" 
                           disabled={isFormDisabled}
                           {...field} 
                         />

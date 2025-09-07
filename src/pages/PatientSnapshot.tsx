@@ -52,11 +52,24 @@ const PatientSnapshot: React.FC = () => {
       console.log('User ID:', user.user_id);
 
       // Step 1: Get all patients the current user can view
-      console.log('Step 1: Fetching viewable patients via access level...');
-      const allPatientsResponse = await request<any[]>({
-        method: 'GET',
-        path: `patients/level/${user.user_id}`,
-      });
+      console.log('Step 1: Fetching viewable patients...');
+      
+      let allPatientsResponse;
+      
+      // If user access level is 4 (national), get all patients
+      if (user.access_level === 4) {
+        console.log('User access level is 4 (national) - fetching all patients...');
+        allPatientsResponse = await request<any[]>({
+          method: 'GET',
+          path: 'patients',
+        });
+      } else {
+        console.log('User access level is not national - fetching via access level...');
+        allPatientsResponse = await request<any[]>({
+          method: 'GET',
+          path: `patients/level/${user.user_id}`,
+        });
+      }
 
       console.log('All patients response:', allPatientsResponse);
 
