@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Registration Forms - Quick Access</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .forms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .form-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        
+        .form-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .form-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 20px;
+        }
+        
+        .form-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            background-color: #45a049;
+        }
+        
+        .btn.secondary {
+            background-color: #2196F3;
+        }
+        
+        .btn.secondary:hover {
+            background-color: #1976D2;
+        }
+        
+        .btn.outline {
+            background-color: transparent;
+            color: #333;
+            border: 2px solid #333;
+        }
+        
+        .btn.outline:hover {
+            background-color: #333;
+            color: white;
+        }
+        
+        .features {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .features h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+        
+        .features ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .features li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .docs-section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .icon {
+            font-size: 24px;
+            margin-right: 8px;
+        }
+        
+        .alert {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .alert strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 Patient Registration Forms</h1>
+        <p>Printable backup forms for remote data collection</p>
+    </div>
+
+    <div class="alert">
+        <strong>🔋 Power Outage Ready!</strong>
+        These forms ensure continuous patient registration even when devices are unavailable. Print copies before heading to remote areas.
+    </div>
+
+    <div class="forms-grid">
+        <div class="form-card">
+            <h3><span class="icon">🎨</span>Color Version</h3>
+            <p>Full-featured form with color-coded sections, visual icons, and comprehensive layout. Best for clinics with color printers and good paper supply.</p>
+            <a href="PersonDetailsForm_Printable.html" class="btn" target="_blank">
+                🖨️ Print Color Form
+            </a>
+            <a href="PersonDetailsForm_Printable.html" class="btn secondary" target="_blank">
+                👁️ Preview
+            </a>
+        </div>
+
+        <div class="form-card">
+            <h3><span class="icon">⚫</span>Simple B&W Version</h3>
+            <p>Black and white form optimized for photocopying and minimal ink usage. Perfect for remote areas with basic printing facilities.</p>
+            <a href="PersonDetailsForm_Simple.html" class="btn" target="_blank">
+                🖨️ Print Simple Form
+            </a>
+            <a href="PersonDetailsForm_Simple.html" class="btn secondary" target="_blank">
+                👁️ Preview
+            </a>
+        </div>
+    </div>
+
+    <div class="features">
+        <h3>✨ Form Features</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div>
+                <strong>📝 Complete Data Capture</strong>
+                <ul>
+                    <li>Personal information</li>
+                    <li>Contact details</li>
+                    <li>Next of kin information</li>
+                    <li>Geographic location (District level)</li>
+                    <li>Address information</li>
+                </ul>
+            </div>
+            <div>
+                <strong>🎯 User-Friendly Design</strong>
+                <ul>
+                    <li>Clear section organization</li>
+                    <li>Required field indicators</li>
+                    <li>Format examples</li>
+                    <li>Signature areas</li>
+                    <li>Data entry checklist</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="docs-section">
+        <h3>📚 Documentation & Support</h3>
+        <p>Complete guides and instructions for using these forms effectively in field conditions.</p>
+        <a href="README.md" class="btn outline" target="_blank">
+            📖 Read Full Documentation
+        </a>
+        <a href="README.md" class="btn outline" onclick="downloadReadme()" target="_blank">
+            💾 Download Guide
+        </a>
+        
+        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+            <strong>Quick Tips:</strong>
+            <ul style="margin: 10px 0 0 0;">
+                <li><strong>Before field work:</strong> Print multiple copies, bring backup pens</li>
+                <li><strong>While filling:</strong> Use BLOCK LETTERS, complete all fields</li>
+                <li><strong>District selection:</strong> Choose Wa West or Mamprugu Moagduri first</li>
+                <li><strong>After collection:</strong> Transfer to digital system ASAP, keep originals as backup</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function downloadReadme() {
+            // This would trigger download of the README file
+            console.log('Download README functionality');
+        }
+        
+        // Print function for individual forms
+        function printForm(url) {
+            window.open(url, '_blank');
+        }
+        
+        // Quick print all forms
+        function printAll() {
+            const forms = [
+                'PersonDetailsForm_Printable.html',
+                'PersonDetailsForm_Simple.html'
+            ];
+            
+            forms.forEach((form, index) => {
+                setTimeout(() => {
+                    window.open(form, '_blank');
+                }, index * 1000); // Stagger opening to avoid browser blocking
+            });
+        }
+    </script>
+</body>
+</html>
