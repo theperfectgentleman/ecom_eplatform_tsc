@@ -530,8 +530,6 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
         region: data.region && data.region !== 'None' ? data.region : '',
         district: data.district && data.district !== 'None' ? data.district : '',
         address: data.address || '',
-        next_kin: data.next_of_kin_name || '',
-        next_kin_contact: data.next_of_kin_contact || '',
         registration_date: data.registration_date || new Date().toISOString().split('T')[0], // Default to today if not set
         
         // Add assigned_user_id from logged-in user
@@ -823,7 +821,7 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
                   name="next_of_kin_contact"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Next of Kin Contact</FormLabel>
+                      <FormLabel>Next of Kin Contact (Optional)</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="XXX-XXX-XXXX" 
