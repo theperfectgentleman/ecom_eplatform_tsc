@@ -864,10 +864,11 @@ const ANCVisitForm = ({ patient, registration, onSuccess, readOnly = false }: AN
               setViewMode('form');
             }}
             size="lg"
-            className="rounded-full w-14 h-14 bg-green-500 hover:bg-green-600 shadow-lg"
+            className="rounded-full bg-green-500 hover:bg-green-600 shadow-lg px-6 py-3 h-auto"
             title="Add New Visit"
           >
-            <Plus className="h-6 w-6" />
+            <Plus className="h-5 w-5 mr-2" />
+            Record Visit
           </Button>
         </div>
       )}
