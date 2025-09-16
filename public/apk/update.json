@@ -1,11 +1,11 @@
 {
-  "latestVersion": "1.3.0",
-  "latestVersionCode": 31,
-  "url": "https://app.encompas.org/apk/pregapp_130.apk",
+  "latestVersion": "1.3.1",
+  "latestVersionCode": 32,
+  "url": "https://app.encompas.org/apk/pregapp_131.apk",
   "releaseNotes": [
-    "- Version 1.3.0 released",
-    "- Build 20250913-183232",
-    "- Fixed visit random crash",
+    "- Version 1.3.1 released",
+    "- Build 20250916-103600",
+    "- Fixed visit random crash and minor fixes",
     "- updated dashboard ui",
     "- added Visit stats"
   ]
