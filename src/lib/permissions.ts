@@ -5,6 +5,7 @@ export enum Permission {
   // Page Access Permissions
   VIEW_DASHBOARD = 'view_dashboard',
   VIEW_PATIENTS = 'view_patients',
+  VIEW_PATIENT_SNAPSHOT = 'view_patient_snapshot',
   VIEW_CASES = 'view_cases',
   VIEW_MEETINGS = 'view_meetings',
   VIEW_ADDRESSBOOK = 'view_addressbook',
@@ -12,6 +13,9 @@ export enum Permission {
   VIEW_REFERRALS = 'view_referrals',
   VIEW_FEEDBACK = 'view_feedback',
   VIEW_ADMIN = 'view_admin',
+  VIEW_REPORTS = 'view_reports',
+  VIEW_ANTENATAL_CARE = 'view_antenatal_care',
+  VIEW_KIT_DISTRIBUTION = 'view_kit_distribution',
   
   // Data Permissions
   CREATE_PATIENTS = 'create_patients',
@@ -53,6 +57,7 @@ export const ROLE_PERMISSIONS: Record<UserType, Permission[]> = {
     // Full access to everything
     Permission.VIEW_DASHBOARD,
     Permission.VIEW_PATIENTS,
+    Permission.VIEW_PATIENT_SNAPSHOT,
     Permission.VIEW_CASES,
     Permission.VIEW_MEETINGS,
     Permission.VIEW_ADDRESSBOOK,
@@ -60,6 +65,9 @@ export const ROLE_PERMISSIONS: Record<UserType, Permission[]> = {
     Permission.VIEW_REFERRALS,
     Permission.VIEW_FEEDBACK,
     Permission.VIEW_ADMIN,
+    Permission.VIEW_REPORTS,
+    Permission.VIEW_ANTENATAL_CARE,
+    Permission.VIEW_KIT_DISTRIBUTION,
     
     Permission.CREATE_PATIENTS,
     Permission.EDIT_PATIENTS,
@@ -96,44 +104,23 @@ export const ROLE_PERMISSIONS: Record<UserType, Permission[]> = {
   [UserType.MANAGEMENT]: [
     Permission.VIEW_DASHBOARD,
     Permission.VIEW_PATIENTS,
-    Permission.VIEW_CASES,
-    Permission.VIEW_MEETINGS,
-    Permission.VIEW_ADDRESSBOOK,
-    Permission.VIEW_APPOINTMENTS,
-    Permission.VIEW_REFERRALS,
-    Permission.VIEW_FEEDBACK,
-    
-    Permission.CREATE_PATIENTS,
-    Permission.EDIT_PATIENTS,
-    
-    Permission.CREATE_CASES,
-    Permission.EDIT_CASES,
-    
-    Permission.CREATE_MEETINGS,
-    Permission.EDIT_MEETINGS,
-    
-    Permission.EDIT_ADDRESSBOOK,
-    
-    Permission.CREATE_APPOINTMENTS,
-    Permission.EDIT_APPOINTMENTS,
-    
-    Permission.CREATE_REFERRALS,
-    Permission.EDIT_REFERRALS,
-    
-    Permission.CREATE_FEEDBACK,
-    Permission.EDIT_FEEDBACK,
+    Permission.VIEW_PATIENT_SNAPSHOT,
   ],
   
   [UserType.TELEMEDICINE]: [
     // Full read/write access to addressbook, appointments, and referrals
     Permission.VIEW_DASHBOARD,
     Permission.VIEW_PATIENTS,
+    Permission.VIEW_PATIENT_SNAPSHOT,
     Permission.VIEW_CASES,
     Permission.VIEW_MEETINGS,
     Permission.VIEW_ADDRESSBOOK,
     Permission.VIEW_APPOINTMENTS,
     Permission.VIEW_REFERRALS,
     Permission.VIEW_FEEDBACK,
+    Permission.VIEW_REPORTS,
+    Permission.VIEW_ANTENATAL_CARE,
+    Permission.VIEW_KIT_DISTRIBUTION,
     
     Permission.CREATE_PATIENTS,
     Permission.EDIT_PATIENTS,
@@ -164,12 +151,16 @@ export const ROLE_PERMISSIONS: Record<UserType, Permission[]> = {
   [UserType.CLINICIAN]: [
     Permission.VIEW_DASHBOARD,
     Permission.VIEW_PATIENTS,
+    Permission.VIEW_PATIENT_SNAPSHOT,
     Permission.VIEW_CASES,
     Permission.VIEW_MEETINGS,
     Permission.VIEW_ADDRESSBOOK,
     Permission.VIEW_APPOINTMENTS,
     Permission.VIEW_REFERRALS,
     Permission.VIEW_FEEDBACK,
+    Permission.VIEW_REPORTS,
+    Permission.VIEW_ANTENATAL_CARE,
+    Permission.VIEW_KIT_DISTRIBUTION,
     
     Permission.CREATE_PATIENTS,
     Permission.EDIT_PATIENTS,
@@ -221,9 +212,14 @@ export const ROLE_PERMISSIONS: Record<UserType, Permission[]> = {
 export const PAGE_PERMISSIONS: Record<string, Permission> = {
   '/': Permission.VIEW_DASHBOARD,
   '/dashboard': Permission.VIEW_DASHBOARD,
+  '/patient-overview': Permission.VIEW_PATIENTS,
+  '/patient-snapshot': Permission.VIEW_PATIENT_SNAPSHOT,
+  '/referral': Permission.VIEW_REFERRALS,
+  '/antenatal-care': Permission.VIEW_ANTENATAL_CARE,
+  '/reports': Permission.VIEW_REPORTS,
   '/address-book': Permission.VIEW_ADDRESSBOOK,
   '/appointments': Permission.VIEW_APPOINTMENTS,
-  '/referral': Permission.VIEW_REFERRALS,
+  '/kit-distribution': Permission.VIEW_KIT_DISTRIBUTION,
   '/feedback': Permission.VIEW_FEEDBACK,
   '/admin': Permission.VIEW_ADMIN,
   '/admin/settings': Permission.VIEW_ADMIN,
@@ -231,7 +227,6 @@ export const PAGE_PERMISSIONS: Record<string, Permission> = {
   '/admin/implementation': Permission.VIEW_ADMIN,
   '/download': Permission.VIEW_DASHBOARD, // Allow access to download page for all users
   '/guide': Permission.VIEW_DASHBOARD, // Allow access to guide page for all users
-  '/reports': Permission.VIEW_DASHBOARD, // Allow access to reports page for all users
 };
 
 // Permission checker functions

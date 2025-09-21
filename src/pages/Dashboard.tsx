@@ -8,7 +8,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -16,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import {
   Users,
   Baby,
@@ -26,6 +26,8 @@ import {
   TrendingUp,
   Heart,
   AlertTriangle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   XAxis,
@@ -127,9 +129,20 @@ interface VolunteerPerformance {
   avg_days_to_confirm: number;
 }
 
+interface Patient {
+  id: number;
+  registration_date: string; // ISO date string
+  region: string;
+  district: string;
+  subdistrict?: string; // May not be available in all data
+  community?: string; // May not be available in all data
+  username: string; // Assuming registrar username
+  age: number;
+  // Add other fields as needed from the patients table
+}
+
 const Dashboard = () => {
   const { token } = useAuth();
-  const [useLiveData, setUseLiveData] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
 
@@ -141,6 +154,18 @@ const Dashboard = () => {
   // Volunteer performance (1 additional API call - most actionable for users)
   const [volunteers, setVolunteers] = useState<VolunteerPerformance[]>([]);
   const [volunteersLoading, setVolunteersLoading] = useState(false);
+
+  // Patients data for admin stats
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientsLoading, setPatientsLoading] = useState(false);
+  const [patientsError, setPatientsError] = useState<string | null>(null);
+  
+  // Collapsible admin stats state
+  const [adminStatsExpanded, setAdminStatsExpanded] = useState(true);
+  
+  // Sorting state for geographic table
+  const [geoSortField, setGeoSortField] = useState<'region' | 'district' | 'subdistrict' | 'community' | 'count'>('count');
+  const [geoSortDirection, setGeoSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Build query parameters
   const queryParams = useMemo(() => {
@@ -154,10 +179,10 @@ const Dashboard = () => {
 
   // Fetch aggregated data
   useEffect(() => {
-    console.log('Dashboard useEffect triggered:', { useLiveData, hasToken: !!token, queryParams });
+    console.log('Dashboard useEffect triggered:', { hasToken: !!token, queryParams });
     
-    if (!useLiveData || !token) {
-      console.log('Skipping API calls - Live data disabled or no token');
+    if (!token) {
+      console.log('Skipping API calls - No token');
       setAggregates(null);
       setVolunteers([]);
       return;
@@ -225,6 +250,23 @@ const Dashboard = () => {
           console.error('Volunteers promise rejected:', volunteersRes.reason);
         }
 
+        // Fetch patients data
+        setPatientsLoading(true);
+        try {
+          const patientsRes = await fetch(`${apiBaseUrl}/patients`, { headers });
+          if (patientsRes.ok) {
+            const patientsData = await patientsRes.json();
+            setPatients(patientsData.data || patientsData || []);
+          } else {
+            setPatientsError('Failed to load patients data');
+          }
+        } catch (error) {
+          console.error('Patients API error:', error);
+          setPatientsError('Failed to load patients data');
+        } finally {
+          setPatientsLoading(false);
+        }
+
       } catch (error) {
         console.error('Dashboard API error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -237,101 +279,144 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [useLiveData, token, queryParams]);
+  }, [token, queryParams]);
 
-  // Sample data for demo mode
-  const sampleData: DashboardAggregates = {
-    overview: {
-      totalPatients: 1247,
-      totalAntenatalRegistrations: 856,
-      totalAncVisits: 2341,
-      registrationsLastPeriod: 34,
-      kitsDistributedLastPeriod: 67,
-      kitsUsedLastPeriod: 52,
-      referralsLastPeriod: 8
-    },
-    trends: {
-      registrationsByWeek: [
-        { week: '2024-W45', cnt: 12 }, { week: '2024-W46', cnt: 18 },
-        { week: '2024-W47', cnt: 15 }, { week: '2024-W48', cnt: 22 },
-        { week: '2024-W49', cnt: 19 }, { week: '2024-W50', cnt: 25 },
-        { week: '2024-W51', cnt: 28 }, { week: '2024-W52', cnt: 31 },
-        { week: '2025-W01', cnt: 24 }, { week: '2025-W02', cnt: 29 },
-        { week: '2025-W03', cnt: 33 }, { week: '2025-W04', cnt: 27 }
-      ]
-    },
-    kits: {
-      totalDistributed: 1124,
-      confirmedByVolunteers: 987,
-      totalUsed: 756,
-      usageRatePercent: 67.3
-    },
-    testing: {
-      totalTests: 756,
-      positives: 64,
-      positivityPercent: 8.5
-    },
-    antenatal: {
-      registrationsLastPeriod: 34,
-      earlyRegistrationsLastPeriod: 28,
-      earlyRegistrationPercent: 82.4,
-      totalRegistrationsAllTime: 856
-    },
-    referrals: {
-      totalAllTime: 187,
-      lastPeriod: 8,
-      withPriorityCount: 23,
-      avgVisitsPerRegistration: 2.7,
-      percentRegistrationsWithVisit: 89.2,
-      avgDaysToFirstVisit: 12.3,
-      visitsByGestation: {
-        'visits_<=12weeks': 312,
-        'visits_13_20weeks': 456,
-        'visits_21_28weeks': 389,
-        'visits_29plus': 567
-      }
-    },
-    geo: [
-      { region: 'Greater Accra', district: 'Accra Metropolitan', patients: 245 },
-      { region: 'Ashanti', district: 'Kumasi Metropolitan', patients: 189 },
-      { region: 'Greater Accra', district: 'Tema Metropolitan', patients: 156 },
-      { region: 'Western', district: 'Sekondi-Takoradi', patients: 134 },
-      { region: 'Northern', district: 'Tamale Metropolitan', patients: 112 }
-    ],
-    age: {
-      average: 26.7,
-      median: 25.0,
-      distribution: { '<18': 89, '18-24': 342, '25-34': 567, '35-44': 198, '45+': 51 }
-    },
-    meta: {
-      filtered: false,
-      filter_level: 'national',
-      params: { days: 30, weeks: 12 }
+  // Compute patient stats
+  const patientStats = useMemo(() => {
+    if (!patients.length) return null;
+
+    const now = new Date();
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const registrations24h = patients.filter(p => new Date(p.registration_date) >= last24h).length;
+    const registrationsWeek = patients.filter(p => new Date(p.registration_date) >= lastWeek).length;
+    const registrationsMonth = patients.filter(p => new Date(p.registration_date) >= lastMonth).length;
+
+    const regionalBreakdown = patients.reduce((acc, p) => {
+      acc[p.region] = (acc[p.region] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const usernameBreakdown = patients.reduce((acc, p) => {
+      acc[p.username] = (acc[p.username] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Calculate average age, filtering out invalid/null/undefined ages
+    const validAges = patients
+      .map(p => p.age)
+      .filter(age => age != null && !isNaN(Number(age)) && Number(age) > 0 && Number(age) < 120)
+      .map(age => Number(age));
+    
+    const avgAge = validAges.length > 0 ? validAges.reduce((sum, age) => sum + age, 0) / validAges.length : 0;
+
+    // Create weekly trends by region for the last 12 weeks
+    const twelveWeeksAgo = new Date(now.getTime() - 12 * 7 * 24 * 60 * 60 * 1000);
+    const recentPatients = patients.filter(p => new Date(p.registration_date) >= twelveWeeksAgo);
+    
+    // Get unique regions
+    const regions = [...new Set(patients.map(p => p.region))];
+    
+    // Create week labels
+    const weeklyTrends = [];
+    for (let i = 11; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const weekLabel = `W${Math.ceil((weekStart.getTime() - new Date(weekStart.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))}`;
+      
+      const weekData: any = { week: weekLabel };
+      let totalForWeek = 0;
+      
+      regions.forEach(region => {
+        const count = recentPatients.filter(p => {
+          const regDate = new Date(p.registration_date);
+          return regDate >= weekStart && regDate < weekEnd && p.region === region;
+        }).length;
+        weekData[region] = count;
+        totalForWeek += count;
+      });
+      
+      weekData.total = totalForWeek;
+      weeklyTrends.push(weekData);
     }
-  };
 
-  const sampleVolunteers: VolunteerPerformance[] = [
-    { vol_user_id: 1, volunteer_name: 'Sarah Mensah', kits_distributed: 45, kits_confirmed: 42, confirmation_rate: 93.3, avg_days_to_confirm: 2.1 },
-    { vol_user_id: 2, volunteer_name: 'Kofi Asante', kits_distributed: 38, kits_confirmed: 35, confirmation_rate: 92.1, avg_days_to_confirm: 1.8 },
-    { vol_user_id: 3, volunteer_name: 'Ama Osei', kits_distributed: 52, kits_confirmed: 48, confirmation_rate: 92.3, avg_days_to_confirm: 2.3 }
-  ];
+    // Create geographic breakdown
+    const geographicBreakdown = patients.reduce((acc, p) => {
+      const key = `${p.region} > ${p.district}${p.subdistrict ? ` > ${p.subdistrict}` : ''}${p.community ? ` > ${p.community}` : ''}`;
+      const existingEntry = acc.find(entry => entry.location === key);
+      
+      if (existingEntry) {
+        existingEntry.count += 1;
+      } else {
+        acc.push({
+          location: key,
+          region: p.region,
+          district: p.district,
+          subdistrict: p.subdistrict || 'N/A',
+          community: p.community || 'N/A',
+          count: 1
+        });
+      }
+      
+      return acc;
+    }, [] as Array<{
+      location: string;
+      region: string;
+      district: string;
+      subdistrict: string;
+      community: string;
+      count: number;
+    }>);
 
-  // Use live or sample data
-  const dashboardData = useLiveData ? aggregates : sampleData;
-  const volunteerData = useLiveData ? volunteers : sampleVolunteers;
+    // Sort based on current sort field and direction
+    geographicBreakdown.sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+      
+      if (geoSortField === 'count') {
+        aValue = a.count;
+        bValue = b.count;
+      } else {
+        aValue = a[geoSortField].toLowerCase();
+        bValue = b[geoSortField].toLowerCase();
+      }
+      
+      if (geoSortDirection === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+    return {
+      totalPatients: patients.length,
+      registrations24h,
+      registrationsWeek,
+      registrationsMonth,
+      regionalBreakdown,
+      usernameBreakdown,
+      avgAge: avgAge.toFixed(1),
+      validAgeCount: validAges.length,
+      weeklyTrends,
+      regions,
+      geographicBreakdown,
+    };
+  }, [patients, geoSortField, geoSortDirection]);
 
   // Process chart data
   const trendData = useMemo(() => {
-    if (!dashboardData?.trends?.registrationsByWeek) return [];
-    return dashboardData.trends.registrationsByWeek.map(item => ({
+    if (!aggregates?.trends?.registrationsByWeek) return [];
+    return aggregates.trends.registrationsByWeek.map(item => ({
       week: item.week.replace('2024-W', 'W').replace('2025-W', 'W'),
       registrations: item.cnt
     }));
-  }, [dashboardData]);
+  }, [aggregates]);
 
   const ageData = useMemo(() => {
-    if (!dashboardData?.age?.distribution) return [];
-    const dist = dashboardData.age.distribution;
+    if (!aggregates?.age?.distribution) return [];
+    const dist = aggregates.age.distribution;
     return [
       { group: 'Under 18', count: dist['<18'] },
       { group: '18-24', count: dist['18-24'] },
@@ -339,26 +424,26 @@ const Dashboard = () => {
       { group: '35-44', count: dist['35-44'] },
       { group: '45+', count: dist['45+'] }
     ];
-  }, [dashboardData]);
+  }, [aggregates]);
 
   const gestationData = useMemo(() => {
-    if (!dashboardData?.referrals?.visitsByGestation) return [];
-    const visits = dashboardData.referrals.visitsByGestation;
+    if (!aggregates?.referrals?.visitsByGestation) return [];
+    const visits = aggregates.referrals.visitsByGestation;
     return [
       { period: '≤12 weeks', visits: visits['visits_<=12weeks'] },
       { period: '13-20 weeks', visits: visits['visits_13_20weeks'] },
       { period: '21-28 weeks', visits: visits['visits_21_28weeks'] },
       { period: '29+ weeks', visits: visits['visits_29plus'] }
     ];
-  }, [dashboardData]);
+  }, [aggregates]);
 
-  const regions = [...new Set(dashboardData?.geo?.map(g => g.region) || ['Greater Accra', 'Ashanti'])];
-  const districts = dashboardData?.geo?.filter(g => selectedRegion === "All Regions" || g.region === selectedRegion)
+  const regions = [...new Set(aggregates?.geo?.map(g => g.region) || ['Greater Accra', 'Ashanti'])];
+  const districts = aggregates?.geo?.filter(g => selectedRegion === "All Regions" || g.region === selectedRegion)
     .map(g => g.district) || [];
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
-  const isLoading = useLiveData && (aggregatesLoading || volunteersLoading);
+  const isLoading = aggregatesLoading || volunteersLoading;
 
   if (isLoading) {
     return (
@@ -371,6 +456,27 @@ const Dashboard = () => {
     );
   }
 
+  // Handle geographic table sorting
+  const handleGeoSort = (field: 'region' | 'district' | 'subdistrict' | 'community' | 'count') => {
+    if (geoSortField === field) {
+      // Toggle direction if same field
+      setGeoSortDirection(geoSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default direction
+      setGeoSortField(field);
+      setGeoSortDirection(field === 'count' ? 'desc' : 'asc');
+    }
+  };
+
+  const getSortIcon = (field: 'region' | 'district' | 'subdistrict' | 'community' | 'count') => {
+    if (geoSortField !== field) {
+      return <ChevronDown className="h-3 w-3 opacity-50" />;
+    }
+    return geoSortDirection === 'asc' ? 
+      <ChevronUp className="h-3 w-3" /> : 
+      <ChevronDown className="h-3 w-3" />;
+  };
+
   return (
     <div className="space-y-6 p-6">
       {/* Header with Controls */}
@@ -381,13 +487,6 @@ const Dashboard = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Data Source Toggle */}
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium">Demo</span>
-            <Switch checked={useLiveData} onCheckedChange={setUseLiveData} />
-            <span className="text-sm font-medium">Live Data</span>
-          </div>
-
           {/* Region Filter */}
           <Select value={selectedRegion} onValueChange={setSelectedRegion}>
             <SelectTrigger className="w-[180px]">
@@ -417,7 +516,7 @@ const Dashboard = () => {
       </div>
 
       {/* Performance Indicator */}
-      {useLiveData && (
+      {token && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -438,10 +537,10 @@ const Dashboard = () => {
                   </span>
                 </div>
               )}
-              {dashboardData?.meta && !aggregatesError && (
+              {aggregates?.meta && !aggregatesError && (
                 <span className="text-sm text-muted-foreground">
-                  {dashboardData.meta.filtered ? `${dashboardData.meta.filter_level.charAt(0).toUpperCase() + dashboardData.meta.filter_level.slice(1)} view` : "National view"} • 
-                  Last {dashboardData.meta.params.days} days
+                  {aggregates.meta.filtered ? `${aggregates.meta.filter_level.charAt(0).toUpperCase() + aggregates.meta.filter_level.slice(1)} view` : "National view"} • 
+                  Last {aggregates.meta.params.days} days
                 </span>
               )}
             </div>
@@ -457,9 +556,9 @@ const Dashboard = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.overview.totalPatients.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">{aggregates?.overview.totalPatients.toLocaleString() || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +{dashboardData?.overview.registrationsLastPeriod || 0} last period
+              +{aggregates?.overview.registrationsLastPeriod || 0} last period
             </p>
           </CardContent>
         </Card>
@@ -470,9 +569,9 @@ const Dashboard = () => {
             <Baby className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(dashboardData?.referrals.percentRegistrationsWithVisit ?? 0).toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{Number(aggregates?.referrals.percentRegistrationsWithVisit ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              {Number(dashboardData?.antenatal.earlyRegistrationPercent ?? 0).toFixed(1)}% early registration
+              {Number(aggregates?.antenatal.earlyRegistrationPercent ?? 0).toFixed(1)}% early registration
             </p>
           </CardContent>
         </Card>
@@ -483,9 +582,9 @@ const Dashboard = () => {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(dashboardData?.kits.usageRatePercent ?? 0).toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{Number(aggregates?.kits.usageRatePercent ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              {dashboardData?.kits.totalUsed || 0}/{dashboardData?.kits.totalDistributed || 0} kits used
+              {aggregates?.kits.totalUsed || 0}/{aggregates?.kits.totalDistributed || 0} kits used
             </p>
           </CardContent>
         </Card>
@@ -496,9 +595,9 @@ const Dashboard = () => {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(dashboardData?.testing.positivityPercent ?? 0).toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{Number(aggregates?.testing.positivityPercent ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              {dashboardData?.testing.positives || 0} of {dashboardData?.testing.totalTests || 0} tests
+              {aggregates?.testing.positives || 0} of {aggregates?.testing.totalTests || 0} tests
             </p>
           </CardContent>
         </Card>
@@ -512,7 +611,7 @@ const Dashboard = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(dashboardData?.referrals.avgVisitsPerRegistration ?? 0).toFixed(1)}</div>
+            <div className="text-2xl font-bold">{Number(aggregates?.referrals.avgVisitsPerRegistration ?? 0).toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
               Avg visits per registration
             </p>
@@ -525,7 +624,7 @@ const Dashboard = () => {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(dashboardData?.referrals.avgDaysToFirstVisit ?? 0).toFixed(1)}</div>
+            <div className="text-2xl font-bold">{Number(aggregates?.referrals.avgDaysToFirstVisit ?? 0).toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
               Days to first visit
             </p>
@@ -538,7 +637,7 @@ const Dashboard = () => {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.referrals.withPriorityCount || 0}</div>
+            <div className="text-2xl font-bold">{aggregates?.referrals.withPriorityCount || 0}</div>
             <p className="text-xs text-muted-foreground">
               Cases requiring attention
             </p>
@@ -551,9 +650,9 @@ const Dashboard = () => {
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(dashboardData?.age.average ?? 0).toFixed(1)}</div>
+            <div className="text-2xl font-bold">{Number(aggregates?.age.average ?? 0).toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
-              Average age (median: {Number(dashboardData?.age.median ?? 0).toFixed(1)})
+              Average age (median: {Number(aggregates?.age.median ?? 0).toFixed(1)})
             </p>
           </CardContent>
         </Card>
@@ -636,7 +735,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {dashboardData?.geo?.slice(0, 5).map((location) => (
+              {aggregates?.geo?.slice(0, 5).map((location) => (
                 <div key={`${location.region}-${location.district}`} className="flex items-center justify-between">
                   <div className="text-sm">
                     <div className="font-medium">{location.district}</div>
@@ -650,14 +749,14 @@ const Dashboard = () => {
         </Card>
 
         {/* Volunteer Performance */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle>Top Volunteers</CardTitle>
             <CardDescription>Volunteer performance metrics</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {volunteerData.slice(0, 5).map((volunteer) => (
+              {volunteers.slice(0, 5).map((volunteer) => (
                 <div key={volunteer.vol_user_id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center space-x-3">
                     <UserCheck className="h-8 w-8 text-blue-500" />
@@ -677,6 +776,202 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Collapsible Admin Stats Section */}
+      <div className="w-full">
+        <Button
+          variant="ghost"
+          onClick={() => setAdminStatsExpanded(!adminStatsExpanded)}
+          className="w-full justify-between text-lg font-semibold p-4 h-auto"
+        >
+          Admin Insights: Patient Registration Stats
+          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${adminStatsExpanded ? 'rotate-180' : ''}`} />
+        </Button>
+        
+        {adminStatsExpanded && (
+          <div className="mt-4">
+            {patientsLoading ? (
+              <div className="flex items-center justify-center min-h-[200px]">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading patient stats...</p>
+                </div>
+              </div>
+            ) : patientsError ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-red-600">{patientsError}</p>
+                </CardContent>
+              </Card>
+            ) : patientStats ? (
+              <div className="space-y-6">
+                {/* Key Stats Grid */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Last 24 Hours</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{patientStats.registrations24h}</div>
+                      <p className="text-xs text-muted-foreground">New registrations</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">This Week</CardTitle>
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{patientStats.registrationsWeek}</div>
+                      <p className="text-xs text-muted-foreground">New registrations</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">This Month</CardTitle>
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{patientStats.registrationsMonth}</div>
+                      <p className="text-xs text-muted-foreground">New registrations</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Average Age</CardTitle>
+                      <Heart className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {patientStats.avgAge === "0.0" ? "N/A" : `${patientStats.avgAge}`}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {patientStats.avgAge === "0.0" ? "No valid ages" : `Years (${patientStats.validAgeCount} valid records)`}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Regional Breakdown */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Regional Breakdown</CardTitle>
+                    <CardDescription>Registrations by region</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {Object.entries(patientStats.regionalBreakdown).map(([region, count]) => (
+                        <div key={region} className="flex justify-between">
+                          <span>{region}</span>
+                          <Badge variant="secondary">{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Geographic Breakdown */}
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Geographic Distribution</CardTitle>
+                    <CardDescription>Patient registrations by region, district, and community</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-96 overflow-y-auto">
+                      <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground border-b pb-2 mb-2">
+                        <button 
+                          className="col-span-3 flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer text-left"
+                          onClick={() => handleGeoSort('region')}
+                        >
+                          Region {getSortIcon('region')}
+                        </button>
+                        <button 
+                          className="col-span-3 flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer text-left"
+                          onClick={() => handleGeoSort('district')}
+                        >
+                          District {getSortIcon('district')}
+                        </button>
+                        <button 
+                          className="col-span-3 flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer text-left"
+                          onClick={() => handleGeoSort('subdistrict')}
+                        >
+                          Subdistrict {getSortIcon('subdistrict')}
+                        </button>
+                        <button 
+                          className="col-span-2 flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer text-left"
+                          onClick={() => handleGeoSort('community')}
+                        >
+                          Community {getSortIcon('community')}
+                        </button>
+                        <button 
+                          className="col-span-1 flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer justify-end"
+                          onClick={() => handleGeoSort('count')}
+                        >
+                          Count {getSortIcon('count')}
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        {patientStats.geographicBreakdown.slice(0, 20).map((item, index) => (
+                          <div key={index} className="grid grid-cols-12 gap-2 text-sm py-1 hover:bg-muted/50 rounded">
+                            <div className="col-span-3 truncate">{item.region}</div>
+                            <div className="col-span-3 truncate">{item.district}</div>
+                            <div className="col-span-3 truncate text-muted-foreground">{item.subdistrict}</div>
+                            <div className="col-span-2 truncate text-muted-foreground">{item.community}</div>
+                            <div className="col-span-1 text-right">
+                              <Badge variant="secondary">{item.count}</Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {patientStats.geographicBreakdown.length > 20 && (
+                        <div className="text-center mt-4 text-sm text-muted-foreground">
+                          Showing top 20 of {patientStats.geographicBreakdown.length} locations
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Regional Trends Chart */}
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Registration Trends by Region</CardTitle>
+                    <CardDescription>Weekly registration patterns over last 12 weeks</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <AreaChart data={patientStats.weeklyTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="week" />
+                        <YAxis />
+                        <Tooltip />
+                        {patientStats.regions.map((region, index) => (
+                          <Area
+                            key={region}
+                            type="monotone"
+                            dataKey={region}
+                            stackId="1"
+                            stroke={COLORS[index % COLORS.length]}
+                            fill={COLORS[index % COLORS.length]}
+                            fillOpacity={0.6}
+                          />
+                        ))}
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-muted-foreground">No patient data available.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

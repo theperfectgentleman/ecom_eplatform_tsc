@@ -64,11 +64,11 @@ const PatientOverview = () => {
 				</div>
 			)}
 			
-			<div className="flex flex-col md:flex-row gap-6 w-full items-stretch">
+			<div className="flex flex-col md:flex-row gap-6 w-full items-stretch h-[calc(100vh-200px)]">
 				<div className="w-full md:w-[65%] min-w-0 flex">
 					<PatientDetails selectedPatient={selectedPatient} />
 				</div>
-				<aside className="w-full md:w-[35%] min-w-0 flex">
+				<aside className="w-full md:w-[35%] min-w-0 flex max-h-full">
 					<PatientList
 						onPatientSelect={handlePatientSelect}
 						onClearForm={handleClearForm}

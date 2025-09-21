@@ -6,7 +6,7 @@ import { PatientOverviewData } from "@/types";
 import { Input } from "../ui/input";
 import { Search, User } from "lucide-react";
 
-// Custom CSS to hide the scrollbar
+// Custom CSS to hide the scrollbar and smooth scrolling
 const listStyles = `
   .custom-scrollbar::-webkit-scrollbar {
     display: none;
@@ -14,6 +14,7 @@ const listStyles = `
   .custom-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
+    scroll-behavior: smooth; /* Smooth scrolling */
   }
 `;
 
@@ -195,7 +196,7 @@ const PatientList: React.FC<PatientListProps> = ({
 	return (
 		<>
 			<style>{listStyles}</style>
-			<div className="bg-white rounded-lg shadow-sm border w-full flex flex-col min-h-full">
+			<div className="bg-white rounded-lg shadow-sm border w-full flex flex-col h-full max-h-full">
 				<div className="p-4 border-b border-gray-200 flex-shrink-0">
 					<div className="flex items-center justify-between mb-4">
 						<h2 className="text-lg font-semibold text-gray-900">
