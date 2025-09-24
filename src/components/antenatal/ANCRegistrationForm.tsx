@@ -367,7 +367,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
                   name="registrationDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Registration Date *</FormLabel>
+                      <FormLabel>Registration Date</FormLabel>
                       <FormControl>
                         <Input
                           type="date"
@@ -391,7 +391,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
                   name="registrationNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Registration Number *</FormLabel>
+                      <FormLabel>Registration Number</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
@@ -441,7 +441,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
                   name="parity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Parity *</FormLabel>
+                      <FormLabel>Parity</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 

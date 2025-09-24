@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Registration Form - Simple B&W Version</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        
+        @media print {
+            .no-print {
+                display: none;
+            }
+            
+            body {
+                font-size: 10pt;
+                line-height: 1.3;
+            }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+            max-width: 190mm;
+            margin: 0 auto;
+            padding: 5mm;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 16pt;
+            font-weight: bold;
+        }
+        
+        .header h2 {
+            margin: 3px 0 0 0;
+            font-size: 12pt;
+        }
+        
+        .section {
+            margin-bottom: 15px;
+            border: 1px solid #000;
+            padding: 10px;
+        }
+        
+        .section-header {
+            font-weight: bold;
+            font-size: 12pt;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000;
+            padding-bottom: 3px;
+        }
+        
+        .form-row {
+            margin-bottom: 12px;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .form-group {
+            flex: 1;
+        }
+        
+        .form-group.wide {
+            flex: 2;
+        }
+        
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 2px;
+            font-size: 10pt;
+        }
+        
+        .input-line {
+            border-bottom: 1px solid #000;
+            height: 18px;
+            margin-bottom: 3px;
+            position: relative;
+        }
+        
+        .input-line.date::before {
+            content: "DD / MM / YYYY";
+            font-size: 8pt;
+            color: #666;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+        }
+        
+        .checkbox-row {
+            display: flex;
+            gap: 20px;
+            margin-top: 3px;
+            flex-wrap: wrap;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 9pt;
+        }
+        
+        .checkbox {
+            width: 12px;
+            height: 12px;
+            border: 1px solid #000;
+            display: inline-block;
+        }
+        
+        .small-text {
+            font-size: 8pt;
+            color: #555;
+        }
+        
+        .subsection {
+            border: 1px dashed #000;
+            padding: 8px;
+            margin: 8px 0;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+        }
+        
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .signature-box {
+            text-align: center;
+            width: 150px;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 25px;
+            margin-bottom: 3px;
+        }
+        
+        .patient-id {
+            float: right;
+            border: 1px solid #000;
+            padding: 5px;
+            margin-bottom: 10px;
+            width: 120px;
+        }
+        
+        .instructions {
+            border: 1px solid #000;
+            padding: 8px;
+            margin-bottom: 15px;
+            font-size: 9pt;
+        }
+        
+        .two-column {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .two-column .column {
+            flex: 1;
+        }
+        
+        @media screen {
+            .no-print {
+                background-color: #f0f0f0;
+                padding: 10px;
+                margin-bottom: 15px;
+                border: 1px solid #ccc;
+                text-align: center;
+            }
+            
+            .print-btn {
+                background: #000;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                cursor: pointer;
+                margin-right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button class="print-btn" onclick="window.print()">🖨️ Print Form</button>
+        <button class="print-btn" onclick="window.open('PersonDetailsForm_Printable.html')">🎨 Color Version</button>
+        <p><strong>Simple B&W Version</strong> - Optimized for photocopying and minimal ink usage</p>
+    </div>
+
+    <div class="header">
+        <h1>PATIENT REGISTRATION FORM</h1>
+        <h2>Personal Details</h2>
+        <div class="patient-id">
+            <strong>Patient ID:</strong><br>
+            <div class="input-line"></div>
+            <div class="small-text">EN-DDYY-NNNNLL</div>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <strong>INSTRUCTIONS:</strong> Complete all sections. Use BLOCK LETTERS.
+    </div>
+
+    <!-- SECTION A -->
+    <div class="section">
+        <div class="section-header">A. BASIC INFORMATION</div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Surname</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group">
+                <label>Other Names</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Date of Birth</label>
+                <div class="input-line date"></div>
+            </div>
+            <div class="form-group">
+                <label>Registration Date</label>
+                <div class="input-line date"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>NHIS Number</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group">
+                <!-- Empty for spacing -->
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION B -->
+    <div class="section">
+        <div class="section-header">B. CONTACT INFORMATION</div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Contact Number</label>
+                <div class="input-line"></div>
+                <div class="small-text">Format: XXX-XXX-XXXX</div>
+            </div>
+            <div class="form-group">
+                <label>Alternative Number</label>
+                <div class="input-line"></div>
+                <div class="small-text">Format: XXX-XXX-XXXX</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION C -->
+    <div class="section">
+        <div class="section-header">C. NEXT OF KIN</div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Next of Kin Name</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group">
+                <label>Next of Kin Contact</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION D -->
+    <div class="section">
+        <div class="section-header">D. LOCATION & ADDRESS</div>
+        
+        <div class="subsection">
+            <strong>Geographic Details</strong>
+            
+            <div style="margin: 8px 0;">
+                <label>District</label>
+                <div class="checkbox-row">
+                    <div class="checkbox-item">
+                        <span class="checkbox"></span> Wa West
+                    </div>
+                    <div class="checkbox-item">
+                        <span class="checkbox"></span> Mamprugu Moagduri
+                    </div>
+                    <div class="checkbox-item">
+                        <span class="checkbox"></span> Other: _______________
+                    </div>
+                </div>
+            </div>
+            
+            <div class="two-column">
+                <div class="column">
+                    <label>Subdistrict</label>
+                    <div class="input-line"></div>
+                </div>
+                <div class="column">
+                    <label>Community</label>
+                    <div class="input-line"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="subsection">
+            <strong>Address Information</strong>
+            
+            <div style="margin: 8px 0;">
+                <label>Detailed Address</label>
+                <div class="input-line"></div>
+                <div class="input-line"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <div class="two-column">
+            <div class="column">
+                <label>Form Completed By</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="column">
+                <label>Date Completed</label>
+                <div class="input-line date"></div>
+            </div>
+        </div>
+        
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="small-text">Patient/Guardian</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="small-text">Health Worker</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="small-text">Date</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 15px; border: 1px solid #000; padding: 5px;">
+            <strong>Data Entry Checklist:</strong>
+            <div class="checkbox-row" style="margin-top: 5px;">
+                <div class="checkbox-item"><span class="checkbox"></span> All fields complete</div>
+                <div class="checkbox-item"><span class="checkbox"></span> Patient ID generated</div>
+                <div class="checkbox-item"><span class="checkbox"></span> Data verified</div>
+                <div class="checkbox-item"><span class="checkbox"></span> Entered in system</div>
+            </div>
+            <div style="margin-top: 8px; font-size: 9pt;">
+                Entered by: _________________ Date: _________ System ID: _________________
+            </div>
+        </div>
+    </div>
+</body>
+</html>
