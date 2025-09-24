@@ -550,6 +550,34 @@ const PersonDetailsForm = ({ initialData, onSuccess, communities = [], readOnly 
         ...(typeof data.reg_loc_lng === 'number' && { reg_loc_lng: data.reg_loc_lng }),
       };
 
+      // Attempt to include community_id (fix for community_id being nulled on update)
+      try {
+        if (data.community_name && data.community_name !== 'None') {
+          // Find matching community object. We match by region, district, subdistrict, and community name when possible
+            const matchingCommunity = communities.find((c: any) => {
+              // Some APIs may use subdistrict vs sub_district naming; handle both
+              const commSubdistrict = c.subdistrict || c.sub_district;
+              return (
+                (c.community_name === data.community_name || c.community === data.community_name) &&
+                (!data.region || !c.region || c.region === data.region) &&
+                (!data.district || !c.district || c.district === data.district) &&
+                (!data.subdistrict || !commSubdistrict || commSubdistrict === data.subdistrict)
+              );
+            });
+            const derivedCommunityId = matchingCommunity?.community_id || matchingCommunity?.id;
+            // Prefer freshly derived id, else fall back to initialData
+            const existingCommunityId = (initialData as any)?.community_id;
+            if (derivedCommunityId || existingCommunityId) {
+              cleanedData.community_id = derivedCommunityId || existingCommunityId;
+            }
+        } else if ((initialData as any)?.community_id) {
+          // If user cleared community name but there is still an existing id, retain it unless explicit clearing desired
+          cleanedData.community_id = (initialData as any).community_id;
+        }
+      } catch (e) {
+        console.warn('Failed to derive community_id:', e);
+      }
+
       // For updates, include the patient_id
       if (initialData?.patient_id) {
         cleanedData.patient_id = initialData.patient_id;
