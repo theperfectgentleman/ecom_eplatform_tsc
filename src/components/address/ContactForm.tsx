@@ -30,7 +30,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   position: z.string().min(2, { message: "Role is required." }),
   mobile1: z.string().min(5, { message: "Mobile is required." }),
-  email1: z.string().email({ message: "Invalid email address." }).optional(),
+  email1: z.string().email({ message: "Invalid email address." }).or(z.literal("")).optional(),
   email2: z.string().optional(),
   region: z.string().min(2, { message: "Region is required." }),
   district: z.string().min(2, { message: "District is required." }),
