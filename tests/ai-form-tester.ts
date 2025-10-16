@@ -87,7 +87,7 @@ export class AIFormTester {
                   await this.page.locator(optionSelector).first().click({ timeout: 2000 });
                   filled = true;
                   break;
-                } catch (e) {
+                } catch (_error) {
                   continue;
                 }
               }
@@ -106,7 +106,7 @@ export class AIFormTester {
               break;
             }
           }
-        } catch (error) {
+        } catch (_error) {
           continue; // Try next selector
         }
       }
@@ -122,8 +122,9 @@ export class AIFormTester {
         });
       }
       
-    } catch (error) {
-      console.error(`✗ Failed to fill ${fieldName}:`, error instanceof Error ? error.message : String(error));
+    } catch (_error) {
+      const detail = _error instanceof Error ? _error.message : String(_error);
+      console.error(`✗ Failed to fill ${fieldName}:`, detail);
     }
   }
 
@@ -255,7 +256,7 @@ export class AIFormTester {
           await button.click({ timeout: 5000 });
           break;
         }
-      } catch (error) {
+      } catch (_error) {
         continue;
       }
     }
@@ -290,7 +291,7 @@ export class AIFormTester {
         await expect(this.page.locator(selector).first()).toBeVisible({ timeout: timeout });
         console.log('✅ Success detected!');
         return this;
-      } catch (error) {
+      } catch (_error) {
         continue;
       }
     }
@@ -322,7 +323,7 @@ export class AIFormTester {
           await expect(this.page.locator(selector).first()).toBeVisible({ timeout });
           console.log('✅ Error detected as expected!');
           return this;
-        } catch (error) {
+        } catch (_error) {
           continue;
         }
       }

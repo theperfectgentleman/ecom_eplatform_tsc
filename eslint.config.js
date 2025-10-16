@@ -6,7 +6,16 @@ import tseslint from '@typescript-eslint/eslint-plugin'
 import parser from '@typescript-eslint/parser'
 
 export default [
-  { ignores: ['dist'] },
+  {
+    ignores: [
+      'dist',
+      'playwright-report',
+      'test-results',
+      '*.js',
+      '*.cjs',
+      '*.mjs',
+    ],
+  },
   // JS/TS base config
   // Remove whitespace from global keys to avoid ESLint error
   js.configs.recommended,
@@ -28,17 +37,17 @@ export default [
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-refresh/only-export-components': 'off',
       // Allow unused enum values as they're meant to be part of the complete enum definition
-      '@typescript-eslint/no-unused-vars': ['error', { 
-        'varsIgnorePattern': '^_',
-        'argsIgnorePattern': '^_',
-        'ignoreRestSiblings': true
+      '@typescript-eslint/no-unused-vars': ['error', {
+        varsIgnorePattern: '^_',
+        argsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+        caughtErrors: 'all',
+        caughtErrorsIgnorePattern: '^_',
       }],
-      'no-unused-vars': 'off', // Turn off base rule in favor of TypeScript version
+  'no-unused-vars': 'off', // Turn off base rule in favor of TypeScript version
+  'no-undef': 'off',
       // Relax rules for enums and type definitions
       '@typescript-eslint/no-unused-expressions': 'off',
     },

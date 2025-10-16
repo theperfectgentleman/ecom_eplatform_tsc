@@ -244,44 +244,46 @@ const ReferralForm: React.FC<{
           setSubdistrictOptions(["None", ...subdistricts]);
         }
         
-        // Then set the form state
-        const updatedState = {
-          ...formState,
-          ...caseData,
-          case_file_id: caseData.case_file_id || initialData.case_file_id || undefined,
-          patient_id: fullPatientData?.patient_id || "-1",
-          name: fullPatientData?.name || "",
-          year_of_birth: fullPatientData?.year_of_birth?.toString() || "",
-          gender: fullPatientData?.gender || "",
-          region: fullPatientData?.region || "",
-          district: fullPatientData?.district || "",
-          sub_district: fullPatientData?.sub_district || "",
-          // community removed
-          insurance_status: fullPatientData?.insurance_status || "",
-          insurance_no: fullPatientData?.insurance_no || "",
-          // Fix typo: present_complaints (frontend) <-> present_compliants (backend)
-          present_complaints: caseData?.present_complaints || caseData?.present_compliants || fullPatientData?.present_complaints || fullPatientData?.present_compliants || "",
-          examination_findings: caseData?.examination_findings || fullPatientData?.examination_findings || "",
-          temperature: caseData?.temperature?.toString() || fullPatientData?.temperature?.toString() || "",
-          weight: caseData?.weight?.toString() || fullPatientData?.weight?.toString() || "",
-          blood_group: caseData?.blood_group || fullPatientData?.blood_group || "",
-          bp: caseData?.bp || fullPatientData?.bp || "",
-          pulse: caseData?.pulse?.toString() || fullPatientData?.pulse?.toString() || "",
-          treatment_given: caseData?.treatment_given || fullPatientData?.treatment_given || "",
-          referral_reason_notes: caseData?.referral_reason_notes || fullPatientData?.referral_reason_notes || "",
-          referring_officer_name: caseData?.referring_officer_name || fullPatientData?.referring_officer_name || "",
-          referring_officer_position: caseData?.referring_officer_position || fullPatientData?.referring_officer_position || "",
-          medications_given: caseData?.medications_given || fullPatientData?.medications_given || "",
-          medications_on: caseData?.medications_on || fullPatientData?.medications_on || "",
-          referring_facility_name: caseData?.referring_facility_name || fullPatientData?.referring_facility_name || "",
-          national_id: fullPatientData?.national_id || "",
-          facility_referred_to: caseData?.facility_referred_to || fullPatientData?.facility_referred_to || "",
-          transportation_means: caseData?.transportation_means || fullPatientData?.transportation_means || "",
-          other_notes: caseData?.other_notes || fullPatientData?.other_notes || "",
-        };
+        setFormState((prev) => {
+          const updatedState = {
+            ...prev,
+            ...caseData,
+            case_file_id: caseData.case_file_id || initialData.case_file_id || undefined,
+            patient_id: fullPatientData?.patient_id || "-1",
+            name: fullPatientData?.name || "",
+            year_of_birth: fullPatientData?.year_of_birth?.toString() || "",
+            gender: fullPatientData?.gender || "",
+            region: fullPatientData?.region || "",
+            district: fullPatientData?.district || "",
+            sub_district: fullPatientData?.sub_district || "",
+            // community removed
+            insurance_status: fullPatientData?.insurance_status || "",
+            insurance_no: fullPatientData?.insurance_no || "",
+            // Fix typo: present_complaints (frontend) <-> present_compliants (backend)
+            present_complaints: caseData?.present_complaints || caseData?.present_compliants || fullPatientData?.present_complaints || fullPatientData?.present_compliants || "",
+            examination_findings: caseData?.examination_findings || fullPatientData?.examination_findings || "",
+            temperature: caseData?.temperature?.toString() || fullPatientData?.temperature?.toString() || "",
+            weight: caseData?.weight?.toString() || fullPatientData?.weight?.toString() || "",
+            blood_group: caseData?.blood_group || fullPatientData?.blood_group || "",
+            bp: caseData?.bp || fullPatientData?.bp || "",
+            pulse: caseData?.pulse?.toString() || fullPatientData?.pulse?.toString() || "",
+            treatment_given: caseData?.treatment_given || fullPatientData?.treatment_given || "",
+            referral_reason_notes: caseData?.referral_reason_notes || fullPatientData?.referral_reason_notes || "",
+            referring_officer_name: caseData?.referring_officer_name || fullPatientData?.referring_officer_name || "",
+            referring_officer_position: caseData?.referring_officer_position || fullPatientData?.referring_officer_position || "",
+            medications_given: caseData?.medications_given || fullPatientData?.medications_given || "",
+            medications_on: caseData?.medications_on || fullPatientData?.medications_on || "",
+            referring_facility_name: caseData?.referring_facility_name || fullPatientData?.referring_facility_name || "",
+            national_id: fullPatientData?.national_id || "",
+            facility_referred_to: caseData?.facility_referred_to || fullPatientData?.facility_referred_to || "",
+            transportation_means: caseData?.transportation_means || fullPatientData?.transportation_means || "",
+            other_notes: caseData?.other_notes || fullPatientData?.other_notes || "",
+            referral_needed: caseData?.referral_needed ?? fullPatientData?.referral_needed ?? prev.referral_needed,
+          };
 
-        setFormState(updatedState);
-        setShowReferral(updatedState.referral_needed);
+          setShowReferral(updatedState.referral_needed);
+          return updatedState;
+        });
         // Keep initialMount true for a bit to prevent cascading effects from clearing values
         setTimeout(() => {
           console.log("Setting isInitialMount to false");

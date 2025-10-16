@@ -141,10 +141,27 @@ interface Patient {
   // Add other fields as needed from the patients table
 }
 
+const TIMEFRAME_OPTIONS = [
+  { value: '30d', label: 'Last 30 Days', days: 30, weeks: 12 },
+  { value: '90d', label: 'Last 90 Days', days: 90, weeks: 24 },
+  { value: '180d', label: 'Last 180 Days', days: 180, weeks: 36 },
+  { value: '365d', label: 'Last 365 Days', days: 365, weeks: 52 },
+  { value: 'all', label: 'All Available Data', days: 1460, weeks: 208 },
+];
+
+const PATIENT_LIMIT_OPTIONS = [
+  { value: '200', label: 'Top 200 records' },
+  { value: '500', label: 'Top 500 records' },
+  { value: '1000', label: 'Top 1,000 records' },
+  { value: '2500', label: 'Top 2,500 records' },
+];
+
 const Dashboard = () => {
   const { token } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>(TIMEFRAME_OPTIONS[0].value);
+  const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[1].value);
 
   // Main aggregated data (1 API call)
   const [aggregates, setAggregates] = useState<DashboardAggregates | null>(null);
@@ -168,18 +185,37 @@ const Dashboard = () => {
   const [geoSortDirection, setGeoSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Build query parameters
-  const queryParams = useMemo(() => {
+  const timeframeConfig = useMemo(() => {
+    return TIMEFRAME_OPTIONS.find(option => option.value === selectedTimeframe) ?? TIMEFRAME_OPTIONS[0];
+  }, [selectedTimeframe]);
+
+  const baseQueryString = useMemo(() => {
     const params = new URLSearchParams();
     if (selectedRegion !== "All Regions") params.append('region', selectedRegion);
     if (selectedDistrict !== "All Districts") params.append('district', selectedDistrict);
-    params.append('days', '30');
-    params.append('weeks', '12');
-    return params.toString() ? `?${params.toString()}` : '';
-  }, [selectedRegion, selectedDistrict]);
+    if (timeframeConfig.days) params.append('days', timeframeConfig.days.toString());
+    if (timeframeConfig.weeks) params.append('weeks', timeframeConfig.weeks.toString());
+    return params.toString();
+  }, [selectedRegion, selectedDistrict, timeframeConfig]);
+
+  const aggregatesQueryString = baseQueryString ? `?${baseQueryString}` : '';
+
+  const patientQueryString = useMemo(() => {
+    const params = new URLSearchParams(baseQueryString);
+    params.set('limit', patientLimit);
+    params.set('page', '1');
+    return `?${params.toString()}`;
+  }, [baseQueryString, patientLimit]);
+
+  const patientLimitNumber = useMemo(() => Number(patientLimit) || 0, [patientLimit]);
 
   // Fetch aggregated data
   useEffect(() => {
-    console.log('Dashboard useEffect triggered:', { hasToken: !!token, queryParams });
+    console.log('Dashboard useEffect triggered:', {
+      hasToken: !!token,
+      aggregatesQuery: aggregatesQueryString,
+      patientQuery: patientQueryString
+    });
     
     if (!token) {
       console.log('Skipping API calls - No token');
@@ -196,7 +232,7 @@ const Dashboard = () => {
 
       const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org/api').replace(/\/$/, '');
       console.log('API Base URL:', apiBaseUrl);
-      console.log('Query params:', queryParams);
+  console.log('Aggregates query params:', aggregatesQueryString);
       
       const headers = {
         'Authorization': `Bearer ${token}`,
@@ -208,8 +244,8 @@ const Dashboard = () => {
         // Fetch both endpoints in parallel
         console.log('Fetching endpoints...');
         const [aggregatesRes, volunteersRes] = await Promise.allSettled([
-          fetch(`${apiBaseUrl}/dashboard/aggregates${queryParams}`, { headers }),
-          fetch(`${apiBaseUrl}/dashboard/volunteer-performance${queryParams}`, { headers })
+          fetch(`${apiBaseUrl}/dashboard/aggregates${aggregatesQueryString}`, { headers }),
+          fetch(`${apiBaseUrl}/dashboard/volunteer-performance${aggregatesQueryString}`, { headers })
         ]);
 
         console.log('API responses received:', {
@@ -253,7 +289,8 @@ const Dashboard = () => {
         // Fetch patients data
         setPatientsLoading(true);
         try {
-          const patientsRes = await fetch(`${apiBaseUrl}/patients`, { headers });
+          console.log('Patients query params:', patientQueryString);
+          const patientsRes = await fetch(`${apiBaseUrl}/patients${patientQueryString}`, { headers });
           if (patientsRes.ok) {
             const patientsData = await patientsRes.json();
             setPatients(patientsData.data || patientsData || []);
@@ -279,7 +316,7 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [token, queryParams]);
+  }, [token, aggregatesQueryString, patientQueryString]);
 
   // Compute patient stats
   const patientStats = useMemo(() => {
@@ -309,7 +346,6 @@ const Dashboard = () => {
       .map(p => p.age)
       .filter(age => age != null && !isNaN(Number(age)) && Number(age) > 0 && Number(age) < 120)
       .map(age => Number(age));
-    
     const avgAge = validAges.length > 0 ? validAges.reduce((sum, age) => sum + age, 0) / validAges.length : 0;
 
     // Create weekly trends by region for the last 12 weeks
@@ -405,6 +441,12 @@ const Dashboard = () => {
     };
   }, [patients, geoSortField, geoSortDirection]);
 
+  const patientDataIsPartial = useMemo(() => {
+    const total = aggregates?.overview.totalPatients ?? 0;
+    if (!total || !patientLimitNumber) return false;
+    return total > patientLimitNumber;
+  }, [aggregates?.overview.totalPatients, patientLimitNumber]);
+
   // Process chart data
   const trendData = useMemo(() => {
     if (!aggregates?.trends?.registrationsByWeek) return [];
@@ -486,7 +528,7 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Comprehensive maternal health insights • Optimized for performance</p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           {/* Region Filter */}
           <Select value={selectedRegion} onValueChange={setSelectedRegion}>
             <SelectTrigger className="w-[180px]">
@@ -509,6 +551,34 @@ const Dashboard = () => {
               <SelectItem value="All Districts">All Districts</SelectItem>
               {districts.map(district => (
                 <SelectItem key={district} value={district}>{district}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Timeframe Filter */}
+          <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select timeframe" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIMEFRAME_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Patient Limit */}
+          <Select value={patientLimit} onValueChange={setPatientLimit}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select data scope" />
+            </SelectTrigger>
+            <SelectContent>
+              {PATIENT_LIMIT_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -540,7 +610,7 @@ const Dashboard = () => {
               {aggregates?.meta && !aggregatesError && (
                 <span className="text-sm text-muted-foreground">
                   {aggregates.meta.filtered ? `${aggregates.meta.filter_level.charAt(0).toUpperCase() + aggregates.meta.filter_level.slice(1)} view` : "National view"} • 
-                  Last {aggregates.meta.params.days} days
+                  {timeframeConfig.label}
                 </span>
               )}
             </div>
@@ -806,6 +876,14 @@ const Dashboard = () => {
               </Card>
             ) : patientStats ? (
               <div className="space-y-6">
+                {patientDataIsPartial && (
+                  <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div>
+                      Showing {patients.length.toLocaleString()} of {aggregates?.overview.totalPatients.toLocaleString()} total patients. Increase the data scope above to analyze the full dataset.
+                    </div>
+                  </div>
+                )}
                 {/* Key Stats Grid */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <Card>

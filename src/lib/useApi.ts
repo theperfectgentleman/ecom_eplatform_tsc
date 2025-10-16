@@ -53,9 +53,18 @@ export const useApi = () => {
 
       console.log('API Request Debug:', { method, url, body }); // Debug log
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
+      const headers: Record<string, string> = {};
+
+      let payload: BodyInit | undefined;
+
+      if (body instanceof FormData) {
+        payload = body;
+      } else if (body !== undefined && body !== null) {
+        headers["Content-Type"] = "application/json";
+        payload = JSON.stringify(body);
+      } else {
+        headers["Content-Type"] = "application/json";
+      }
 
       // Authentication: Use Bearer token if available, otherwise use API key
       if (!isPublic && token) {
@@ -67,9 +76,9 @@ export const useApi = () => {
         }
       }
 
-      const config: { method: string; headers: Record<string, string>; body?: string } = { method, headers };
-      if (body) {
-        config.body = JSON.stringify(body);
+      const config: RequestInit = { method, headers };
+      if (payload !== undefined) {
+        config.body = payload;
       }
 
       let responseData: T;
@@ -138,7 +147,7 @@ export const useApi = () => {
       }
       return responseData;
     },
-    [token, logout, toast]
+  [token, logout, toast, showSessionExpired]
   );
 
   // Helper function for silent requests (suppress all toasts)

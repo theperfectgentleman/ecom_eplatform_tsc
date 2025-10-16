@@ -9,6 +9,18 @@
 			"problemMatcher": [
 				"$eslint-stylish"
 			]
+		},
+		{
+			"label": "Lint (ESLint)",
+			"type": "shell",
+			"command": "npx eslint \"src/**/*.{js,jsx,ts,tsx}\"",
+			"group": "test"
+		},
+		{
+			"label": "Lint (ESLint)",
+			"type": "shell",
+			"command": "npx eslint \"src/**/*.{js,jsx,ts,tsx}\"",
+			"group": "test"
 		}
 	]
 }
