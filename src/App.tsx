@@ -7,6 +7,8 @@ import Referral from '@/pages/Referral';
 import PatientOverview from '@/pages/PatientOverview';
 import PatientSnapshot from '@/pages/PatientSnapshot';
 import Reports from '@/pages/Reports';
+import ReportsFieldWork from '@/pages/reports/ReportsFieldWork';
+import ReportsMessaging from '@/pages/reports/ReportsMessaging';
 import AddressBook from '@/pages/AddressBook';
 import Admin from '@/pages/Admin';
 import AppointmentsPage from '@/pages/Appointments';
@@ -45,6 +47,8 @@ const App = () => {
                     <Route path="/patient-overview" element={<RouteGuard><PatientOverview /></RouteGuard>} />
                     <Route path="/patient-snapshot" element={<RouteGuard><PatientSnapshot /></RouteGuard>} />
                     <Route path="/reports" element={<RouteGuard><Reports /></RouteGuard>} />
+                    <Route path="/reports/fieldwork" element={<RouteGuard><ReportsFieldWork /></RouteGuard>} />
+                    <Route path="/reports/messaging" element={<RouteGuard><ReportsMessaging /></RouteGuard>} />
                     <Route path="/address-book" element={<RouteGuard><AddressBook /></RouteGuard>} />
                     <Route path="/appointments" element={<RouteGuard><AppointmentsPage /></RouteGuard>} />
                     <Route path="/kit-distribution" element={<RouteGuard><KitDistributionPage /></RouteGuard>} />

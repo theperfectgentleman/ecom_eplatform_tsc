@@ -23,6 +23,7 @@ interface PatientListProps {
 	onClearForm: () => void;
 	initialPatientId?: string | null;
 	onPatientNotFound?: (patientId: string) => void;
+	limit?: number;
 }
 
 const PatientList: React.FC<PatientListProps> = ({
@@ -30,6 +31,7 @@ const PatientList: React.FC<PatientListProps> = ({
 	onClearForm,
 	initialPatientId,
 	onPatientNotFound,
+	limit = 10000,
 }) => {
 	const [patients, setPatients] = useState<PatientOverviewData[]>([]);
 	const [searchTerm, setSearchTerm] = useState("");
@@ -67,10 +69,11 @@ const PatientList: React.FC<PatientListProps> = ({
 		setIsLoading(true);
 		try {
 			// Add cache busting parameter to ensure fresh data
+			// Use the limit prop to control how many patients to fetch
 			const timestamp = new Date().getTime();
 			const response = await request<PatientOverviewData[]>({
 				method: "GET",
-				path: `patients?_t=${timestamp}`,
+				path: `patients?_t=${timestamp}&limit=${limit}`,
 			});
 
 			if (response && Array.isArray(response)) {
@@ -97,7 +100,7 @@ const PatientList: React.FC<PatientListProps> = ({
 			setIsLoading(false);
 			setHasInitialLoadCompleted(true);
 		}
-	}, [request, filterByAccessLevel, toast, calculateAge]);
+	}, [request, filterByAccessLevel, toast, calculateAge, limit]);
 
 	const fetchPatientWithUserDetails = useCallback(async (patientId: string) => {
 		try {

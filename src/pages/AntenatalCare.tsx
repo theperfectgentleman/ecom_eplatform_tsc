@@ -5,6 +5,22 @@ import AntenatalCareForm from '@/components/antenatal/AntenatalCareForm';
 import ANCDashboard from '@/components/antenatal/ANCDashboard';
 import { Button } from '@/components/ui/button';
 import { Home, Plus } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const PATIENT_LIMIT_OPTIONS = [
+  { value: '500', label: '500 patients' },
+  { value: '1000', label: '1,000 patients' },
+  { value: '2000', label: '2,000 patients' },
+  { value: '3000', label: '3,000 patients' },
+  { value: '5000', label: '5,000 patients' },
+  { value: '10000', label: 'All (up to 10K)' },
+];
 
 const AntenatalCare = () => {
   const [formState, setFormState] = useState<ANCFormState>({
@@ -14,6 +30,7 @@ const AntenatalCare = () => {
   const [showForm, setShowForm] = useState(false);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[3].value); // Default to 3000
 
   const handlePatientSelect = (patient: ANCPatient, isReadOnly: boolean = true) => {
     setFormState(prev => ({
@@ -57,13 +74,27 @@ const AntenatalCare = () => {
     <div className="flex h-full bg-gray-50">
       {/* Left Panel - Patient List */}
       <div className="w-[35%] min-w-0 p-6 bg-white border-r flex flex-col">
-        <div className="mb-4">
+        <div className="mb-4 flex justify-between items-center">
           <h2 className="text-lg font-semibold">Patients</h2>
+          {/* Patient Limit Selector */}
+          <Select value={patientLimit} onValueChange={setPatientLimit}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Limit" />
+            </SelectTrigger>
+            <SelectContent>
+              {PATIENT_LIMIT_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <AntenatalCareList
           selectedPatientId={formState.selectedPatient?.patient_id}
           onPatientSelect={handlePatientSelect}
           refreshTrigger={refreshTrigger}
+          limit={Number(patientLimit)}
         />
       </div>
       

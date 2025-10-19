@@ -10,12 +10,14 @@ interface AntenatalCareListProps {
   selectedPatientId?: string;
   onPatientSelect: (patient: ANCPatient, isReadOnly?: boolean) => void;
   refreshTrigger: number;
+  limit?: number;
 }
 
 const AntenatalCareList = ({ 
   selectedPatientId, 
   onPatientSelect, 
-  refreshTrigger 
+  refreshTrigger,
+  limit = 10000
 }: AntenatalCareListProps) => {
   const [patients, setPatients] = useState<ANCPatient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,10 +45,10 @@ const AntenatalCareList = ({
   const loadPatients = useCallback(async () => {
     try {
       setLoading(true);
-      // Load regular patients with cache busting parameter
+      // Load regular patients with cache busting parameter and specified limit
       const timestamp = new Date().getTime();
       const data = await request<Patient[]>({ 
-        path: `patients?_t=${timestamp}`
+        path: `patients?_t=${timestamp}&limit=${limit}`
       });
       
       // Transform Patient[] to ANCPatient[] format
@@ -68,7 +70,7 @@ const AntenatalCareList = ({
     } finally {
       setLoading(false);
     }
-  }, [request, filterByAccessLevel]);
+  }, [request, filterByAccessLevel, limit]);
 
   useEffect(() => {
     loadPatients();

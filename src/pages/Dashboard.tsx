@@ -154,14 +154,15 @@ const PATIENT_LIMIT_OPTIONS = [
   { value: '500', label: 'Top 500 records' },
   { value: '1000', label: 'Top 1,000 records' },
   { value: '2500', label: 'Top 2,500 records' },
+  { value: '3000', label: 'Top 3,000 records' },
 ];
 
 const Dashboard = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>(TIMEFRAME_OPTIONS[0].value);
-  const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[1].value);
+  const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[4].value); // Default to 3000
 
   // Main aggregated data (1 API call)
   const [aggregates, setAggregates] = useState<DashboardAggregates | null>(null);
@@ -613,6 +614,56 @@ const Dashboard = () => {
                   {timeframeConfig.label}
                 </span>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dashboard Scope Notice */}
+      {user && user.access_level !== 4 && (
+        <Card className="bg-amber-50 border-amber-200">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-amber-900 mb-1">
+                  Dashboard shows system-wide data
+                </h3>
+                <p className="text-sm text-amber-700">
+                  This dashboard displays the <strong>complete picture</strong> across all regions. 
+                  {user.access_level === 3 && ` However, in Patient Overview you can only work with patients from: ${user.region} Region.`}
+                  {user.access_level === 2 && ` However, in Patient Overview you can only work with patients from: ${user.district} District.`}
+                  {user.access_level === 1 && ` However, in Patient Overview you can only work with patients from: ${user.subdistrict} Subdistrict.`}
+                  {user.access_level === 0 && ` However, in Patient Overview you can only work with patients from: ${user.community_name} Community.`}
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  <strong>Note:</strong> The Patient Overview count will be lower than the Dashboard total because it only shows patients you have access to manage.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Data Source Comparison - Only for National users to show reconciliation */}
+      {user && user.access_level === 4 && patients.length > 0 && aggregates?.overview.totalPatients !== patients.length && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <Users className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                  Data Source Information
+                </h3>
+                <div className="text-sm text-blue-700 space-y-1">
+                  <p><strong>Dashboard Total:</strong> {aggregates?.overview.totalPatients.toLocaleString()} patients (from aggregates API)</p>
+                  <p><strong>Patient Overview:</strong> {patients.length.toLocaleString()} patients (from patient list - showing top {patientLimit})</p>
+                </div>
+                <p className="text-xs text-blue-600 mt-2">
+                  <strong>Note:</strong> Patient Overview shows the top {patientLimit} records. Increase the data scope above to see more patients.
+                  The Dashboard uses aggregated counts which may include all historical records.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

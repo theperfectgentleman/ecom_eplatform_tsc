@@ -13,12 +13,10 @@ import { RefreshCw, Users, AlertTriangle, Clock, CheckCircle, Camera } from 'luc
 
 const PatientSnapshot: React.FC = () => {
   // State management
-  const [patients, setPatients] = useState<PatientSummary[]>([]);
+  const [allPatients, setAllPatients] = useState<PatientSummary[]>([]); // Store ALL patients
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalItems, setTotalItems] = useState(0);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,11 +30,11 @@ const PatientSnapshot: React.FC = () => {
 
   // Debug: Log state changes
   console.log('=== STATE DEBUG ===');
-  console.log('Current patients state:', patients);
+  console.log('All patients state:', allPatients);
   console.log('Current loading state:', loading);
 
-  // Fetch patients data
-  const fetchPatients = useCallback(async (page: number = 1, limit: number = 12) => {
+  // Fetch ALL patients data (no pagination at API level)
+  const fetchPatients = useCallback(async (page: number = 1) => {
     console.log('fetchPatients called with user:', user);
 
     if (!user?.user_id) {
@@ -61,13 +59,13 @@ const PatientSnapshot: React.FC = () => {
         console.log('User access level is 4 (national) - fetching all patients...');
         allPatientsResponse = await request<any[]>({
           method: 'GET',
-          path: 'patients',
+          path: 'patients?limit=10000',
         });
       } else {
         console.log('User access level is not national - fetching via access level...');
         allPatientsResponse = await request<any[]>({
           method: 'GET',
-          path: `patients/level/${user.user_id}`,
+          path: `patients/level/${user.user_id}?limit=10000`,
         });
       }
 
@@ -93,24 +91,16 @@ const PatientSnapshot: React.FC = () => {
 
       if (!patientIds || patientIds.length === 0) {
         console.log('No patient IDs found');
-        setPatients([]);
-        setTotalPages(0);
-        setTotalItems(0);
+        setAllPatients([]);
         setCurrentPage(1);
         return;
       }
 
-      // Step 2: Paginate the IDs and get summaries for current page
-      console.log('Step 2: Getting summaries for paginated IDs...');
-
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedIds = patientIds.slice(startIndex, endIndex);
-
-      console.log('Paginated IDs for this page:', paginatedIds);
+      // Step 2: Fetch ALL patient summaries at once (no pagination at API level)
+      console.log('Step 2: Getting summaries for ALL patient IDs...');
 
       const requestData = {
-        patient_ids: paginatedIds,
+        patient_ids: patientIds, // Get ALL summaries, not paginated
       };
 
       console.log('Summary request data:', requestData);
@@ -188,13 +178,23 @@ const PatientSnapshot: React.FC = () => {
       });
       console.log('Patient summaries mapped:', summaries);
 
-      // Calculate pagination info from total patient IDs
-      const totalPatientsCount = patientIds.length;
-      const calculatedTotalPages = Math.ceil(totalPatientsCount / limit);
+      // Calculate overall stats from ALL patients
+      const totalPatientsCount = summaries.length;
+      const allOverdue = summaries.filter(s => s.priority_status === 'overdue').length;
+      const allDueSoon = summaries.filter(s => s.priority_status === 'due_soon').length;
+      const allOnTrack = summaries.filter(s => s.priority_status === 'on_track').length;
+      const allAncRegistered = summaries.filter(s => s.anc_registered).length;
 
-  setPatients(summaries);
-      setTotalPages(calculatedTotalPages);
-      setTotalItems(totalPatientsCount);
+      setOverallStats({
+        total: totalPatientsCount,
+        overdue: allOverdue,
+        dueSoon: allDueSoon,
+        onTrack: allOnTrack,
+        ancRegistered: allAncRegistered
+      });
+
+      // Store ALL patients - filtering and pagination happens in useMemo
+      setAllPatients(summaries);
       setCurrentPage(page);
     } catch (error) {
       console.error('Failed to fetch patient summaries:', error);
@@ -208,15 +208,15 @@ const PatientSnapshot: React.FC = () => {
     }
   }, [request, toast, user]);
 
-  // Filter patients based on search and filter criteria
+  // Filter ALL patients based on search and filter criteria
   const filteredPatients = useMemo(() => {
     console.log('=== FILTERING DEBUG ===');
-    console.log('Input patients for filtering:', patients);
+    console.log('Input allPatients for filtering:', allPatients);
     console.log('searchTerm:', searchTerm);
     console.log('priorityFilter:', priorityFilter);
     console.log('ancStatusFilter:', ancStatusFilter);
     
-    const result = patients.filter(patient => {
+    const result = allPatients.filter((patient: PatientSummary) => {
       console.log('Filtering patient:', patient);
       
       // Search filter
@@ -250,29 +250,39 @@ const PatientSnapshot: React.FC = () => {
     console.log('Filtered result length:', result.length);
     
     return result;
-  }, [patients, searchTerm, priorityFilter, ancStatusFilter]);
+  }, [allPatients, searchTerm, priorityFilter, ancStatusFilter]);
 
-  // Get summary statistics
-  const summaryStats = useMemo(() => {
-    const total = patients.length;
-    const overdue = patients.filter(p => p.priority_status === 'overdue').length;
-    const dueSoon = patients.filter(p => p.priority_status === 'due_soon').length;
-    const onTrack = patients.filter(p => p.priority_status === 'on_track').length;
-    const ancRegistered = patients.filter(p => p.anc_registered).length;
+  // Overall statistics (for the entire dataset, not just current page)
+  const [overallStats, setOverallStats] = useState({
+    total: 0,
+    overdue: 0,
+    dueSoon: 0,
+    onTrack: 0,
+    ancRegistered: 0
+  });
 
-    return { total, overdue, dueSoon, onTrack, ancRegistered };
-  }, [patients]);
+  // Paginate filtered patients
+  const { paginatedPatients, totalPages } = useMemo(() => {
+    const total = filteredPatients.length;
+    const pages = Math.ceil(total / pageSize);
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginated = filteredPatients.slice(startIndex, endIndex);
+    
+    return { 
+      paginatedPatients: paginated,
+      totalPages: pages
+    };
+  }, [filteredPatients, currentPage, pageSize]);
 
-  // Handle page changes
+  // Handle page changes (no need to fetch, just update current page)
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchPatients(page, pageSize);
   };
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
-    setCurrentPage(1);
-    fetchPatients(1, newPageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
   };
 
   // Handle filter changes
@@ -289,25 +299,27 @@ const PatientSnapshot: React.FC = () => {
   };
 
   const handleRefresh = () => {
-    fetchPatients(currentPage, pageSize);
+    fetchPatients(currentPage);
   };
 
-  // Initial load
+  // Initial load - fetch all patients once
   useEffect(() => {
     if (user?.user_id) {
-      fetchPatients(1, pageSize);
+      fetchPatients(1);
     }
-  }, [fetchPatients, pageSize, user?.user_id]);
+  }, [fetchPatients, user?.user_id]);
 
   // Debug: Log current state values in render
   console.log('=== RENDER DEBUG ===');
-  console.log('patients:', patients);
-  console.log('patients.length:', patients.length);
+  console.log('allPatients:', allPatients);
+  console.log('allPatients.length:', allPatients.length);
   console.log('filteredPatients:', filteredPatients);
   console.log('filteredPatients.length:', filteredPatients.length);
+  console.log('paginatedPatients.length:', paginatedPatients.length);
   console.log('loading:', loading);
-  console.log('totalItems:', totalItems);
-  console.log('summaryStats:', summaryStats);
+  console.log('currentPage:', currentPage);
+  console.log('totalPages:', totalPages);
+  console.log('overallStats:', overallStats);
 
   return (
     <div className="space-y-6">
@@ -326,57 +338,62 @@ const PatientSnapshot: React.FC = () => {
         </Button>
       </div>
 
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="text-2xl font-bold text-blue-700">{summaryStats.total}</div>
-            <div className="text-sm text-gray-600">Total Patients</div>
-          </CardContent>
-        </Card>
+      {/* Overall Summary Statistics */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+          Overall Statistics - All Patients
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold text-blue-700">{overallStats.total}</div>
+              <div className="text-sm text-gray-600">Total Patients</div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <AlertTriangle className="h-6 w-6 text-red-600" />
-            </div>
-            <div className="text-2xl font-bold text-red-700">{summaryStats.overdue}</div>
-            <div className="text-sm text-gray-600">Overdue</div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="text-2xl font-bold text-red-700">{overallStats.overdue}</div>
+              <div className="text-sm text-gray-600">Overdue</div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <Clock className="h-6 w-6 text-amber-600" />
-            </div>
-            <div className="text-2xl font-bold text-amber-700">{summaryStats.dueSoon}</div>
-            <div className="text-sm text-gray-600">Due Soon</div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <Clock className="h-6 w-6 text-amber-600" />
+              </div>
+              <div className="text-2xl font-bold text-amber-700">{overallStats.dueSoon}</div>
+              <div className="text-sm text-gray-600">Due Soon</div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="text-2xl font-bold text-green-700">{summaryStats.onTrack}</div>
-            <div className="text-sm text-gray-600">On Track</div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="text-2xl font-bold text-green-700">{overallStats.onTrack}</div>
+              <div className="text-sm text-gray-600">On Track</div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <Users className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="text-2xl font-bold text-purple-700">{summaryStats.ancRegistered}</div>
-            <div className="text-sm text-gray-600">ANC Registered</div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <Users className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="text-2xl font-bold text-purple-700">{overallStats.ancRegistered}</div>
+              <div className="text-sm text-gray-600">ANC Registered</div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Filters */}
@@ -388,7 +405,7 @@ const PatientSnapshot: React.FC = () => {
         ancStatusFilter={ancStatusFilter}
         onAncStatusFilterChange={setAncStatusFilter}
         onClearFilters={handleClearFilters}
-        totalPatients={patients.length}
+        totalPatients={allPatients.length}
         filteredPatients={filteredPatients.length}
       />
 
@@ -425,7 +442,7 @@ const PatientSnapshot: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10 lg:gap-12">
-          {filteredPatients.map((patient) => (
+          {paginatedPatients.map((patient: PatientSummary) => (
             <PatientSnapshotCard
               key={patient.patient_id}
               patient={patient}
@@ -442,7 +459,7 @@ const PatientSnapshot: React.FC = () => {
             currentPage={currentPage}
             totalPages={totalPages}
             pageSize={pageSize}
-            totalItems={totalItems}
+            totalItems={filteredPatients.length}
             onPageChange={handlePageChange}
             onPageSizeChange={handlePageSizeChange}
           />

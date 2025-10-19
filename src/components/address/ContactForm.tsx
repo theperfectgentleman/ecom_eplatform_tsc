@@ -54,6 +54,9 @@ const ContactForm = ({ contact, onSubmit, onCancel, readOnly = false, currentUse
   console.log('ContactForm props:', { contact, readOnly, currentUser, creatorInfo });
   // Role options, sorted alphabetically
   const roleOptions = [
+    "Ambulance Service",
+    "Administrator / Health Manager",
+    "Medical Superintendent",
     "Community Health Nurse",
     "Consultant / Specialist",
     "Dietitian / Nutritionist",
