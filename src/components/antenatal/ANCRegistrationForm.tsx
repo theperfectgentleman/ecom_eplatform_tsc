@@ -698,6 +698,7 @@ const ANCRegistrationForm = ({ patient, initialData, onSuccess, readOnly = false
                           <SelectItem value="SS">SS</SelectItem>
                           <SelectItem value="AC">AC</SelectItem>
                           <SelectItem value="Negative">Negative</SelectItem>
+                          <SelectItem value="Positive">Positive</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

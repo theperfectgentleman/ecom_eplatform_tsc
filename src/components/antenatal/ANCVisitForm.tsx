@@ -428,7 +428,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess, readOnly = false }: AN
                     name="pt"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>PT (Prophylactic Treatment)</FormLabel>
+                        <FormLabel>IPT (Prophylactic Treatment)</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -451,7 +451,7 @@ const ANCVisitForm = ({ patient, registration, onSuccess, readOnly = false }: AN
                     name="tt"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>TT (Tetanus Toxoid)</FormLabel>
+                        <FormLabel>TD (Tetanus Diphtheria)</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
