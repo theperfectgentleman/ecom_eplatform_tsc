@@ -2,6 +2,7 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Search, Filter, X, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 
@@ -12,6 +13,8 @@ interface SnapshotFiltersProps {
   onPriorityFilterChange: (value: string) => void;
   ancStatusFilter: string;
   onAncStatusFilterChange: (value: string) => void;
+  autoOverdue: boolean;
+  onAutoOverdueChange: (checked: boolean) => void;
   onClearFilters: () => void;
   totalPatients: number;
   filteredPatients: number;
@@ -24,6 +27,8 @@ const SnapshotFilters: React.FC<SnapshotFiltersProps> = ({
   onPriorityFilterChange,
   ancStatusFilter,
   onAncStatusFilterChange,
+  autoOverdue,
+  onAutoOverdueChange,
   onClearFilters,
   totalPatients,
   filteredPatients
@@ -91,6 +96,14 @@ const SnapshotFilters: React.FC<SnapshotFiltersProps> = ({
             ))}
           </SelectContent>
         </Select>
+
+        {/* Auto Overdue Toggle */}
+        <div className="flex items-center" title="Auto Overdue Filter">
+          <Switch
+            checked={autoOverdue}
+            onCheckedChange={onAutoOverdueChange}
+          />
+        </div>
 
         {/* Clear Filters Button */}
         {hasActiveFilters && (

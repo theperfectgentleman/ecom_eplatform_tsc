@@ -15,12 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Button } from "@/components/ui/button";
 import {
   Users,
   Baby,
   Package,
-  Activity,
   Calendar,
   UserCheck,
   TrendingUp,
@@ -43,10 +43,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-
-// Optimized Dashboard using aggregates endpoint + volunteer performance
-// Total API calls: 2 (aggregates + volunteers) vs previous 15+
-
+ 
 interface DashboardAggregates {
   overview: {
     totalPatients: number;
@@ -79,11 +76,6 @@ interface DashboardAggregates {
     earlyRegistrationsLastPeriod: number;
     earlyRegistrationPercent: number;
     totalRegistrationsAllTime: number;
-  };
-  referrals: {
-    totalAllTime: number;
-    lastPeriod: number;
-    withPriorityCount: number;
     avgVisitsPerRegistration: number;
     percentRegistrationsWithVisit: number;
     avgDaysToFirstVisit: number;
@@ -93,6 +85,11 @@ interface DashboardAggregates {
       'visits_21_28weeks': number;
       'visits_29plus': number;
     };
+  };
+  referrals: {
+    totalAllTime: number;
+    lastPeriod: number;
+    withPriorityCount: number;
   };
   geo: Array<{
     region: string;
@@ -121,24 +118,26 @@ interface DashboardAggregates {
 }
 
 interface VolunteerPerformance {
-  vol_user_id: number;
+  user_id: number;
   volunteer_name: string;
-  kits_distributed: number;
-  kits_confirmed: number;
-  confirmation_rate: number;
-  avg_days_to_confirm: number;
+  patients_registered: number;
+  patients_registered_30d: number;
+  first_registration: string | null;
+  last_registration: string | null;
 }
 
 interface Patient {
-  id: number;
+  id: string | number;
   registration_date: string; // ISO date string
   region: string;
   district: string;
   subdistrict?: string; // May not be available in all data
   community?: string; // May not be available in all data
-  username: string; // Assuming registrar username
-  age: number;
-  // Add other fields as needed from the patients table
+  username: string; // Derived registrar label
+  age?: number; // Computed from dob / year_of_birth when available
+  dob?: string | null;
+  year_of_birth?: number | null;
+  assigned_user_id?: number | null;
 }
 
 const TIMEFRAME_OPTIONS = [
@@ -185,6 +184,19 @@ const Dashboard = () => {
   const [geoSortField, setGeoSortField] = useState<'region' | 'district' | 'subdistrict' | 'community' | 'count'>('count');
   const [geoSortDirection, setGeoSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Client-side filters for Admin Insights
+  const [colFilters, setColFilters] = useState<{
+    region: string[];
+    district: string[];
+    subdistrict: string[];
+    community: string[];
+  }>({
+    region: [],
+    district: [],
+    subdistrict: [],
+    community: []
+  });
+
   // Build query parameters
   const timeframeConfig = useMemo(() => {
     return TIMEFRAME_OPTIONS.find(option => option.value === selectedTimeframe) ?? TIMEFRAME_OPTIONS[0];
@@ -209,6 +221,75 @@ const Dashboard = () => {
   }, [baseQueryString, patientLimit]);
 
   const patientLimitNumber = useMemo(() => Number(patientLimit) || 0, [patientLimit]);
+
+  // Reset client-side filters when main data changes
+  useEffect(() => {
+    setColFilters({
+      region: [],
+      district: [],
+      subdistrict: [],
+      community: []
+    });
+  }, [patients]);
+
+  // Compute filter options based on all patients data
+  const filterOptions = useMemo(() => {
+    const getOptions = (key: keyof Patient) => {
+      const values = Array.from(new Set(patients.map(p => p[key]).filter(Boolean) as string[])).sort();
+      return values.map(v => ({ label: v, value: v }));
+    };
+    return {
+      region: getOptions('region'),
+      district: getOptions('district'),
+      subdistrict: getOptions('subdistrict'),
+      community: getOptions('community'),
+    };
+  }, [patients]);
+
+  // Helper to normalize patient objects from API
+  const normalizePatient = (raw: any): Patient => {
+    const now = new Date();
+
+    const computeAge = (): number | undefined => {
+      if (raw.age != null && !isNaN(Number(raw.age))) {
+        return Number(raw.age);
+      }
+
+      if (raw.dob) {
+        const dobDate = new Date(raw.dob);
+        if (!isNaN(dobDate.getTime())) {
+          let ageYears = now.getFullYear() - dobDate.getFullYear();
+          const monthDiff = now.getMonth() - dobDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dobDate.getDate())) {
+            ageYears--;
+          }
+          return ageYears;
+        }
+      }
+
+      if (raw.year_of_birth != null && !isNaN(Number(raw.year_of_birth))) {
+        return now.getFullYear() - Number(raw.year_of_birth);
+      }
+
+      return undefined;
+    };
+
+    const age = computeAge();
+
+    return {
+      id: raw.id ?? raw.patient_id,
+      registration_date: raw.registration_date,
+      region: raw.region ?? 'Unknown',
+      district: raw.district ?? 'Unknown',
+      subdistrict: raw.subdistrict ?? raw.sub_district ?? undefined,
+      community: raw.community ?? undefined,
+      username: raw.username ?? raw.created_by ?? (raw.assigned_user_id != null ? `User ${raw.assigned_user_id}` : 'Unknown'),
+      age,
+      dob: raw.dob ?? null,
+      year_of_birth: raw.year_of_birth ?? null,
+      assigned_user_id: raw.assigned_user_id ?? null,
+    };
+  };
 
   // Fetch aggregated data
   useEffect(() => {
@@ -294,7 +375,9 @@ const Dashboard = () => {
           const patientsRes = await fetch(`${apiBaseUrl}/patients${patientQueryString}`, { headers });
           if (patientsRes.ok) {
             const patientsData = await patientsRes.json();
-            setPatients(patientsData.data || patientsData || []);
+            const rawPatients = patientsData.data || patientsData || [];
+            const normalized = Array.isArray(rawPatients) ? rawPatients.map(normalizePatient) : [];
+            setPatients(normalized);
           } else {
             setPatientsError('Failed to load patients data');
           }
@@ -323,27 +406,36 @@ const Dashboard = () => {
   const patientStats = useMemo(() => {
     if (!patients.length) return null;
 
+    // Apply client-side filters
+    const filteredPatients = patients.filter(p => {
+      if (colFilters.region.length > 0 && !colFilters.region.includes(p.region)) return false;
+      if (colFilters.district.length > 0 && !colFilters.district.includes(p.district)) return false;
+      if (colFilters.subdistrict.length > 0 && (!p.subdistrict || !colFilters.subdistrict.includes(p.subdistrict))) return false;
+      if (colFilters.community.length > 0 && (!p.community || !colFilters.community.includes(p.community))) return false;
+      return true;
+    });
+
     const now = new Date();
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const registrations24h = patients.filter(p => new Date(p.registration_date) >= last24h).length;
-    const registrationsWeek = patients.filter(p => new Date(p.registration_date) >= lastWeek).length;
-    const registrationsMonth = patients.filter(p => new Date(p.registration_date) >= lastMonth).length;
+    const registrations24h = filteredPatients.filter(p => new Date(p.registration_date) >= last24h).length;
+    const registrationsWeek = filteredPatients.filter(p => new Date(p.registration_date) >= lastWeek).length;
+    const registrationsMonth = filteredPatients.filter(p => new Date(p.registration_date) >= lastMonth).length;
 
-    const regionalBreakdown = patients.reduce((acc, p) => {
+    const regionalBreakdown = filteredPatients.reduce((acc, p) => {
       acc[p.region] = (acc[p.region] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const usernameBreakdown = patients.reduce((acc, p) => {
+    const usernameBreakdown = filteredPatients.reduce((acc, p) => {
       acc[p.username] = (acc[p.username] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Calculate average age, filtering out invalid/null/undefined ages
-    const validAges = patients
+    const validAges = filteredPatients
       .map(p => p.age)
       .filter(age => age != null && !isNaN(Number(age)) && Number(age) > 0 && Number(age) < 120)
       .map(age => Number(age));
@@ -351,10 +443,10 @@ const Dashboard = () => {
 
     // Create weekly trends by region for the last 12 weeks
     const twelveWeeksAgo = new Date(now.getTime() - 12 * 7 * 24 * 60 * 60 * 1000);
-    const recentPatients = patients.filter(p => new Date(p.registration_date) >= twelveWeeksAgo);
+    const recentPatients = filteredPatients.filter(p => new Date(p.registration_date) >= twelveWeeksAgo);
     
     // Get unique regions
-    const regions = [...new Set(patients.map(p => p.region))];
+    const regions = [...new Set(filteredPatients.map(p => p.region))];
     
     // Create week labels
     const weeklyTrends = [];
@@ -380,7 +472,7 @@ const Dashboard = () => {
     }
 
     // Create geographic breakdown
-    const geographicBreakdown = patients.reduce((acc, p) => {
+    const geographicBreakdown = filteredPatients.reduce((acc, p) => {
       const key = `${p.region} > ${p.district}${p.subdistrict ? ` > ${p.subdistrict}` : ''}${p.community ? ` > ${p.community}` : ''}`;
       const existingEntry = acc.find(entry => entry.location === key);
       
@@ -428,7 +520,7 @@ const Dashboard = () => {
     });
 
     return {
-      totalPatients: patients.length,
+      totalPatients: filteredPatients.length,
       registrations24h,
       registrationsWeek,
       registrationsMonth,
@@ -440,7 +532,7 @@ const Dashboard = () => {
       regions,
       geographicBreakdown,
     };
-  }, [patients, geoSortField, geoSortDirection]);
+  }, [patients, geoSortField, geoSortDirection, colFilters]);
 
   const patientDataIsPartial = useMemo(() => {
     const total = aggregates?.overview.totalPatients ?? 0;
@@ -470,14 +562,28 @@ const Dashboard = () => {
   }, [aggregates]);
 
   const gestationData = useMemo(() => {
-    if (!aggregates?.referrals?.visitsByGestation) return [];
-    const visits = aggregates.referrals.visitsByGestation;
+    if (!aggregates?.antenatal?.visitsByGestation) return [];
+    const visits = aggregates.antenatal.visitsByGestation;
     return [
       { period: '≤12 weeks', visits: visits['visits_<=12weeks'] },
       { period: '13-20 weeks', visits: visits['visits_13_20weeks'] },
       { period: '21-28 weeks', visits: visits['visits_21_28weeks'] },
       { period: '29+ weeks', visits: visits['visits_29plus'] }
     ];
+  }, [aggregates]);
+
+  const regionalData = useMemo(() => {
+    if (!aggregates?.geo) return [];
+    
+    const regionCounts: Record<string, number> = {};
+    
+    aggregates.geo.forEach(item => {
+      regionCounts[item.region] = (regionCounts[item.region] || 0) + item.patients;
+    });
+    
+    return Object.entries(regionCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [aggregates]);
 
   const regions = [...new Set(aggregates?.geo?.map(g => g.region) || ['Greater Accra', 'Ashanti'])];
@@ -686,13 +792,55 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">ANC Coverage</CardTitle>
+            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{patientsLoading ? "..." : patientStats?.registrationsMonth ?? 0}</div>
+            <p className="text-xs text-muted-foreground">
+              New registrations
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">This Week</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{patientsLoading ? "..." : patientStats?.registrationsWeek ?? 0}</div>
+            <p className="text-xs text-muted-foreground">
+              New registrations
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Last 24 Hours</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{patientsLoading ? "..." : patientStats?.registrations24h ?? 0}</div>
+            <p className="text-xs text-muted-foreground">
+              New registrations
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Key Metrics */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">1st Trimester Reg.</CardTitle>
             <Baby className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(aggregates?.referrals.percentRegistrationsWithVisit ?? 0).toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{Number(aggregates?.antenatal.earlyRegistrationPercent ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              {Number(aggregates?.antenatal.earlyRegistrationPercent ?? 0).toFixed(1)}% early registration
+              Registered within first 12 weeks
             </p>
           </CardContent>
         </Card>
@@ -706,48 +854,6 @@ const Dashboard = () => {
             <div className="text-2xl font-bold">{Number(aggregates?.kits.usageRatePercent ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               {aggregates?.kits.totalUsed || 0}/{aggregates?.kits.totalDistributed || 0} kits used
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Test Positivity</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Number(aggregates?.testing.positivityPercent ?? 0).toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">
-              {aggregates?.testing.positives || 0} of {aggregates?.testing.totalTests || 0} tests
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Additional Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visit Frequency</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Number(aggregates?.referrals.avgVisitsPerRegistration ?? 0).toFixed(1)}</div>
-            <p className="text-xs text-muted-foreground">
-              Avg visits per registration
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Response Time</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Number(aggregates?.referrals.avgDaysToFirstVisit ?? 0).toFixed(1)}</div>
-            <p className="text-xs text-muted-foreground">
-              Days to first visit
             </p>
           </CardContent>
         </Card>
@@ -851,21 +957,29 @@ const Dashboard = () => {
         {/* Geographic Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Regions</CardTitle>
-            <CardDescription>Patient distribution by location</CardDescription>
+            <CardTitle>Regional</CardTitle>
+            <CardDescription>Patient distribution by region</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {aggregates?.geo?.slice(0, 5).map((location) => (
-                <div key={`${location.region}-${location.district}`} className="flex items-center justify-between">
-                  <div className="text-sm">
-                    <div className="font-medium">{location.district}</div>
-                    <div className="text-muted-foreground">{location.region}</div>
-                  </div>
-                  <Badge variant="secondary">{location.patients}</Badge>
-                </div>
-              ))}
-            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={regionalData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {regionalData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
@@ -873,24 +987,28 @@ const Dashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle>Top Volunteers</CardTitle>
-            <CardDescription>Volunteer performance metrics</CardDescription>
+            <CardDescription>Volunteer performance (patient registrations)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {volunteers.slice(0, 5).map((volunteer) => (
-                <div key={volunteer.vol_user_id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div key={volunteer.user_id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center space-x-3">
                     <UserCheck className="h-8 w-8 text-blue-500" />
                     <div>
                       <div className="font-medium">{volunteer.volunteer_name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {volunteer.kits_distributed} kits distributed • {Number(volunteer.confirmation_rate ?? 0).toFixed(1)}% confirmed
+                        {volunteer.patients_registered} patients registered, {volunteer.patients_registered_30d} in last 30 days
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="outline">{Number(volunteer.avg_days_to_confirm ?? 0).toFixed(1)}d</Badge>
-                    <div className="text-xs text-muted-foreground mt-1">avg response</div>
+                  <div className="text-right text-xs text-muted-foreground">
+                    <div>
+                      First: {volunteer.first_registration ? new Date(volunteer.first_registration).toLocaleDateString() : '-'}
+                    </div>
+                    <div>
+                      Latest: {volunteer.last_registration ? new Date(volunteer.last_registration).toLocaleDateString() : '-'}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -935,54 +1053,10 @@ const Dashboard = () => {
                     </div>
                   </div>
                 )}
-                {/* Key Stats Grid */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Last 24 Hours</CardTitle>
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{patientStats.registrations24h}</div>
-                      <p className="text-xs text-muted-foreground">New registrations</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">This Week</CardTitle>
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{patientStats.registrationsWeek}</div>
-                      <p className="text-xs text-muted-foreground">New registrations</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">This Month</CardTitle>
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{patientStats.registrationsMonth}</div>
-                      <p className="text-xs text-muted-foreground">New registrations</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Average Age</CardTitle>
-                      <Heart className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {patientStats.avgAge === "0.0" ? "N/A" : `${patientStats.avgAge}`}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {patientStats.avgAge === "0.0" ? "No valid ages" : `Years (${patientStats.validAgeCount} valid records)`}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
+                {/* Client-side Filters removed */}
 
+                {/* Key Stats Grid - Removed as moved to top */}
+                
                 {/* Regional Breakdown */}
                 <Card>
                   <CardHeader>
@@ -1041,6 +1115,61 @@ const Dashboard = () => {
                           Count {getSortIcon('count')}
                         </button>
                       </div>
+                      
+                      {/* Column Filters */}
+                      <div className="grid grid-cols-12 gap-2 mb-2 pb-2 border-b">
+                        <div className="col-span-3">
+                          <MultiSelect
+                            options={filterOptions.region}
+                            selected={colFilters.region}
+                            onChange={(selected: string[]) => setColFilters(prev => ({...prev, region: selected}))}
+                            placeholder="Region"
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                        <div className="col-span-3">
+                          <MultiSelect
+                            options={filterOptions.district}
+                            selected={colFilters.district}
+                            onChange={(selected: string[]) => setColFilters(prev => ({...prev, district: selected}))}
+                            placeholder="District"
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                        <div className="col-span-3">
+                          <MultiSelect
+                            options={filterOptions.subdistrict}
+                            selected={colFilters.subdistrict}
+                            onChange={(selected: string[]) => setColFilters(prev => ({...prev, subdistrict: selected}))}
+                            placeholder="Subdistrict"
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <MultiSelect
+                            options={filterOptions.community}
+                            selected={colFilters.community}
+                            onChange={(selected: string[]) => setColFilters(prev => ({...prev, community: selected}))}
+                            placeholder="Community"
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                        <div className="col-span-1 flex justify-end">
+                           {(colFilters.region.length > 0 || colFilters.district.length > 0 || colFilters.subdistrict.length > 0 || colFilters.community.length > 0) && (
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className="h-7 w-7"
+                               onClick={() => setColFilters({region: [], district: [], subdistrict: [], community: []})}
+                               title="Clear filters"
+                             >
+                               <span className="sr-only">Clear</span>
+                               <span className="text-xs">×</span>
+                             </Button>
+                           )}
+                        </div>
+                      </div>
+
                       <div className="space-y-1">
                         {patientStats.geographicBreakdown.slice(0, 20).map((item, index) => (
                           <div key={index} className="grid grid-cols-12 gap-2 text-sm py-1 hover:bg-muted/50 rounded">

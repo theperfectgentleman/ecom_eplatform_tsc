@@ -17,6 +17,7 @@ const PatientSnapshot: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [autoOverdue, setAutoOverdue] = useState(false);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -178,21 +179,6 @@ const PatientSnapshot: React.FC = () => {
       });
       console.log('Patient summaries mapped:', summaries);
 
-      // Calculate overall stats from ALL patients
-      const totalPatientsCount = summaries.length;
-      const allOverdue = summaries.filter(s => s.priority_status === 'overdue').length;
-      const allDueSoon = summaries.filter(s => s.priority_status === 'due_soon').length;
-      const allOnTrack = summaries.filter(s => s.priority_status === 'on_track').length;
-      const allAncRegistered = summaries.filter(s => s.anc_registered).length;
-
-      setOverallStats({
-        total: totalPatientsCount,
-        overdue: allOverdue,
-        dueSoon: allDueSoon,
-        onTrack: allOnTrack,
-        ancRegistered: allAncRegistered
-      });
-
       // Store ALL patients - filtering and pagination happens in useMemo
       setAllPatients(summaries);
       setCurrentPage(page);
@@ -253,13 +239,35 @@ const PatientSnapshot: React.FC = () => {
   }, [allPatients, searchTerm, priorityFilter, ancStatusFilter]);
 
   // Overall statistics (for the entire dataset, not just current page)
-  const [overallStats, setOverallStats] = useState({
-    total: 0,
-    overdue: 0,
-    dueSoon: 0,
-    onTrack: 0,
-    ancRegistered: 0
-  });
+  const overallStats = useMemo(() => {
+    if (!allPatients.length) return { total: 0, overdue: 0, dueSoon: 0, onTrack: 0, ancRegistered: 0 };
+
+    const total = allPatients.length;
+    const dueSoon = allPatients.filter(s => s.priority_status === 'due_soon').length;
+    const onTrack = allPatients.filter(s => s.priority_status === 'on_track').length;
+    const ancRegistered = allPatients.filter(s => s.anc_registered).length;
+
+    let overdueCount = 0;
+    if (autoOverdue) {
+      overdueCount = allPatients.filter(s => s.priority_status === 'overdue').length;
+    } else {
+      // Filter only patients added after September 2025 (i.e., from Oct 1, 2025)
+      const cutoffDate = new Date('2025-09-30');
+      overdueCount = allPatients.filter(s => {
+        if (s.priority_status !== 'overdue') return false;
+        const regDate = new Date(s.registration_date);
+        return regDate > cutoffDate;
+      }).length;
+    }
+
+    return {
+      total,
+      overdue: overdueCount,
+      dueSoon,
+      onTrack,
+      ancRegistered
+    };
+  }, [allPatients, autoOverdue]);
 
   // Paginate filtered patients
   const { paginatedPatients, totalPages } = useMemo(() => {
@@ -340,9 +348,11 @@ const PatientSnapshot: React.FC = () => {
 
       {/* Overall Summary Statistics */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
-          Overall Statistics - All Patients
-        </h2>
+        <div className="flex items-center mb-3 gap-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Overall Statistics - All Patients
+          </h2>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
@@ -404,6 +414,8 @@ const PatientSnapshot: React.FC = () => {
         onPriorityFilterChange={setPriorityFilter}
         ancStatusFilter={ancStatusFilter}
         onAncStatusFilterChange={setAncStatusFilter}
+        autoOverdue={autoOverdue}
+        onAutoOverdueChange={setAutoOverdue}
         onClearFilters={handleClearFilters}
         totalPatients={allPatients.length}
         filteredPatients={filteredPatients.length}
