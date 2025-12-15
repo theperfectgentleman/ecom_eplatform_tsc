@@ -255,6 +255,7 @@ const PatientSnapshot: React.FC = () => {
       const cutoffDate = new Date('2025-09-30');
       overdueCount = allPatients.filter(s => {
         if (s.priority_status !== 'overdue') return false;
+        if (!s.registration_date) return false;
         const regDate = new Date(s.registration_date);
         return regDate > cutoffDate;
       }).length;
