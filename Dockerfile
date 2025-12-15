@@ -18,7 +18,7 @@ COPY . .
 # The VITE_API_BASE_URL will be passed in by Dokploy during the build
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-RUN npm run build
+RUN npm run build:no-version
 
 # ---- Serve Stage ----
 # Use a lightweight Nginx image to serve the static files
