@@ -1,12 +1,12 @@
 {
-  "latestVersion": "1.5.0",
-  "latestVersionCode": 34,
-  "url": "https://app.encompas.org/apk/pregapp_150.apk",
+  "latestVersion": "1.6.0",
+  "latestVersionCode": 35,
+  "url": "https://app.encompas.org/apk/pregapp_160.apk",
   "releaseNotes": [
-    "- Version 1.5.0 released",
-    "- Build 20251215-193000",
-    "- Fixed ANC registration database error (Unique constraint)",
-    "- Improved ANC Visit workflow (Direct edit)",
-    "- Fixed duplicate ANC visits issue"
+    "- Version 1.6.0 released",
+    "- Build 20251217-170047",
+    "- Improved app performance and reduced app size",
+    "- Cleaned up duplicate screens for better navigation",
+    "- Enhanced ANC management interface organization"
   ]
 }
