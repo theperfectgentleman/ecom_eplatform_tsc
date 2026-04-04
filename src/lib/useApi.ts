@@ -46,14 +46,14 @@ export const useApi = () => {
 
   const request = useCallback(
     async <T = any>(options: ApiRequestOptions): Promise<T> => {
-      const { path, method = "GET", body, isPublic = false, suppressToast = {} } = options;
+      const { path, method = "GET", body, headers: customHeaders = {}, isPublic = false, suppressToast = {} } = options;
       const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org/api').replace(/\/$/, '');
       const cleanPath = path.startsWith('/') ? path.slice(1) : path;
       const url = `${apiBaseUrl}/${cleanPath}`;
 
       console.log('API Request Debug:', { method, url, body }); // Debug log
 
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { ...customHeaders };
 
       let payload: BodyInit | undefined;
 

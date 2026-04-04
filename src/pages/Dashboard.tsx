@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { isSuperUserType } from "@/lib/permissions";
 import {
   Card,
   CardContent,
@@ -726,7 +727,7 @@ const Dashboard = () => {
       )}
 
       {/* Dashboard Scope Notice */}
-      {user && user.access_level !== 4 && (
+      {user && !isSuperUserType(user.user_type) && user.access_level !== 4 && (
         <Card className="bg-amber-50 border-amber-200">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
@@ -752,7 +753,7 @@ const Dashboard = () => {
       )}
 
       {/* Data Source Comparison - Only for National users to show reconciliation */}
-      {user && user.access_level === 4 && patients.length > 0 && aggregates?.overview.totalPatients !== patients.length && (
+      {user && (isSuperUserType(user.user_type) || user.access_level === 4) && patients.length > 0 && aggregates?.overview.totalPatients !== patients.length && (
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">

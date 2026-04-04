@@ -13,11 +13,14 @@ interface SnapshotFiltersProps {
   onPriorityFilterChange: (value: string) => void;
   ancStatusFilter: string;
   onAncStatusFilterChange: (value: string) => void;
+  tagFilter: string;
+  onTagFilterChange: (value: string) => void;
   autoOverdue: boolean;
   onAutoOverdueChange: (checked: boolean) => void;
   onClearFilters: () => void;
   totalPatients: number;
   filteredPatients: number;
+  taggedPatients: number;
 }
 
 const SnapshotFilters: React.FC<SnapshotFiltersProps> = ({
@@ -27,13 +30,16 @@ const SnapshotFilters: React.FC<SnapshotFiltersProps> = ({
   onPriorityFilterChange,
   ancStatusFilter,
   onAncStatusFilterChange,
+  tagFilter,
+  onTagFilterChange,
   autoOverdue,
   onAutoOverdueChange,
   onClearFilters,
   totalPatients,
-  filteredPatients
+  filteredPatients,
+  taggedPatients,
 }) => {
-  const hasActiveFilters = searchTerm || priorityFilter !== 'all' || ancStatusFilter !== 'all';
+  const hasActiveFilters = searchTerm || priorityFilter !== 'all' || ancStatusFilter !== 'all' || tagFilter !== 'active';
 
   const priorityOptions = [
     { value: 'all', label: 'All Priorities', icon: null },
@@ -46,6 +52,12 @@ const SnapshotFilters: React.FC<SnapshotFiltersProps> = ({
     { value: 'all', label: 'All Patients' },
     { value: 'registered', label: 'ANC Registered' },
     { value: 'not_registered', label: 'Not Registered' }
+  ];
+
+  const tagOptions = [
+    { value: 'active', label: 'Active Queue' },
+    { value: 'tagged', label: 'Tagged Only' },
+    { value: 'all', label: 'All Items' }
   ];
 
   return (
@@ -97,6 +109,19 @@ const SnapshotFilters: React.FC<SnapshotFiltersProps> = ({
           </SelectContent>
         </Select>
 
+        <Select value={tagFilter} onValueChange={onTagFilterChange}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Queue Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {tagOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {/* Auto Overdue Toggle */}
         <div className="flex items-center" title="Auto Overdue Filter">
           <Switch
@@ -128,7 +153,7 @@ const SnapshotFilters: React.FC<SnapshotFiltersProps> = ({
             </span>
           ) : (
             <span>
-              {totalPatients} patients total
+              {totalPatients} patients total, {taggedPatients} tagged
             </span>
           )}
         </div>
@@ -153,6 +178,12 @@ const SnapshotFilters: React.FC<SnapshotFiltersProps> = ({
             {ancStatusFilter !== 'all' && (
               <Badge variant="secondary" className="text-xs">
                 ANC: {ancStatusOptions.find(a => a.value === ancStatusFilter)?.label}
+              </Badge>
+            )}
+
+            {tagFilter !== 'active' && (
+              <Badge variant="secondary" className="text-xs">
+                Queue: {tagOptions.find(option => option.value === tagFilter)?.label}
               </Badge>
             )}
           </div>

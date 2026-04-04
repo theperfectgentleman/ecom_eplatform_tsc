@@ -6,6 +6,7 @@ import PatientNotFoundNotice from "@/components/patient-overview/PatientNotFound
 import FloatingAIAgent from "@/components/referral/FloatingAIAgent";
 import { PatientOverviewData } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { isSuperUserType } from "@/lib/permissions";
 import { Info } from "lucide-react";
 import {
 	Select,
@@ -88,7 +89,7 @@ const PatientOverview = () => {
 			</div>
 
 			{/* Access Level Notice */}
-			{user && user.access_level !== 4 && (
+			{user && !isSuperUserType(user.user_type) && user.access_level !== 4 && (
 				<div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
 					<div className="flex items-start gap-3">
 						<Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />

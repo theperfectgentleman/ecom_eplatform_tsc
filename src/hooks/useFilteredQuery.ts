@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { isSuperUserType } from '@/lib/permissions';
 import { useApi } from '@/lib/useApi';
 import { AccessLevel } from '@/types';
 
@@ -40,7 +41,7 @@ export const useFilteredQuery = <T>({ path, refreshTrigger }: UseFilteredQueryPr
     // Add parameters based on the user's access level.
     // The backend will use these to filter the data.
     // We don't need to filter for NATIONAL level as they see everything.
-    if (shouldApplyFiltering && access_level < AccessLevel.NATIONAL) {
+    if (shouldApplyFiltering && !isSuperUserType(user.user_type) && access_level < AccessLevel.NATIONAL) {
       if (region) params.append('region', region);
       if (district) params.append('district', district);
       if (subdistrict) params.append('subdistrict', subdistrict);

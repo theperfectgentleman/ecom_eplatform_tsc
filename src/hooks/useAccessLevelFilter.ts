@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { isSuperUserType } from '@/lib/permissions';
 import { AccessLevel } from '@/types';
 import { useCallback } from 'react';
 
@@ -21,6 +22,10 @@ export const useAccessLevelFilter = () => {
 
   const filterByAccessLevel = useCallback(<T extends FilterableData>(data: T[]): T[] => {
     if (!user || !Array.isArray(data)) return data || [];
+
+    if (isSuperUserType(user.user_type)) {
+      return data;
+    }
 
     const { access_level, region, district, subdistrict, community_name } = user;
 
@@ -76,6 +81,14 @@ export const useAccessLevelFilter = () => {
   const getAccessLevelInfo = () => {
     if (!user) return { label: 'No Access', scope: 'none', location: '' };
 
+    if (isSuperUserType(user.user_type)) {
+      return {
+        label: 'Super Access',
+        scope: 'super',
+        location: 'All Locations'
+      };
+    }
+
     switch (user.access_level) {
       case AccessLevel.COMMUNITY:
         return { 
@@ -118,6 +131,10 @@ export const useAccessLevelFilter = () => {
 
   const canAccessLocation = useCallback((item: FilterableData): boolean => {
     if (!user) return false;
+
+    if (isSuperUserType(user.user_type)) {
+      return true;
+    }
     
     const { access_level, region, district, subdistrict, community_name } = user;
 
@@ -164,6 +181,6 @@ export const useAccessLevelFilter = () => {
       subdistrict: user?.subdistrict,
       community_name: user?.community_name,
     },
-    isNationalAccess: user?.access_level === AccessLevel.NATIONAL
+    isNationalAccess: user?.access_level === AccessLevel.NATIONAL || isSuperUserType(user?.user_type)
   };
 };

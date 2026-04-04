@@ -1,5 +1,8 @@
 import { AccessLevel, UserType } from '../types';
 
+export const isSuperUserType = (userType: any): boolean =>
+  typeof userType === 'string' && userType.toLowerCase() === UserType.SUPER;
+
 // Define all possible permissions
 export enum Permission {
   // Page Access Permissions
@@ -53,6 +56,44 @@ export enum Permission {
 
 // Define role-based permissions
 export const ROLE_PERMISSIONS: Record<UserType, Permission[]> = {
+  [UserType.SUPER]: [
+    Permission.VIEW_DASHBOARD,
+    Permission.VIEW_PATIENTS,
+    Permission.VIEW_PATIENT_SNAPSHOT,
+    Permission.VIEW_CASES,
+    Permission.VIEW_MEETINGS,
+    Permission.VIEW_ADDRESSBOOK,
+    Permission.VIEW_APPOINTMENTS,
+    Permission.VIEW_REFERRALS,
+    Permission.VIEW_FEEDBACK,
+    Permission.VIEW_ADMIN,
+    Permission.VIEW_REPORTS,
+    Permission.VIEW_ANTENATAL_CARE,
+    Permission.VIEW_KIT_DISTRIBUTION,
+    Permission.CREATE_PATIENTS,
+    Permission.EDIT_PATIENTS,
+    Permission.DELETE_PATIENTS,
+    Permission.CREATE_CASES,
+    Permission.EDIT_CASES,
+    Permission.DELETE_CASES,
+    Permission.CREATE_MEETINGS,
+    Permission.EDIT_MEETINGS,
+    Permission.DELETE_MEETINGS,
+    Permission.CREATE_ADDRESSBOOK,
+    Permission.EDIT_ADDRESSBOOK,
+    Permission.DELETE_ADDRESSBOOK,
+    Permission.CREATE_APPOINTMENTS,
+    Permission.EDIT_APPOINTMENTS,
+    Permission.DELETE_APPOINTMENTS,
+    Permission.CREATE_REFERRALS,
+    Permission.EDIT_REFERRALS,
+    Permission.DELETE_REFERRALS,
+    Permission.CREATE_FEEDBACK,
+    Permission.EDIT_FEEDBACK,
+    Permission.DELETE_FEEDBACK,
+    Permission.MANAGE_USERS,
+    Permission.MANAGE_SYSTEM,
+  ],
   [UserType.ADMIN]: [
     // Full access to everything
     Permission.VIEW_DASHBOARD,
@@ -231,6 +272,9 @@ export const PAGE_PERMISSIONS: Record<string, Permission> = {
 
 // Permission checker functions
 export const isValidUserType = (userType: any): userType is UserType => {
+  if (isSuperUserType(userType)) {
+    return true;
+  }
   return Object.values(UserType).includes(userType);
 };
 
@@ -243,6 +287,10 @@ export const shouldRedirectToGuide = (userType: any): boolean => {
 };
 
 export const hasPermission = (userType: any, permission: Permission): boolean => {
+  if (isSuperUserType(userType)) {
+    return true;
+  }
+
   // If user type is unknown, deny all permissions
   if (isUnknownUserType(userType)) {
     return false;
@@ -271,6 +319,10 @@ export const hasAnyPermission = (userType: any, permissions: Permission[]): bool
 };
 
 export const getUserPermissions = (userType: any): Permission[] => {
+  if (isSuperUserType(userType)) {
+    return ROLE_PERMISSIONS[UserType.SUPER];
+  }
+
   if (isUnknownUserType(userType)) {
     return []; // Unknown user types have no permissions
   }
@@ -282,6 +334,7 @@ export const getPermissionsForUserType = (userType: any): string[] => {
 };
 
 export const userTypeColors: Record<UserType, string> = {
+  [UserType.SUPER]: 'bg-black',
   [UserType.ADMIN]: 'bg-red-500',
   [UserType.MANAGEMENT]: 'bg-purple-500',
   [UserType.TELEMEDICINE]: 'bg-blue-500',

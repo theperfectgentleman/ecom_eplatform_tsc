@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
+import { isSuperUserType } from '@/lib/permissions';
 import { useToast } from '@/components/ui/toast/useToast';
 import { Settings, Database, Shield, Globe, PhoneCall } from 'lucide-react';
 
@@ -48,7 +50,9 @@ const AdminSettings = () => {
   const [districtSummaryLoading, setDistrictSummaryLoading] = useState(false);
 
   const { request } = useApi();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const isSuperUser = isSuperUserType(user?.user_type);
 
   const manualRecipientStats = useMemo(() => {
     const raw = recipientsText
@@ -322,92 +326,104 @@ const AdminSettings = () => {
                 <span className="text-sm">Maintenance mode</span>
                 <Badge variant="outline" className="text-xs">Disabled</Badge>
               </div>
-              {/* Disguised VSMS opener */}
-              <div className="flex justify-between items-center">
-                <span className="text-sm">VSMS status</span>
-                <Sheet open={open} onOpenChange={setOpen}>
-                  <SheetTrigger asChild>
-                    <Badge
-                      variant="outline"
-                      className="text-xs cursor-pointer select-none"
-                      title="Open Voice SMS"
-                    >
-                      Open
-                    </Badge>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="sm:max-w-lg w-full">
-                    <SheetHeader>
-                      <SheetTitle className="flex items-center gap-2">
-                        <PhoneCall className="h-5 w-5" /> Send Voice SMS
-                      </SheetTitle>
-                    </SheetHeader>
-                    <div className="mt-4 space-y-5">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">District (optional if you specify recipients)</label>
-                        <Select value={district} onValueChange={setDistrict}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select district" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-72">
-                            {districtOptions.map((d) => (
-                              <SelectItem key={d} value={d}>{d}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">We'll fetch contacts in this district if no manual recipients are provided.</p>
-                        {district && (
-                          <p className="text-xs text-muted-foreground">
-                            {districtSummaryLoading
-                              ? 'Loading district contacts…'
-                              : `Valid district recipients: ${districtRecipients.length}`}
-                          </p>
-                        )}
-                        {district && !districtSummaryLoading && districtInvalidCount > 0 && (
-                          <p className="text-xs text-amber-600">Removed {districtInvalidCount} invalid district entr{districtInvalidCount === 1 ? 'y' : 'ies'}.</p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Voice file</label>
-                        <Input
-                          type="file"
-                          accept=".mp3,.wav,.ogg,audio/*"
-                          onChange={(e) => setFile(e.target.files?.[0] || null)}
-                        />
-                        <p className="text-xs text-muted-foreground">Accepted: mp3, wav, ogg. Max size depends on your Arkesel plan.</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Recipients (optional)</label>
-                        <textarea
-                          className="w-full min-h-[96px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          placeholder="Comma, space or newline separated (e.g., 2335xxxxxxx, 2332xxxxxxx)"
-                          value={recipientsText}
-                          onChange={(e) => setRecipientsText(e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">If provided, we'll send only to these numbers.</p>
-                        {parsedRecipients.length > 0 && (
-                          <p className="text-xs text-muted-foreground">Valid manual recipients: {parsedRecipients.length}</p>
-                        )}
-                        {invalidManualCount > 0 && (
-                          <p className="text-xs text-amber-600">Removed {invalidManualCount} invalid entr{invalidManualCount === 1 ? 'y' : 'ies'}.</p>
-                        )}
-                      </div>
-
-                      <div className="flex justify-end gap-2 pt-2">
-                        <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
-                        <Button onClick={handleSend} disabled={submitting}>
-                          {submitting ? 'Sending…' : 'Send Voice SMS'}
-                        </Button>
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {isSuperUser && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <PhoneCall className="h-5 w-5" />
+              <span>Super Controls</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
+              <div>
+                <div className="font-medium text-sm">Voice SMS dispatch</div>
+                <p className="text-xs text-muted-foreground mt-1">Restricted to super users. Open the sending console to upload voice files and target district or manual recipients.</p>
+              </div>
+              <Sheet open={open} onOpenChange={setOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="default" title="Open Voice SMS">
+                    <PhoneCall className="h-4 w-4 mr-2" />
+                    Open Voice SMS
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="sm:max-w-lg w-full">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <PhoneCall className="h-5 w-5" /> Send Voice SMS
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4 space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">District (optional if you specify recipients)</label>
+                      <Select value={district} onValueChange={setDistrict}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select district" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {districtOptions.map((d) => (
+                            <SelectItem key={d} value={d}>{d}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">We'll fetch contacts in this district if no manual recipients are provided.</p>
+                      {district && (
+                        <p className="text-xs text-muted-foreground">
+                          {districtSummaryLoading
+                            ? 'Loading district contacts…'
+                            : `Valid district recipients: ${districtRecipients.length}`}
+                        </p>
+                      )}
+                      {district && !districtSummaryLoading && districtInvalidCount > 0 && (
+                        <p className="text-xs text-amber-600">Removed {districtInvalidCount} invalid district entr{districtInvalidCount === 1 ? 'y' : 'ies'}.</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Voice file</label>
+                      <Input
+                        type="file"
+                        accept=".mp3,.wav,.ogg,audio/*"
+                        onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      />
+                      <p className="text-xs text-muted-foreground">Accepted: mp3, wav, ogg. Max size depends on your Arkesel plan.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Recipients (optional)</label>
+                      <textarea
+                        className="w-full min-h-[96px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        placeholder="Comma, space or newline separated (e.g., 2335xxxxxxx, 2332xxxxxxx)"
+                        value={recipientsText}
+                        onChange={(e) => setRecipientsText(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">If provided, we'll send only to these numbers.</p>
+                      {parsedRecipients.length > 0 && (
+                        <p className="text-xs text-muted-foreground">Valid manual recipients: {parsedRecipients.length}</p>
+                      )}
+                      {invalidManualCount > 0 && (
+                        <p className="text-xs text-amber-600">Removed {invalidManualCount} invalid entr{invalidManualCount === 1 ? 'y' : 'ies'}.</p>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
+                      <Button onClick={handleSend} disabled={submitting}>
+                        {submitting ? 'Sending…' : 'Send Voice SMS'}
+                      </Button>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -3,13 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/toast/useToast';
 import { useApi } from '@/lib/useApi';
 import { useAuth } from '@/contexts/AuthContext';
+import { isSuperUserType } from '@/lib/permissions';
 import { PatientSummary } from '@/types';
 import PatientSnapshotCard from '@/components/patient-snapshot/PatientSnapshotCard';
+import PatientSnapshotTagDialog from '@/components/patient-snapshot/PatientSnapshotTagDialog';
 import PaginationControls from '@/components/patient-snapshot/PaginationControls';
 import SnapshotFilters from '@/components/patient-snapshot/SnapshotFilters';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Users, AlertTriangle, Clock, CheckCircle, Camera } from 'lucide-react';
+import type { PatientSnapshotTagReasonCode } from '@/constants/patientSnapshotTags';
 
 const PatientSnapshot: React.FC = () => {
   // State management
@@ -23,6 +36,13 @@ const PatientSnapshot: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [ancStatusFilter, setAncStatusFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('active');
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [selectedPatientForTag, setSelectedPatientForTag] = useState<PatientSummary | null>(null);
+  const [savingTag, setSavingTag] = useState(false);
+  const [untagDialogOpen, setUntagDialogOpen] = useState(false);
+  const [selectedPatientForUntag, setSelectedPatientForUntag] = useState<PatientSummary | null>(null);
+  const [savingUntag, setSavingUntag] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -55,8 +75,8 @@ const PatientSnapshot: React.FC = () => {
       
       let allPatientsResponse;
       
-      // If user access level is 4 (national), get all patients
-      if (user.access_level === 4) {
+      // Super and national users get the full patient list
+      if (isSuperUserType(user.user_type) || user.access_level === 4) {
         console.log('User access level is 4 (national) - fetching all patients...');
         allPatientsResponse = await request<any[]>({
           method: 'GET',
@@ -169,12 +189,14 @@ const PatientSnapshot: React.FC = () => {
           anc_registered: Boolean(s.anc_registered),
           registration_date: s.anc_registration_date ?? s.registration_date,
           next_appointment_date: s.next_visit_date ?? s.next_appointment_date,
+          next_visit_source_antenatal_visit_id: s.next_visit_source_antenatal_visit_id,
           visits_attended: s.visit_dates ?? s.visits_attended ?? [],
           total_visits: s.visits_count ?? s.total_visits ?? 0,
           last_visit_date: s.last_visit_date,
           priority_status: toPriorityStatus(s.priority, s.overdue_days, s.next_visit_date),
           days_overdue: s.overdue_days ?? s.days_overdue,
           days_until_due,
+          snapshot_tag: s.snapshot_tag,
         } as PatientSummary;
       });
       console.log('Patient summaries mapped:', summaries);
@@ -226,7 +248,15 @@ const PatientSnapshot: React.FC = () => {
 
       console.log('matchesAncStatus:', matchesAncStatus, 'patient.anc_registered:', patient.anc_registered);
 
-      const passes = matchesSearch && matchesPriority && matchesAncStatus;
+      const hasTag = Boolean(patient.snapshot_tag);
+      const matchesTagFilter =
+        tagFilter === 'all' ||
+        (tagFilter === 'active' && !hasTag) ||
+        (tagFilter === 'tagged' && hasTag);
+
+      console.log('matchesTagFilter:', matchesTagFilter, 'hasTag:', hasTag);
+
+      const passes = matchesSearch && matchesPriority && matchesAncStatus && matchesTagFilter;
       console.log('Patient passes filter:', passes);
       
       return passes;
@@ -236,25 +266,27 @@ const PatientSnapshot: React.FC = () => {
     console.log('Filtered result length:', result.length);
     
     return result;
-  }, [allPatients, searchTerm, priorityFilter, ancStatusFilter]);
+  }, [allPatients, searchTerm, priorityFilter, ancStatusFilter, tagFilter]);
 
   // Overall statistics (for the entire dataset, not just current page)
   const overallStats = useMemo(() => {
     if (!allPatients.length) return { total: 0, overdue: 0, dueSoon: 0, onTrack: 0, ancRegistered: 0 };
 
     const total = allPatients.length;
-    const dueSoon = allPatients.filter(s => s.priority_status === 'due_soon').length;
+    const dueSoon = allPatients.filter(s => s.priority_status === 'due_soon' && !s.snapshot_tag).length;
     const onTrack = allPatients.filter(s => s.priority_status === 'on_track').length;
     const ancRegistered = allPatients.filter(s => s.anc_registered).length;
+    const tagged = allPatients.filter(s => Boolean(s.snapshot_tag)).length;
 
     let overdueCount = 0;
     if (autoOverdue) {
-      overdueCount = allPatients.filter(s => s.priority_status === 'overdue').length;
+      overdueCount = allPatients.filter(s => s.priority_status === 'overdue' && !s.snapshot_tag).length;
     } else {
       // Filter only patients added after September 2025 (i.e., from Oct 1, 2025)
       const cutoffDate = new Date('2025-09-30');
       overdueCount = allPatients.filter(s => {
         if (s.priority_status !== 'overdue') return false;
+        if (s.snapshot_tag) return false;
         if (!s.registration_date) return false;
         const regDate = new Date(s.registration_date);
         return regDate > cutoffDate;
@@ -266,7 +298,8 @@ const PatientSnapshot: React.FC = () => {
       overdue: overdueCount,
       dueSoon,
       onTrack,
-      ancRegistered
+      ancRegistered,
+      tagged,
     };
   }, [allPatients, autoOverdue]);
 
@@ -309,6 +342,106 @@ const PatientSnapshot: React.FC = () => {
 
   const handleRefresh = () => {
     fetchPatients(currentPage);
+  };
+
+  const handleOpenTagDialog = (patient: PatientSummary) => {
+    setSelectedPatientForTag(patient);
+    setTagDialogOpen(true);
+  };
+
+  const handleSaveSnapshotTag = async ({ reason_code, note }: { reason_code: PatientSnapshotTagReasonCode; note?: string }) => {
+    if (!selectedPatientForTag?.patient_id || !selectedPatientForTag.next_appointment_date || !selectedPatientForTag.next_visit_source_antenatal_visit_id) {
+      toast({
+        variant: 'error',
+        title: 'Missing appointment data',
+        description: 'This snapshot item does not have enough appointment information to tag.',
+      });
+      return;
+    }
+
+    setSavingTag(true);
+    try {
+      await request({
+        method: 'POST',
+        path: 'patients/summary-tags',
+        body: {
+          patient_id: selectedPatientForTag.patient_id,
+          antenatal_visit_id: selectedPatientForTag.next_visit_source_antenatal_visit_id,
+          scheduled_visit_date: selectedPatientForTag.next_appointment_date,
+          reason_code,
+          note,
+        },
+      });
+
+      toast({
+        variant: 'success',
+        title: 'Appointment tagged',
+        description: 'The missed appointment has been moved out of the active queue.',
+      });
+
+      setTagDialogOpen(false);
+      setSelectedPatientForTag(null);
+      await fetchPatients(currentPage);
+    } catch (error) {
+      console.error('Failed to save snapshot tag:', error);
+      toast({
+        variant: 'error',
+        title: 'Failed to save tag',
+        description: 'The missed appointment tag could not be saved. Please try again.',
+      });
+    } finally {
+      setSavingTag(false);
+    }
+  };
+
+  const handleOpenUntagDialog = (patient: PatientSummary) => {
+    setSelectedPatientForUntag(patient);
+    setUntagDialogOpen(true);
+  };
+
+  const handleUntagSnapshot = async () => {
+    const patient = selectedPatientForUntag;
+
+    if (!patient.patient_id || !patient.next_appointment_date || !patient.next_visit_source_antenatal_visit_id) {
+      toast({
+        variant: 'error',
+        title: 'Missing appointment data',
+        description: 'This snapshot item does not have enough appointment information to return to the active queue.',
+      });
+      return;
+    }
+
+    setSavingUntag(true);
+    try {
+      await request({
+        method: 'POST',
+        path: 'patients/summary-tags/deactivate',
+        body: {
+          patient_id: patient.patient_id,
+          antenatal_visit_id: patient.next_visit_source_antenatal_visit_id,
+          scheduled_visit_date: patient.next_appointment_date,
+        },
+      });
+
+      toast({
+        variant: 'success',
+        title: 'Appointment returned to queue',
+        description: 'The missed appointment is active again and will show in the follow-up queue.',
+      });
+
+      setUntagDialogOpen(false);
+      setSelectedPatientForUntag(null);
+      await fetchPatients(currentPage);
+    } catch (error) {
+      console.error('Failed to deactivate snapshot tag:', error);
+      toast({
+        variant: 'error',
+        title: 'Failed to return appointment',
+        description: 'The missed appointment could not be returned to the active queue. Please try again.',
+      });
+    } finally {
+      setSavingUntag(false);
+    }
   };
 
   // Initial load - fetch all patients once
@@ -415,11 +548,14 @@ const PatientSnapshot: React.FC = () => {
         onPriorityFilterChange={setPriorityFilter}
         ancStatusFilter={ancStatusFilter}
         onAncStatusFilterChange={setAncStatusFilter}
+        tagFilter={tagFilter}
+        onTagFilterChange={setTagFilter}
         autoOverdue={autoOverdue}
         onAutoOverdueChange={setAutoOverdue}
         onClearFilters={handleClearFilters}
         totalPatients={allPatients.length}
         filteredPatients={filteredPatients.length}
+        taggedPatients={overallStats.tagged}
       />
 
       {/* Patient Cards Grid */}
@@ -460,10 +596,52 @@ const PatientSnapshot: React.FC = () => {
               key={patient.patient_id}
               patient={patient}
               onViewDetails={handleViewDetails}
+              onTagAppointment={handleOpenTagDialog}
+              onUntagAppointment={handleOpenUntagDialog}
             />
           ))}
         </div>
       )}
+
+      <PatientSnapshotTagDialog
+        open={tagDialogOpen}
+        patient={selectedPatientForTag}
+        saving={savingTag}
+        onOpenChange={(open) => {
+          setTagDialogOpen(open);
+          if (!open) {
+            setSelectedPatientForTag(null);
+          }
+        }}
+        onSave={handleSaveSnapshotTag}
+      />
+
+      <AlertDialog
+        open={untagDialogOpen}
+        onOpenChange={(open) => {
+          setUntagDialogOpen(open);
+          if (!open && !savingUntag) {
+            setSelectedPatientForUntag(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Return appointment to active queue?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedPatientForUntag?.name
+                ? `This will remove the current missed-visit tag for ${selectedPatientForUntag.name} and show the appointment in the active follow-up queue again.`
+                : 'This will remove the current missed-visit tag and show the appointment in the active follow-up queue again.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={savingUntag}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleUntagSnapshot} disabled={savingUntag}>
+              {savingUntag ? 'Returning...' : 'Return To Active Queue'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Pagination */}
       {!loading && filteredPatients.length > 0 && (

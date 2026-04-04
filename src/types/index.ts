@@ -1,4 +1,5 @@
 export enum UserType {
+  SUPER = 'super',
   VOLUNTEER = 'volunteer',
   CLINICIAN = 'clinician',
   TELEMEDICINE = 'telemedicine',
@@ -28,6 +29,7 @@ export interface ApiRequestOptions {
   path: string;
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   body?: any;
+  headers?: Record<string, string>;
   isPublic?: boolean;
   suppressToast?: ToastSuppression;
 }
@@ -266,6 +268,15 @@ export interface ANCFormState {
 }
 
 // Patient Summary types for the snapshot page
+export interface PatientSnapshotAppointmentTag {
+  id: string;
+  reason_code: string;
+  reason_label?: string | null;
+  note?: string | null;
+  tagged_at: string;
+  tagged_by_user_id?: number | null;
+}
+
 export interface PatientSummary {
   patient_id: string;
   name: string;
@@ -278,6 +289,8 @@ export interface PatientSummary {
   anc_registered: boolean;
   registration_date?: string;
   next_appointment_date?: string;
+  next_visit_source_antenatal_visit_id?: number | null;
+  snapshot_tag?: PatientSnapshotAppointmentTag | null;
   
   // Visit Information
   visits_attended: string[]; // Array of visit dates

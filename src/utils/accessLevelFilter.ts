@@ -1,11 +1,14 @@
 import { useAccessLevelFilter } from '@/hooks/useAccessLevelFilter';
 
+import { isSuperUserType } from '@/lib/permissions';
+
 /**
  * Utility function for manually filtering data arrays based on user access level
  * Use this when you need to apply filtering outside of hooks or components
  */
 export const createAccessLevelFilter = (user: {
   access_level: number;
+  user_type?: string;
   region?: string;
   district?: string;
   subdistrict?: string;
@@ -22,6 +25,10 @@ export const createAccessLevelFilter = (user: {
     Community?: string;
   }>(data: T[]): T[] => {
     if (!Array.isArray(data)) return data || [];
+
+    if (isSuperUserType(user.user_type)) {
+      return data;
+    }
 
     const { access_level, region, district, subdistrict, community_name } = user;
 

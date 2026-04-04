@@ -4,23 +4,17 @@
 		{
 			"type": "shell",
 			"label": "Lint (ESLint)",
-			"command": "npx eslint \"src/**/*.{js,jsx,ts,tsx}\"",
+			"command": "npx.cmd",
+			"args": [
+				"eslint",
+				"--ext",
+				".js,.jsx,.ts,.tsx",
+				"src"
+			],
 			"group": "test",
 			"problemMatcher": [
 				"$eslint-stylish"
 			]
-		},
-		{
-			"label": "Lint (ESLint)",
-			"type": "shell",
-			"command": "npx eslint \"src/**/*.{js,jsx,ts,tsx}\"",
-			"group": "test"
-		},
-		{
-			"label": "Lint (ESLint)",
-			"type": "shell",
-			"command": "npx eslint \"src/**/*.{js,jsx,ts,tsx}\"",
-			"group": "test"
 		}
 	]
 }

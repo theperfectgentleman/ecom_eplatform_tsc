@@ -7,17 +7,22 @@ import {
   User, 
   Phone, 
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Tag
 } from 'lucide-react';
 
 interface PatientSnapshotCardProps {
   patient: PatientSummary;
   onViewDetails?: (patient: PatientSummary) => void;
+  onTagAppointment?: (patient: PatientSummary) => void;
+  onUntagAppointment?: (patient: PatientSummary) => void;
 }
 
 const PatientSnapshotCard: React.FC<PatientSnapshotCardProps> = ({ 
   patient, 
-  onViewDetails
+  onViewDetails,
+  onTagAppointment,
+  onUntagAppointment,
 }) => {
   // Calculate age from date of birth
   const calculateAge = (dob?: string): number | null => {
@@ -78,6 +83,7 @@ const PatientSnapshotCard: React.FC<PatientSnapshotCardProps> = ({
 
   const priorityStyles = getPriorityStyles(patient.priority_status);
   const age = calculateAge(patient.dob);
+  const hasSnapshotTag = Boolean(patient.snapshot_tag);
 
   return (
     <Card className={`hover:shadow-lg transition-all duration-200 shadow-sm ${priorityStyles.border}`}>
@@ -86,9 +92,16 @@ const PatientSnapshotCard: React.FC<PatientSnapshotCardProps> = ({
         <div className="mb-4">
           {/* Badge at top right */}
           <div className="flex justify-end mb-3">
-            <Badge className={priorityStyles.badge}>
-              {patient.priority_status.replace('_', ' ').toUpperCase()}
-            </Badge>
+            <div className="flex flex-wrap justify-end gap-2">
+              {hasSnapshotTag && (
+                <Badge className="bg-sky-100 text-sky-700 border-sky-200">
+                  TAGGED
+                </Badge>
+              )}
+              <Badge className={priorityStyles.badge}>
+                {patient.priority_status.replace('_', ' ').toUpperCase()}
+              </Badge>
+            </div>
           </div>
           
           {/* Patient Name - Full Width with 2 line support and fixed height */}
@@ -159,18 +172,56 @@ const PatientSnapshotCard: React.FC<PatientSnapshotCardProps> = ({
           </span>
         </div>
 
-        {/* Action Button - Fixed Height */}
-        {onViewDetails && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => onViewDetails(patient)}
-            className="w-full h-9"
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            View Details
-          </Button>
+        {hasSnapshotTag && (
+          <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 mb-4 space-y-1">
+            <div className="flex items-center gap-2 text-sm font-medium text-sky-800">
+              <Tag className="h-4 w-4" />
+              {patient.snapshot_tag?.reason_label || 'Tagged'}
+            </div>
+            {patient.snapshot_tag?.note && (
+              <p className="text-sm text-sky-900 leading-relaxed">{patient.snapshot_tag.note}</p>
+            )}
+          </div>
         )}
+
+        {/* Action Button - Fixed Height */}
+        <div className="flex flex-col gap-2">
+          {!hasSnapshotTag && patient.priority_status === 'overdue' && patient.next_appointment_date && patient.next_visit_source_antenatal_visit_id && onTagAppointment && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onTagAppointment(patient)}
+              className="w-full h-9"
+            >
+              <Tag className="h-4 w-4 mr-2" />
+              Tag Missed Visit
+            </Button>
+          )}
+
+          {hasSnapshotTag && patient.priority_status === 'overdue' && patient.next_appointment_date && patient.next_visit_source_antenatal_visit_id && onUntagAppointment && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onUntagAppointment(patient)}
+              className="w-full h-9"
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Return To Active Queue
+            </Button>
+          )}
+
+          {onViewDetails && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onViewDetails(patient)}
+              className="w-full h-9"
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              View Details
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
