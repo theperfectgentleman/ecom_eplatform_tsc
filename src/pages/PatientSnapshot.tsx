@@ -270,7 +270,9 @@ const PatientSnapshot: React.FC = () => {
 
   // Overall statistics (for the entire dataset, not just current page)
   const overallStats = useMemo(() => {
-    if (!allPatients.length) return { total: 0, overdue: 0, dueSoon: 0, onTrack: 0, ancRegistered: 0 };
+    if (!allPatients.length) {
+      return { total: 0, overdue: 0, dueSoon: 0, onTrack: 0, ancRegistered: 0, tagged: 0 };
+    }
 
     const total = allPatients.length;
     const dueSoon = allPatients.filter(s => s.priority_status === 'due_soon' && !s.snapshot_tag).length;
@@ -401,6 +403,11 @@ const PatientSnapshot: React.FC = () => {
 
   const handleUntagSnapshot = async () => {
     const patient = selectedPatientForUntag;
+
+    if (!patient) {
+      setUntagDialogOpen(false);
+      return;
+    }
 
     if (!patient.patient_id || !patient.next_appointment_date || !patient.next_visit_source_antenatal_visit_id) {
       toast({
