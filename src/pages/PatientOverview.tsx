@@ -29,7 +29,7 @@ const PatientOverview = () => {
 	const [selectedPatient, setSelectedPatient] = useState<PatientOverviewData | null>(null);
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [patientNotFound, setPatientNotFound] = useState<string | null>(null);
-	const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[3].value); // Default to 3000
+	const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[1].value);
 	const navigate = useNavigate();
 	const { user } = useAuth();
 	

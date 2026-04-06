@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ANCPatient, Patient } from '@/types';
 import { useApi } from '@/lib/useApi';
 import { useAccessLevelFilter } from '@/hooks/useAccessLevelFilter';
+import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Search, Edit } from 'lucide-react';
@@ -24,6 +25,7 @@ const AntenatalCareList = ({
   const [loading, setLoading] = useState(true);
   const { request } = useApi();
   const { filterByAccessLevel } = useAccessLevelFilter();
+  const { user } = useAuth();
 
   // Helper function to format full name
   const formatFullName = (patient: ANCPatient): string => {
@@ -45,10 +47,11 @@ const AntenatalCareList = ({
   const loadPatients = useCallback(async () => {
     try {
       setLoading(true);
-      // Load regular patients with cache busting parameter and specified limit
       const timestamp = new Date().getTime();
       const data = await request<Patient[]>({ 
-        path: `patients?_t=${timestamp}&limit=${limit}`
+        path: user?.user_id
+          ? `patients/level/${user.user_id}?_t=${timestamp}&limit=${limit}`
+          : `patients?_t=${timestamp}&limit=${limit}`
       });
       
       // Transform Patient[] to ANCPatient[] format
@@ -61,16 +64,14 @@ const AntenatalCareList = ({
         gestational_age: undefined
       }));
       
-      // Apply access level filtering
-      const filteredPatients = filterByAccessLevel(ancPatients);
-      setPatients(filteredPatients);
+      setPatients(user?.user_id ? ancPatients : filterByAccessLevel(ancPatients));
     } catch (error) {
       console.error('Failed to load ANC patients:', error);
       setPatients([]);
     } finally {
       setLoading(false);
     }
-  }, [request, filterByAccessLevel, limit]);
+  }, [request, filterByAccessLevel, limit, user?.user_id]);
 
   useEffect(() => {
     loadPatients();

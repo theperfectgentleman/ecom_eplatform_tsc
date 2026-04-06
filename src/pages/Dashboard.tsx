@@ -373,7 +373,10 @@ const Dashboard = () => {
         setPatientsLoading(true);
         try {
           console.log('Patients query params:', patientQueryString);
-          const patientsRes = await fetch(`${apiBaseUrl}/patients${patientQueryString}`, { headers });
+          const patientsEndpoint = user?.user_id
+            ? `${apiBaseUrl}/patients/level/${user.user_id}${patientQueryString}`
+            : `${apiBaseUrl}/patients${patientQueryString}`;
+          const patientsRes = await fetch(patientsEndpoint, { headers });
           if (patientsRes.ok) {
             const patientsData = await patientsRes.json();
             const rawPatients = patientsData.data || patientsData || [];
@@ -401,7 +404,7 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [token, aggregatesQueryString, patientQueryString]);
+  }, [token, user?.user_id, aggregatesQueryString, patientQueryString]);
 
   // Compute patient stats
   const patientStats = useMemo(() => {

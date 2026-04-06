@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useApi } from "@/lib/useApi";
 import { useToast } from "@/components/ui/toast/useToast";
 import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
+import { useAuth } from "@/contexts/AuthContext";
 import { PatientOverviewData } from "@/types";
 import { Input } from "../ui/input";
 import { Search, User } from "lucide-react";
@@ -42,6 +43,7 @@ const PatientList: React.FC<PatientListProps> = ({
 	const { request } = useApi();
 	const { toast } = useToast();
 	const { filterByAccessLevel } = useAccessLevelFilter();
+	const { user } = useAuth();
 
 	const calculateAge = useCallback((yearOfBirth: number): number => {
 		const currentYear = new Date().getFullYear();
@@ -68,23 +70,46 @@ const PatientList: React.FC<PatientListProps> = ({
 	const fetchPatients = useCallback(async () => {
 		setIsLoading(true);
 		try {
-			// Add cache busting parameter to ensure fresh data
-			// Use the limit prop to control how many patients to fetch
 			const timestamp = new Date().getTime();
-			const response = await request<PatientOverviewData[]>({
-				method: "GET",
-				path: `patients?_t=${timestamp}&limit=${limit}`,
-			});
+			const limitCandidates = Array.from(
+				new Set([limit, 1000, 500, 200].filter(candidate => candidate <= limit))
+			);
+
+			let response: PatientOverviewData[] | null = null;
+			let resolvedLimit = limit;
+
+			for (const candidateLimit of limitCandidates) {
+				try {
+					response = await request<PatientOverviewData[]>({
+						method: "GET",
+						path: user?.user_id
+							? `patients/level/${user.user_id}?_t=${timestamp}&limit=${candidateLimit}`
+							: `patients?_t=${timestamp}&limit=${candidateLimit}`,
+					});
+					resolvedLimit = candidateLimit;
+					break;
+				} catch (candidateError) {
+					if (candidateLimit === limitCandidates[limitCandidates.length - 1]) {
+						throw candidateError;
+					}
+				}
+			}
 
 			if (response && Array.isArray(response)) {
-				// Calculate age for each patient
 				const patientsWithAge = response.map(patient => ({
 					...patient,
 					age: patient.year_of_birth ? calculateAge(patient.year_of_birth) : undefined
 				}));
 
-				const filteredPatients = filterByAccessLevel(patientsWithAge);
-				setPatients(filteredPatients);
+				setPatients(user?.user_id ? patientsWithAge : filterByAccessLevel(patientsWithAge));
+
+				if (resolvedLimit < limit) {
+					toast({
+						title: "Loaded reduced patient scope",
+						description: `The patient list was reduced to ${resolvedLimit.toLocaleString()} records for a more reliable load.`,
+						variant: "info",
+					});
+				}
 			} else {
 				setPatients([]);
 			}
@@ -100,7 +125,7 @@ const PatientList: React.FC<PatientListProps> = ({
 			setIsLoading(false);
 			setHasInitialLoadCompleted(true);
 		}
-	}, [request, filterByAccessLevel, toast, calculateAge, limit]);
+	}, [request, filterByAccessLevel, toast, calculateAge, limit, user?.user_id]);
 
 	const fetchPatientWithUserDetails = useCallback(async (patientId: string) => {
 		try {
