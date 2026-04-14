@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users,
   Baby,
@@ -127,6 +128,62 @@ interface VolunteerPerformance {
   last_registration: string | null;
 }
 
+interface FirstTrimesterSummaryValue {
+  earlyRegistrations: number;
+  totalRegistrations: number;
+  earlyRegistrationRate: number;
+}
+
+interface FirstTrimesterSummary {
+  currentPeriodLabel: string;
+  previousPeriodLabel: string;
+  current: FirstTrimesterSummaryValue;
+  previous: FirstTrimesterSummaryValue;
+  delta: {
+    earlyRegistrations: number;
+    totalRegistrations: number;
+    earlyRegistrationRate: number;
+  };
+}
+
+interface FirstTrimesterTrendPoint {
+  month: string;
+  month_label: string;
+  early_registrations: number;
+  total_registrations: number;
+  early_registration_rate: number;
+}
+
+interface FirstTrimesterRegionRow {
+  region: string;
+  early_registrations: number;
+  total_registrations: number;
+  early_rate: number;
+  previous_early_registrations: number;
+  previous_total_registrations: number;
+  previous_early_rate: number;
+  rate_delta: number;
+  early_registrations_delta: number;
+}
+
+interface FirstTrimesterDistrictRow extends FirstTrimesterRegionRow {
+  district: string;
+}
+
+interface FirstTrimesterInsights {
+  summary: FirstTrimesterSummary;
+  monthlyTrend: FirstTrimesterTrendPoint[];
+  regions: FirstTrimesterRegionRow[];
+  districts: FirstTrimesterDistrictRow[];
+  meta: {
+    filtered: boolean;
+    filter_level: 'national' | 'region' | 'district' | 'subdistrict';
+    params: {
+      days: number;
+    };
+  };
+}
+
 interface Patient {
   id: string | number;
   registration_date: string; // ISO date string
@@ -157,6 +214,18 @@ const PATIENT_LIMIT_OPTIONS = [
   { value: '3000', label: 'Top 3,000 records' },
 ];
 
+const formatDelta = (value: number, suffix = '') => {
+  const numericValue = Number(value || 0);
+  const sign = numericValue > 0 ? '+' : '';
+  return `${sign}${numericValue.toFixed(1)}${suffix}`;
+};
+
+const formatSignedCount = (value: number) => {
+  const numericValue = Number(value || 0);
+  const sign = numericValue > 0 ? '+' : '';
+  return `${sign}${numericValue.toLocaleString()}`;
+};
+
 const Dashboard = () => {
   const { token, user } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
@@ -168,6 +237,11 @@ const Dashboard = () => {
   const [aggregates, setAggregates] = useState<DashboardAggregates | null>(null);
   const [aggregatesLoading, setAggregatesLoading] = useState(false);
   const [aggregatesError, setAggregatesError] = useState<string | null>(null);
+
+  // Early registration insights
+  const [firstTrimesterInsights, setFirstTrimesterInsights] = useState<FirstTrimesterInsights | null>(null);
+  const [firstTrimesterInsightsLoading, setFirstTrimesterInsightsLoading] = useState(false);
+  const [firstTrimesterInsightsError, setFirstTrimesterInsightsError] = useState<string | null>(null);
 
   // Volunteer performance (1 additional API call - most actionable for users)
   const [volunteers, setVolunteers] = useState<VolunteerPerformance[]>([]);
@@ -303,6 +377,7 @@ const Dashboard = () => {
     if (!token) {
       console.log('Skipping API calls - No token');
       setAggregates(null);
+      setFirstTrimesterInsights(null);
       setVolunteers([]);
       return;
     }
@@ -310,8 +385,10 @@ const Dashboard = () => {
     const fetchData = async () => {
       console.log('Starting API calls...');
       setAggregatesLoading(true);
+      setFirstTrimesterInsightsLoading(true);
       setVolunteersLoading(true);
       setAggregatesError(null);
+      setFirstTrimesterInsightsError(null);
 
       const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://api.encompas.org/api').replace(/\/$/, '');
       console.log('API Base URL:', apiBaseUrl);
@@ -324,15 +401,17 @@ const Dashboard = () => {
       console.log('Request headers:', { ...headers, Authorization: `Bearer ${token.substring(0, 20)}...` });
 
       try {
-        // Fetch both endpoints in parallel
+        // Fetch dashboard endpoints in parallel
         console.log('Fetching endpoints...');
-        const [aggregatesRes, volunteersRes] = await Promise.allSettled([
+        const [aggregatesRes, firstTrimesterInsightsRes, volunteersRes] = await Promise.allSettled([
           fetch(`${apiBaseUrl}/dashboard/aggregates${aggregatesQueryString}`, { headers }),
+          fetch(`${apiBaseUrl}/dashboard/first-trimester-insights${aggregatesQueryString}`, { headers }),
           fetch(`${apiBaseUrl}/dashboard/volunteer-performance${aggregatesQueryString}`, { headers })
         ]);
 
         console.log('API responses received:', {
           aggregates: aggregatesRes.status,
+          firstTrimesterInsights: firstTrimesterInsightsRes.status,
           volunteers: volunteersRes.status
         });
 
@@ -352,6 +431,23 @@ const Dashboard = () => {
         } else {
           console.error('Aggregates promise rejected:', aggregatesRes.reason);
           setAggregatesError(`Network error: ${aggregatesRes.reason.message}`);
+        }
+
+        // Handle first trimester insights response
+        if (firstTrimesterInsightsRes.status === 'fulfilled') {
+          console.log('First trimester insights response status:', firstTrimesterInsightsRes.value.status);
+          if (firstTrimesterInsightsRes.value.ok) {
+            const data = await firstTrimesterInsightsRes.value.json();
+            setFirstTrimesterInsights(data);
+          } else {
+            const errorText = await firstTrimesterInsightsRes.value.text();
+            console.error('First trimester insights API error:', firstTrimesterInsightsRes.value.status, errorText);
+            const errorMessage = errorText.length > 200 ? errorText.substring(0, 200) + '...' : errorText;
+            setFirstTrimesterInsightsError(`API Error ${firstTrimesterInsightsRes.value.status}: ${errorMessage}`);
+          }
+        } else {
+          console.error('First trimester insights promise rejected:', firstTrimesterInsightsRes.reason);
+          setFirstTrimesterInsightsError(`Network error: ${firstTrimesterInsightsRes.reason.message}`);
         }
 
         // Handle volunteers response
@@ -399,6 +495,7 @@ const Dashboard = () => {
       } finally {
         console.log('API calls completed');
         setAggregatesLoading(false);
+        setFirstTrimesterInsightsLoading(false);
         setVolunteersLoading(false);
       }
     };
@@ -590,6 +687,43 @@ const Dashboard = () => {
       .sort((a, b) => b.value - a.value);
   }, [aggregates]);
 
+  const firstTrimesterTrendData = useMemo(() => {
+    if (!firstTrimesterInsights?.monthlyTrend) return [];
+    return firstTrimesterInsights.monthlyTrend.map((item) => ({
+      month: item.month_label,
+      earlyRegistrationRate: Number(item.early_registration_rate ?? 0),
+      earlyRegistrations: Number(item.early_registrations ?? 0),
+      totalRegistrations: Number(item.total_registrations ?? 0),
+    }));
+  }, [firstTrimesterInsights]);
+
+  const firstTrimesterThreeMonthAverage = useMemo(() => {
+    if (!firstTrimesterTrendData.length) return 0;
+    const recent = firstTrimesterTrendData.slice(-3);
+    if (!recent.length) return 0;
+    const total = recent.reduce((sum, item) => sum + item.earlyRegistrationRate, 0);
+    return total / recent.length;
+  }, [firstTrimesterTrendData]);
+
+  const firstTrimesterBestMonth = useMemo(() => {
+    if (!firstTrimesterTrendData.length) return null;
+    return firstTrimesterTrendData.reduce((best, current) => {
+      if (!best || current.earlyRegistrationRate > best.earlyRegistrationRate) {
+        return current;
+      }
+      return best;
+    }, null as (typeof firstTrimesterTrendData)[number] | null);
+  }, [firstTrimesterTrendData]);
+
+  const firstTrimesterSummary = firstTrimesterInsights?.summary;
+  const topRegionRows = (firstTrimesterInsights?.regions || []).slice(0, 8);
+  const topDistrictRows = (firstTrimesterInsights?.districts || []).slice(0, 10);
+  const selectedScopeLabel = selectedDistrict !== "All Districts"
+    ? `${selectedDistrict} District`
+    : selectedRegion !== "All Regions"
+      ? `${selectedRegion} Region`
+      : 'National';
+
   const regions = [...new Set(aggregates?.geo?.map(g => g.region) || ['Greater Accra', 'Ashanti'])];
   const districts = aggregates?.geo?.filter(g => selectedRegion === "All Regions" || g.region === selectedRegion)
     .map(g => g.district) || [];
@@ -707,7 +841,7 @@ const Dashboard = () => {
                   {aggregatesLoading ? 'Loading Dashboard...' : aggregatesError ? 'Dashboard Error' : 'Optimized Dashboard Active'}
                 </span>
                 <Badge variant="outline" className={aggregatesLoading ? "text-yellow-700" : aggregatesError ? "text-red-700" : "text-green-700"}>
-                  {aggregatesLoading ? 'Loading...' : aggregatesError ? 'Error' : '2 API Calls • Fast Performance'}
+                  {aggregatesLoading ? 'Loading...' : aggregatesError ? 'Error' : '3 API Calls • Fast Performance'}
                 </Badge>
               </div>
               {aggregatesError && (
@@ -842,10 +976,17 @@ const Dashboard = () => {
             <Baby className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(aggregates?.antenatal.earlyRegistrationPercent ?? 0).toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{Number(firstTrimesterSummary?.current.earlyRegistrationRate ?? aggregates?.antenatal.earlyRegistrationPercent ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              Registered within first 12 weeks
+              {Number(firstTrimesterSummary?.current.earlyRegistrations ?? aggregates?.antenatal.earlyRegistrationsLastPeriod ?? 0).toLocaleString()}
+              {' / '}
+              {Number(firstTrimesterSummary?.current.totalRegistrations ?? aggregates?.antenatal.registrationsLastPeriod ?? 0).toLocaleString()} ANC registrations in {selectedScopeLabel.toLowerCase()}
             </p>
+            {firstTrimesterSummary && (
+              <p className={`mt-1 text-xs ${firstTrimesterSummary.delta.earlyRegistrationRate >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {formatDelta(firstTrimesterSummary.delta.earlyRegistrationRate, ' pts')} vs {firstTrimesterSummary.previousPeriodLabel.toLowerCase()}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -987,36 +1128,199 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Volunteer Performance */}
-        <Card>
+        {/* Early Registration Insights */}
+        <Card className="md:col-span-2 lg:col-span-3">
           <CardHeader>
-            <CardTitle>Top Volunteers</CardTitle>
-            <CardDescription>Volunteer performance (patient registrations)</CardDescription>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle>Early Registration Insights</CardTitle>
+                <CardDescription>
+                  1st trimester registration performance for {selectedScopeLabel.toLowerCase()} with trend and geography drill-downs
+                </CardDescription>
+              </div>
+              {firstTrimesterSummary && (
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">{firstTrimesterSummary.currentPeriodLabel}</Badge>
+                  <Badge className={firstTrimesterSummary.delta.earlyRegistrationRate >= 0 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'}>
+                    {formatDelta(firstTrimesterSummary.delta.earlyRegistrationRate, ' pts')}
+                  </Badge>
+                  <Badge variant="outline">{formatSignedCount(firstTrimesterSummary.delta.earlyRegistrations)} early</Badge>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {volunteers.slice(0, 5).map((volunteer) => (
-                <div key={volunteer.user_id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <UserCheck className="h-8 w-8 text-blue-500" />
-                    <div>
-                      <div className="font-medium">{volunteer.volunteer_name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {volunteer.patients_registered} patients registered, {volunteer.patients_registered_30d} in last 30 days
+            {firstTrimesterInsightsLoading ? (
+              <div className="flex min-h-[320px] items-center justify-center">
+                <div className="text-center">
+                  <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+                  <p className="text-sm text-muted-foreground">Loading early registration insights...</p>
+                </div>
+              </div>
+            ) : firstTrimesterInsightsError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                Failed to load early registration insights. {firstTrimesterInsightsError}
+              </div>
+            ) : (
+              <Tabs defaultValue="trend" className="w-full">
+                <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+                  <TabsTrigger value="trend" className="rounded-md border border-border bg-background px-4 py-2">Trend</TabsTrigger>
+                  <TabsTrigger value="regions" className="rounded-md border border-border bg-background px-4 py-2">Regions</TabsTrigger>
+                  <TabsTrigger value="districts" className="rounded-md border border-border bg-background px-4 py-2">Districts</TabsTrigger>
+                  <TabsTrigger value="volunteers" className="rounded-md border border-border bg-background px-4 py-2">Volunteers</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="trend" className="mt-6 space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-lg border p-4">
+                      <div className="text-sm text-muted-foreground">Current Early Rate</div>
+                      <div className="mt-2 text-3xl font-semibold">{Number(firstTrimesterSummary?.current.earlyRegistrationRate ?? 0).toFixed(1)}%</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{firstTrimesterSummary?.currentPeriodLabel}</div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <div className="text-sm text-muted-foreground">Rate Change</div>
+                      <div className={`mt-2 text-3xl font-semibold ${Number(firstTrimesterSummary?.delta.earlyRegistrationRate ?? 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        {formatDelta(firstTrimesterSummary?.delta.earlyRegistrationRate ?? 0, ' pts')}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">vs {firstTrimesterSummary?.previousPeriodLabel.toLowerCase()}</div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <div className="text-sm text-muted-foreground">Recent 3-Month Average</div>
+                      <div className="mt-2 text-3xl font-semibold">{firstTrimesterThreeMonthAverage.toFixed(1)}%</div>
+                      <div className="mt-1 text-xs text-muted-foreground">Smooths short-term volatility</div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <div className="text-sm text-muted-foreground">Best Month</div>
+                      <div className="mt-2 text-3xl font-semibold">{Number(firstTrimesterBestMonth?.earlyRegistrationRate ?? 0).toFixed(1)}%</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{firstTrimesterBestMonth?.month ?? 'No data yet'}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border p-4">
+                    <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                      <div>
+                        <h3 className="font-medium">12-Month Early Registration Trend</h3>
+                        <p className="text-sm text-muted-foreground">Monthly 1st trimester registration rate, with counts available in the tooltip.</p>
+                      </div>
+                      <div className="text-xs text-muted-foreground">Primary metric: % registered within first 12 weeks</div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <AreaChart data={firstTrimesterTrendData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis unit="%" />
+                        <Tooltip
+                          formatter={(value: number, name: string) => {
+                            if (name === 'Early Registration Rate') {
+                              return [`${Number(value).toFixed(1)}%`, name];
+                            }
+                            return [value, name];
+                          }}
+                          labelFormatter={(label, payload) => {
+                            const point = payload?.[0]?.payload;
+                            if (!point) return label;
+                            return `${label} • ${point.earlyRegistrations}/${point.totalRegistrations} early registrations`;
+                          }}
+                        />
+                        <Area type="monotone" dataKey="earlyRegistrationRate" name="Early Registration Rate" stroke="#2563eb" fill="#93c5fd" fillOpacity={0.35} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="regions" className="mt-6">
+                  {topRegionRows.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                      No regional early-registration data is available for the current filters.
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border">
+                      <div className="grid grid-cols-12 gap-2 border-b bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="col-span-4">Region</div>
+                        <div className="col-span-2 text-right">Early Rate</div>
+                        <div className="col-span-2 text-right">Delta</div>
+                        <div className="col-span-2 text-right">Early</div>
+                        <div className="col-span-2 text-right">Total ANC</div>
+                      </div>
+                      <div className="divide-y">
+                        {topRegionRows.map((row) => (
+                          <div key={row.region} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm">
+                            <div className="col-span-4 font-medium">{row.region}</div>
+                            <div className="col-span-2 text-right">{Number(row.early_rate).toFixed(1)}%</div>
+                            <div className={`col-span-2 text-right ${row.rate_delta >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatDelta(row.rate_delta, ' pts')}</div>
+                            <div className="col-span-2 text-right">{Number(row.early_registrations).toLocaleString()}</div>
+                            <div className="col-span-2 text-right text-muted-foreground">{Number(row.total_registrations).toLocaleString()}</div>
+                          </div>
+                        ))}
                       </div>
                     </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="districts" className="mt-6 space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    {selectedRegion !== "All Regions"
+                      ? `District comparison is scoped to ${selectedRegion} Region.`
+                      : 'Showing top district performers nationally. Apply a region filter for a cleaner local comparison.'}
                   </div>
-                  <div className="text-right text-xs text-muted-foreground">
-                    <div>
-                      First: {volunteer.first_registration ? new Date(volunteer.first_registration).toLocaleDateString() : '-'}
+                  {topDistrictRows.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                      No district early-registration data is available for the current filters.
                     </div>
-                    <div>
-                      Latest: {volunteer.last_registration ? new Date(volunteer.last_registration).toLocaleDateString() : '-'}
+                  ) : (
+                    <div className="rounded-lg border">
+                      <div className="grid grid-cols-12 gap-2 border-b bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="col-span-3">District</div>
+                        <div className="col-span-3">Region</div>
+                        <div className="col-span-2 text-right">Early Rate</div>
+                        <div className="col-span-2 text-right">Delta</div>
+                        <div className="col-span-2 text-right">Early / Total</div>
+                      </div>
+                      <div className="divide-y">
+                        {topDistrictRows.map((row) => (
+                          <div key={`${row.region}-${row.district}`} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm">
+                            <div className="col-span-3 font-medium">{row.district}</div>
+                            <div className="col-span-3 text-muted-foreground">{row.region}</div>
+                            <div className="col-span-2 text-right">{Number(row.early_rate).toFixed(1)}%</div>
+                            <div className={`col-span-2 text-right ${row.rate_delta >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatDelta(row.rate_delta, ' pts')}</div>
+                            <div className="col-span-2 text-right">{Number(row.early_registrations).toLocaleString()} / {Number(row.total_registrations).toLocaleString()}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="volunteers" className="mt-6 space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Operational context: volunteer registration activity remains available here so managers can follow up after spotting geography-level gaps.
                   </div>
-                </div>
-              ))}
-            </div>
+                  <div className="space-y-4">
+                    {volunteers.slice(0, 5).map((volunteer) => (
+                      <div key={volunteer.user_id} className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center space-x-3">
+                          <UserCheck className="h-8 w-8 text-blue-500" />
+                          <div>
+                            <div className="font-medium">{volunteer.volunteer_name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {volunteer.patients_registered} patients registered, {volunteer.patients_registered_30d} in last 30 days
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground">
+                          <div>
+                            First: {volunteer.first_registration ? new Date(volunteer.first_registration).toLocaleDateString() : '-'}
+                          </div>
+                          <div>
+                            Latest: {volunteer.last_registration ? new Date(volunteer.last_registration).toLocaleDateString() : '-'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
       </div>
