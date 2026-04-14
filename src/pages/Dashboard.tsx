@@ -154,8 +154,9 @@ interface FirstTrimesterTrendPoint {
   early_registration_rate: number;
 }
 
-interface FirstTrimesterRegionRow {
+interface FirstTrimesterDistrictRow {
   region: string;
+  district: string;
   early_registrations: number;
   total_registrations: number;
   early_rate: number;
@@ -166,15 +167,15 @@ interface FirstTrimesterRegionRow {
   early_registrations_delta: number;
 }
 
-interface FirstTrimesterDistrictRow extends FirstTrimesterRegionRow {
-  district: string;
+interface FirstTrimesterSubdistrictRow extends FirstTrimesterDistrictRow {
+  subdistrict: string;
 }
 
 interface FirstTrimesterInsights {
   summary: FirstTrimesterSummary;
   monthlyTrend: FirstTrimesterTrendPoint[];
-  regions: FirstTrimesterRegionRow[];
   districts: FirstTrimesterDistrictRow[];
+  subdistricts: FirstTrimesterSubdistrictRow[];
   meta: {
     filtered: boolean;
     filter_level: 'national' | 'region' | 'district' | 'subdistrict';
@@ -716,8 +717,8 @@ const Dashboard = () => {
   }, [firstTrimesterTrendData]);
 
   const firstTrimesterSummary = firstTrimesterInsights?.summary;
-  const topRegionRows = (firstTrimesterInsights?.regions || []).slice(0, 8);
   const topDistrictRows = (firstTrimesterInsights?.districts || []).slice(0, 10);
+  const topSubdistrictRows = (firstTrimesterInsights?.subdistricts || []).slice(0, 10);
   const selectedScopeLabel = selectedDistrict !== "All Districts"
     ? `${selectedDistrict} District`
     : selectedRegion !== "All Regions"
@@ -1136,8 +1137,8 @@ const Dashboard = () => {
               <Tabs defaultValue="trend" className="w-full">
                 <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
                   <TabsTrigger value="trend" className="rounded-md border border-border bg-background px-4 py-2">Trend</TabsTrigger>
-                  <TabsTrigger value="regions" className="rounded-md border border-border bg-background px-4 py-2">Regions</TabsTrigger>
                   <TabsTrigger value="districts" className="rounded-md border border-border bg-background px-4 py-2">Districts</TabsTrigger>
+                  <TabsTrigger value="subdistricts" className="rounded-md border border-border bg-background px-4 py-2">Subdistricts</TabsTrigger>
                   <TabsTrigger value="volunteers" className="rounded-md border border-border bg-background px-4 py-2">Volunteers</TabsTrigger>
                 </TabsList>
 
@@ -1199,28 +1200,35 @@ const Dashboard = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="regions" className="mt-6">
-                  {topRegionRows.length === 0 ? (
+                <TabsContent value="subdistricts" className="mt-6 space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    {selectedDistrict !== "All Districts"
+                      ? `Subdistrict comparison is scoped to ${selectedDistrict} District.`
+                      : selectedRegion !== "All Regions"
+                        ? `Showing top subdistrict performers in ${selectedRegion} Region. Apply a district filter for the cleanest local comparison.`
+                        : 'Showing top subdistrict performers nationally. Apply region and district filters for a cleaner local comparison.'}
+                  </div>
+                  {topSubdistrictRows.length === 0 ? (
                     <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                      No regional early-registration data is available for the current filters.
+                      No subdistrict early-registration data is available for the current filters.
                     </div>
                   ) : (
                     <div className="rounded-lg border">
                       <div className="grid grid-cols-12 gap-2 border-b bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        <div className="col-span-4">Region</div>
+                        <div className="col-span-3">Subdistrict</div>
+                        <div className="col-span-3">District</div>
                         <div className="col-span-2 text-right">Early Rate</div>
                         <div className="col-span-2 text-right">Delta</div>
-                        <div className="col-span-2 text-right">Early</div>
-                        <div className="col-span-2 text-right">Total ANC</div>
+                        <div className="col-span-2 text-right">Early / Total</div>
                       </div>
                       <div className="divide-y">
-                        {topRegionRows.map((row) => (
-                          <div key={row.region} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm">
-                            <div className="col-span-4 font-medium">{row.region}</div>
+                        {topSubdistrictRows.map((row) => (
+                          <div key={`${row.region}-${row.district}-${row.subdistrict}`} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm">
+                            <div className="col-span-3 font-medium">{row.subdistrict}</div>
+                            <div className="col-span-3 text-muted-foreground">{row.district}</div>
                             <div className="col-span-2 text-right">{Number(row.early_rate).toFixed(1)}%</div>
                             <div className={`col-span-2 text-right ${row.rate_delta >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatDelta(row.rate_delta, ' pts')}</div>
-                            <div className="col-span-2 text-right">{Number(row.early_registrations).toLocaleString()}</div>
-                            <div className="col-span-2 text-right text-muted-foreground">{Number(row.total_registrations).toLocaleString()}</div>
+                            <div className="col-span-2 text-right">{Number(row.early_registrations).toLocaleString()} / {Number(row.total_registrations).toLocaleString()}</div>
                           </div>
                         ))}
                       </div>
