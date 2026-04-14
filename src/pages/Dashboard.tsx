@@ -1099,37 +1099,8 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Geographic Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Regional</CardTitle>
-            <CardDescription>Patient distribution by region</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={regionalData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {regionalData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {/* Early Registration Insights */}
-        <Card className="md:col-span-2 lg:col-span-3">
+        <Card className="md:col-span-2 lg:col-span-2">
           <CardHeader>
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
@@ -1369,16 +1340,45 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle>Regional Breakdown</CardTitle>
-                    <CardDescription>Registrations by region</CardDescription>
+                    <CardDescription>Registrations by region, alongside patient distribution by region</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      {Object.entries(patientStats.regionalBreakdown).map(([region, count]) => (
-                        <div key={region} className="flex justify-between">
-                          <span>{region}</span>
-                          <Badge variant="secondary">{count}</Badge>
-                        </div>
-                      ))}
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="space-y-2">
+                        {Object.entries(patientStats.regionalBreakdown).map(([region, count]) => (
+                          <div key={region} className="flex justify-between">
+                            <span>{region}</span>
+                            <Badge variant="secondary">{count}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        {regionalData.length === 0 ? (
+                          <div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+                            No regional distribution data available.
+                          </div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height={260}>
+                            <PieChart>
+                              <Pie
+                                data={regionalData}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                              >
+                                {regionalData.map((_, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
