@@ -318,10 +318,10 @@ const DISTRICT_PROFILES = [
   },
 ] as const;
 
-// Generate mock dates from Sept 1, 2024 to Apr 10, 2026 with the same 3-4 day cadence.
+// Generate mock dates from Oct 1, 2025 to Apr 10, 2026 with the same 3-4 day cadence.
 const generateDatesList = () => {
   const dates: string[] = [];
-  const startDate = new Date("2024-09-01");
+  const startDate = new Date("2025-10-01");
   const endDate = new Date("2026-04-10");
   const intervalPattern = [3, 4, 3, 4, 4, 3];
   
@@ -871,7 +871,7 @@ const ReportsMessaging = () => {
               <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h3 className="text-base font-semibold">Delivery Success Trend</h3>
-                  <p className="text-sm text-muted-foreground">Gradual improvement in simulated delivery performance from Sep 2024 to Apr 10, 2026.</p>
+                  <p className="text-sm text-muted-foreground">Gradual improvement in simulated delivery performance from Oct 2025 to Apr 10, 2026.</p>
                 </div>
                 {latestTrendPoint && baselineTrendPoint && (
                   <div className="text-sm text-muted-foreground">
