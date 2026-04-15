@@ -345,6 +345,27 @@ const DISTRICT_MONTH_SIGNATURES: Record<string, Record<string, number>> = {
   },
 };
 
+const FOCUS_DISTRICT_MONTHLY_TRENDS: Record<string, Record<string, number>> = {
+  "North East::Mamprugu Moagduri": {
+    "2025-10": 15.8,
+    "2025-11": 11.5,
+    "2025-12": 16.9,
+    "2026-01": 25.7,
+    "2026-02": 21.4,
+    "2026-03": 27.8,
+    "2026-04": 33.6,
+  },
+  "Upper West::Wa West": {
+    "2025-10": 17.2,
+    "2025-11": 13.4,
+    "2025-12": 18.1,
+    "2026-01": 23.8,
+    "2026-02": 22.4,
+    "2026-03": 29.4,
+    "2026-04": 33.3,
+  },
+};
+
 // Generate mock dates from Oct 1, 2025 to Apr 10, 2026 with the same 3-4 day cadence.
 const generateDatesList = () => {
   const dates: string[] = [];
@@ -657,6 +678,7 @@ const ReportsMessaging = () => {
 
     const topDistrictSet = new Set(latestDistricts.map((item) => `${item.region}::${item.district}`));
     const seriesMap = new Map<string, string>();
+    const seriesKeyToLabel = new Map<string, string>();
     const monthMap = new Map<string, Record<string, string | number>>();
 
     districtDeliveryTrendData.forEach((item) => {
@@ -667,6 +689,7 @@ const ReportsMessaging = () => {
         ? item.district
         : `${item.district} (${item.region})`;
       seriesMap.set(seriesKey, seriesLabel);
+      seriesKeyToLabel.set(seriesKey, seriesLabel);
 
       const date = new Date(item.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -685,13 +708,26 @@ const ReportsMessaging = () => {
 
     const data = Array.from(monthMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([, value]) => {
-        const row = { month: value.month as string } as Record<string, string | number>;
+      .map(([monthKey, value]) => {
+        const row = {
+          month: value.month as string,
+          monthKey,
+        } as Record<string, string | number>;
         Array.from(seriesMap.values()).forEach((label) => {
           const success = Number(value[`${label}_success`] || 0);
           const total = Number(value[`${label}_total`] || 0);
           row[label] = total === 0 ? 0 : Number(((success / total) * 100).toFixed(1));
         });
+
+        if (!isRegionScoped && !isDistrictScoped) {
+          Array.from(seriesKeyToLabel.entries()).forEach(([seriesKey, label]) => {
+            const target = FOCUS_DISTRICT_MONTHLY_TRENDS[seriesKey]?.[monthKey];
+            if (typeof target === "number") {
+              row[label] = target;
+            }
+          });
+        }
+
         return row;
       });
 
