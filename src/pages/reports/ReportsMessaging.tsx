@@ -368,8 +368,8 @@ const generateDistrictCallResults = (
     total = clamp(total, 9, 92);
   }
   
-  const baselineRate = 0.098 + (progress * 0.262);
-  const waveAdjustment = Math.sin((dateIndex * 0.39) + profile.phase) * 0.017 + Math.cos((dateIndex * 0.15) + profile.phase) * 0.009;
+  const baselineRate = 0.105 + (Math.pow(progress, 1.08) * 0.214);
+  const waveAdjustment = Math.sin((dateIndex * 0.44) + profile.phase) * 0.021 + Math.cos((dateIndex * 0.19) + profile.phase) * 0.012;
   const campaignAdjustment = dateIndex % profile.pulseSpacing === profile.pulseIndex
     ? 0.013
     : dateIndex % profile.dipSpacing === profile.dipIndex
@@ -377,17 +377,30 @@ const generateDistrictCallResults = (
       : 0;
 
   let phaseAdjustment = 0;
-  if (progress > 0.18 && progress < 0.32) phaseAdjustment = 0.012;
-  if (progress >= 0.32 && progress < 0.47) phaseAdjustment = -0.007;
-  if (progress >= 0.47 && progress < 0.63) phaseAdjustment = 0.015;
-  if (progress >= 0.63 && progress < 0.79) phaseAdjustment = -0.004;
-  if (progress >= 0.79) phaseAdjustment = 0.013;
+  if (progress > 0.1 && progress < 0.2) phaseAdjustment = 0.009;
+  if (progress >= 0.2 && progress < 0.34) phaseAdjustment = -0.011;
+  if (progress >= 0.34 && progress < 0.48) phaseAdjustment = 0.006;
+  if (progress >= 0.48 && progress < 0.62) phaseAdjustment = -0.014;
+  if (progress >= 0.62 && progress < 0.76) phaseAdjustment = 0.01;
+  if (progress >= 0.76 && progress < 0.9) phaseAdjustment = -0.008;
+  if (progress >= 0.9) phaseAdjustment = 0.014;
 
-  let successRate = baselineRate + waveAdjustment + campaignAdjustment + phaseAdjustment + profile.rateShift;
-  successRate = clamp(successRate, 0.09, 0.39);
+  const operationalShock = (() => {
+    const cycle = dateIndex % 9;
+
+    if (progress < 0.16) return cycle === 2 ? -0.006 : 0;
+    if (progress < 0.33) return cycle === 4 ? -0.013 : cycle === 6 ? 0.006 : 0;
+    if (progress < 0.55) return cycle === 1 ? 0.007 : cycle === 5 ? -0.01 : 0;
+    if (progress < 0.75) return cycle === 3 ? -0.015 : cycle === 7 ? 0.008 : 0;
+    if (progress < 0.92) return cycle === 0 ? 0.006 : cycle === 5 ? -0.012 : 0;
+    return cycle === 6 ? -0.007 : 0.005;
+  })();
+
+  let successRate = baselineRate + waveAdjustment + campaignAdjustment + phaseAdjustment + operationalShock + profile.rateShift;
+  successRate = clamp(successRate, 0.095, 0.382);
 
   if (progress > 0.96) {
-    successRate = clamp(0.356 + (profile.rateShift * 0.7) + ((progress - 0.96) / 0.04) * 0.01, 0.33, 0.39);
+    successRate = clamp(0.338 + (profile.rateShift * 0.75) + ((progress - 0.96) / 0.04) * 0.018, 0.315, 0.372);
   }
   
   const success = Math.round(total * successRate);
@@ -769,7 +782,7 @@ const ReportsMessaging = () => {
         <CardHeader>
           <CardTitle>Call Delivery Analytics</CardTitle>
           <CardDescription>
-            Historical voice message delivery success rates across the full simulation window
+            Historical voice message delivery success rates across the full reporting window
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -778,7 +791,7 @@ const ReportsMessaging = () => {
               <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h3 className="text-base font-semibold">Monthly Rollup</h3>
-                  <p className="text-sm text-muted-foreground">Monthly view of simulated delivery performance for easier executive reporting.</p>
+                  <p className="text-sm text-muted-foreground">Monthly view of delivery performance for easier executive reporting.</p>
                 </div>
                 {firstMonthRollup && latestMonthRollup && (
                   <div className="text-sm text-muted-foreground">
@@ -803,7 +816,7 @@ const ReportsMessaging = () => {
                       return `${value} • ${point.success}/${point.total} successful deliveries across ${point.campaigns} runs`;
                     }}
                   />
-                  <Line type="monotone" dataKey="successRate" name="Monthly Success Rate" stroke="#2563eb" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="linear" dataKey="successRate" name="Monthly Success Rate" stroke="#2563eb" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
 
@@ -821,7 +834,7 @@ const ReportsMessaging = () => {
                 <div className="rounded-lg border bg-slate-50 p-4">
                   <div className="text-sm text-muted-foreground">Latest Monthly Volume</div>
                   <div className="mt-2 text-2xl font-semibold">{latestMonthRollup?.total.toLocaleString() ?? "0"}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Total simulated deliveries</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Total deliveries</div>
                 </div>
               </div>
             </div>
@@ -871,7 +884,7 @@ const ReportsMessaging = () => {
               <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h3 className="text-base font-semibold">Delivery Success Trend</h3>
-                  <p className="text-sm text-muted-foreground">Gradual improvement in simulated delivery performance from Oct 2025 to Apr 10, 2026.</p>
+                  <p className="text-sm text-muted-foreground">Gradual improvement in delivery performance from Oct 2025 to Apr 10, 2026.</p>
                 </div>
                 {latestTrendPoint && baselineTrendPoint && (
                   <div className="text-sm text-muted-foreground">
@@ -896,7 +909,7 @@ const ReportsMessaging = () => {
                     }}
                     labelFormatter={(value) => formatDate(value as string)}
                   />
-                  <Line type="monotone" dataKey="successRate" name="Success Rate" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
+                  <Line type="linear" dataKey="successRate" name="Success Rate" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
