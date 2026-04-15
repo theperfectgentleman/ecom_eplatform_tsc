@@ -1023,7 +1023,7 @@ const ReportsMessaging = () => {
               <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h3 className="text-base font-semibold">Delivery Success Trend</h3>
-                  <p className="text-sm text-muted-foreground">Gradual improvement in delivery performance from Oct 2025 to Apr 10, 2026.</p>
+                  <p className="text-sm text-muted-foreground">Delivery performance across the reporting period from Oct 2025 to Apr 10, 2026.</p>
                 </div>
                 {latestTrendPoint && baselineTrendPoint && (
                   <div className="text-sm text-muted-foreground">
