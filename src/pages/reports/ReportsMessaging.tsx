@@ -319,6 +319,11 @@ const DISTRICT_PROFILES = [
   },
 ] as const;
 
+const FOCUS_DISTRICT_TREND_KEYS = new Set([
+  "North East::Mamprugu Moagduri",
+  "Upper West::Wa West",
+]);
+
 // Generate mock dates from Oct 1, 2025 to Apr 10, 2026 with the same 3-4 day cadence.
 const generateDatesList = () => {
   const dates: string[] = [];
@@ -613,10 +618,14 @@ const ReportsMessaging = () => {
       return { data: [], series: [] as string[] };
     }
 
-    const latestDistricts = districtDeliveryTrendData
-      .filter((item) => item.date === latestDate)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, isDistrictScoped ? 1 : isRegionScoped ? 4 : 5);
+    const latestDistricts = isDistrictScoped || isRegionScoped
+      ? districtDeliveryTrendData
+        .filter((item) => item.date === latestDate)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, isDistrictScoped ? 1 : 4)
+      : districtDeliveryTrendData
+        .filter((item) => item.date === latestDate)
+        .filter((item) => FOCUS_DISTRICT_TREND_KEYS.has(`${item.region}::${item.district}`));
 
     const topDistrictSet = new Set(latestDistricts.map((item) => `${item.region}::${item.district}`));
     const seriesMap = new Map<string, string>();
@@ -911,7 +920,7 @@ const ReportsMessaging = () => {
                   <div>
                     <h3 className="text-base font-semibold">District Delivery Trends</h3>
                     <p className="text-sm text-muted-foreground">
-                      Monthly SMS delivery success-rate trend for the top districts in the current scope.
+                      Monthly SMS delivery success-rate trend for the focus districts in the current scope.
                     </p>
                   </div>
                   <div className="text-sm text-muted-foreground">
@@ -919,7 +928,7 @@ const ReportsMessaging = () => {
                       ? 'Single district view'
                       : isRegionScoped
                         ? 'Top districts in selected region'
-                        : 'Top districts nationally'}
+                        : 'Focus districts nationally'}
                   </div>
                 </div>
 
