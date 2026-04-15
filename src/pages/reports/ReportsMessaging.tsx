@@ -338,9 +338,51 @@ const generateDatesList = () => {
   return dates;
 };
 
+const getDeliveryConditionAdjustments = (
+  dateLabel: string,
+  dateIndex: number,
+  progress: number,
+  profile: (typeof DISTRICT_PROFILES)[number]
+) => {
+  const date = new Date(dateLabel);
+  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  const monthAdjustmentMap: Record<string, number> = {
+    "2025-10": 0.013,
+    "2025-11": -0.021,
+    "2025-12": -0.01,
+    "2026-01": 0.001,
+    "2026-02": -0.024,
+    "2026-03": -0.009,
+    "2026-04": 0.003,
+  };
+
+  const weekBand = Math.min(4, Math.floor((date.getDate() - 1) / 7));
+  const weekBandAdjustments = [0.005, -0.004, 0.002, -0.006, 0.003];
+  const weekBandAdjustment = weekBandAdjustments[weekBand] ?? 0;
+  const districtResilience = ((profile.volumeFactor - 1) * 0.028) + (profile.rateShift * 0.16);
+
+  let lateStageDrag = 0;
+  if (progress >= 0.7 && progress < 0.86) lateStageDrag = -0.011;
+  if (progress >= 0.86 && progress < 0.94) lateStageDrag = -0.006;
+
+  const reviewCycleEffect = dateIndex % 8 === 3
+    ? -0.006
+    : dateIndex % 8 === 6
+      ? 0.004
+      : 0;
+
+  return {
+    monthAdjustment: (monthAdjustmentMap[monthKey] ?? 0) + districtResilience,
+    weekBandAdjustment,
+    lateStageDrag,
+    reviewCycleEffect,
+  };
+};
+
 // Generate mock district-level call results with improving but uneven success rates.
 // Aggregating these district series yields the overall SMS delivery trend.
 const generateDistrictCallResults = (
+  dateLabel: string,
   dateIndex: number,
   totalDates: number,
   profile: (typeof DISTRICT_PROFILES)[number]
@@ -368,7 +410,7 @@ const generateDistrictCallResults = (
     total = clamp(total, 9, 92);
   }
   
-  const baselineRate = 0.105 + (Math.pow(progress, 1.08) * 0.214);
+  const baselineRate = 0.108 + (Math.pow(progress, 1.17) * 0.196);
   const waveAdjustment = Math.sin((dateIndex * 0.44) + profile.phase) * 0.021 + Math.cos((dateIndex * 0.19) + profile.phase) * 0.012;
   const campaignAdjustment = dateIndex % profile.pulseSpacing === profile.pulseIndex
     ? 0.013
@@ -396,11 +438,27 @@ const generateDistrictCallResults = (
     return cycle === 6 ? -0.007 : 0.005;
   })();
 
-  let successRate = baselineRate + waveAdjustment + campaignAdjustment + phaseAdjustment + operationalShock + profile.rateShift;
-  successRate = clamp(successRate, 0.095, 0.382);
+  const {
+    monthAdjustment,
+    weekBandAdjustment,
+    lateStageDrag,
+    reviewCycleEffect,
+  } = getDeliveryConditionAdjustments(dateLabel, dateIndex, progress, profile);
+
+  let successRate = baselineRate
+    + waveAdjustment
+    + campaignAdjustment
+    + phaseAdjustment
+    + operationalShock
+    + monthAdjustment
+    + weekBandAdjustment
+    + lateStageDrag
+    + reviewCycleEffect
+    + profile.rateShift;
+  successRate = clamp(successRate, 0.09, 0.366);
 
   if (progress > 0.96) {
-    successRate = clamp(0.338 + (profile.rateShift * 0.75) + ((progress - 0.96) / 0.04) * 0.018, 0.315, 0.372);
+    successRate = clamp(0.319 + (profile.rateShift * 0.5) + ((progress - 0.96) / 0.04) * 0.011, 0.296, 0.349);
   }
   
   const success = Math.round(total * successRate);
@@ -443,7 +501,7 @@ const ReportsMessaging = () => {
   const districtDeliveryTrendData = useMemo(() => {
     return datesList.flatMap((date, index) => (
       visibleDistrictProfiles.map((profile) => {
-        const result = generateDistrictCallResults(index, datesList.length, profile);
+        const result = generateDistrictCallResults(date, index, datesList.length, profile);
         return {
           date,
           region: result.region,
