@@ -324,6 +324,27 @@ const FOCUS_DISTRICT_TREND_KEYS = new Set([
   "Upper West::Wa West",
 ]);
 
+const DISTRICT_MONTH_SIGNATURES: Record<string, Record<string, number>> = {
+  "North East::Mamprugu Moagduri": {
+    "2025-10": -0.006,
+    "2025-11": -0.004,
+    "2025-12": 0.001,
+    "2026-01": 0.014,
+    "2026-02": -0.008,
+    "2026-03": -0.003,
+    "2026-04": -0.005,
+  },
+  "Upper West::Wa West": {
+    "2025-10": 0.007,
+    "2025-11": 0.003,
+    "2025-12": -0.004,
+    "2026-01": -0.005,
+    "2026-02": 0.007,
+    "2026-03": 0.009,
+    "2026-04": 0.004,
+  },
+};
+
 // Generate mock dates from Oct 1, 2025 to Apr 10, 2026 with the same 3-4 day cadence.
 const generateDatesList = () => {
   const dates: string[] = [];
@@ -352,6 +373,7 @@ const getDeliveryConditionAdjustments = (
 ) => {
   const date = new Date(dateLabel);
   const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  const districtKey = `${profile.region}::${profile.district}`;
   const monthAdjustmentMap: Record<string, number> = {
     "2025-10": 0.013,
     "2025-11": -0.021,
@@ -366,6 +388,9 @@ const getDeliveryConditionAdjustments = (
   const weekBandAdjustments = [0.005, -0.004, 0.002, -0.006, 0.003];
   const weekBandAdjustment = weekBandAdjustments[weekBand] ?? 0;
   const districtResilience = ((profile.volumeFactor - 1) * 0.028) + (profile.rateShift * 0.16);
+  const districtMonthAdjustment = DISTRICT_MONTH_SIGNATURES[districtKey]?.[monthKey] ?? 0;
+  const districtCadenceAdjustment = Math.sin((dateIndex * 0.27) + (profile.phase * 1.8))
+    * (districtKey === "North East::Mamprugu Moagduri" ? 0.007 : districtKey === "Upper West::Wa West" ? 0.005 : 0.003);
 
   let lateStageDrag = 0;
   if (progress >= 0.7 && progress < 0.86) lateStageDrag = -0.011;
@@ -378,10 +403,11 @@ const getDeliveryConditionAdjustments = (
       : 0;
 
   return {
-    monthAdjustment: (monthAdjustmentMap[monthKey] ?? 0) + districtResilience,
+    monthAdjustment: (monthAdjustmentMap[monthKey] ?? 0) + districtResilience + districtMonthAdjustment,
     weekBandAdjustment,
     lateStageDrag,
     reviewCycleEffect,
+    districtCadenceAdjustment,
   };
 };
 
@@ -449,6 +475,7 @@ const generateDistrictCallResults = (
     weekBandAdjustment,
     lateStageDrag,
     reviewCycleEffect,
+    districtCadenceAdjustment,
   } = getDeliveryConditionAdjustments(dateLabel, dateIndex, progress, profile);
 
   let successRate = baselineRate
@@ -460,6 +487,7 @@ const generateDistrictCallResults = (
     + weekBandAdjustment
     + lateStageDrag
     + reviewCycleEffect
+    + districtCadenceAdjustment
     + profile.rateShift;
   successRate = clamp(successRate, 0.09, 0.366);
 
@@ -942,7 +970,7 @@ const ReportsMessaging = () => {
                     {districtTrendChart.series.map((seriesName, index) => (
                       <Line
                         key={seriesName}
-                        type="monotone"
+                        type="linear"
                         dataKey={seriesName}
                         stroke={["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"][index % 5]}
                         strokeWidth={2}
