@@ -42,6 +42,9 @@ import {
   PieChart,
   Pie,
   Cell,
+  LineChart,
+  Line,
+  Legend,
   AreaChart,
   Area,
 } from "recharts";
@@ -167,6 +170,16 @@ interface FirstTrimesterDistrictRow {
   early_registrations_delta: number;
 }
 
+interface FirstTrimesterDistrictTrendPoint {
+  month: string;
+  month_label: string;
+  region: string;
+  district: string;
+  early_registrations: number;
+  total_registrations: number;
+  early_registration_rate: number;
+}
+
 interface FirstTrimesterSubdistrictRow extends FirstTrimesterDistrictRow {
   subdistrict: string;
 }
@@ -175,6 +188,7 @@ interface FirstTrimesterInsights {
   summary: FirstTrimesterSummary;
   monthlyTrend: FirstTrimesterTrendPoint[];
   districts: FirstTrimesterDistrictRow[];
+  districtMonthlyTrend: FirstTrimesterDistrictTrendPoint[];
   subdistricts: FirstTrimesterSubdistrictRow[];
   meta: {
     filtered: boolean;
@@ -719,6 +733,33 @@ const Dashboard = () => {
   const firstTrimesterSummary = firstTrimesterInsights?.summary;
   const topDistrictRows = (firstTrimesterInsights?.districts || []).slice(0, 10);
   const topSubdistrictRows = (firstTrimesterInsights?.subdistricts || []).slice(0, 10);
+  const districtTrendChart = useMemo(() => {
+    const rows = firstTrimesterInsights?.districtMonthlyTrend || [];
+    const seriesMap = new Map<string, string>();
+    const monthMap = new Map<string, Record<string, string | number>>();
+
+    rows.forEach((row) => {
+      const seriesKey = `${row.region}::${row.district}`;
+      const seriesLabel = selectedRegion === "All Regions" && selectedDistrict === "All Districts"
+        ? `${row.district} (${row.region})`
+        : row.district;
+      seriesMap.set(seriesKey, seriesLabel);
+
+      const monthEntry = monthMap.get(row.month) || {
+        month: row.month_label,
+      };
+
+      monthEntry[seriesLabel] = Number(row.early_registration_rate ?? 0);
+      monthMap.set(row.month, monthEntry);
+    });
+
+    return {
+      data: Array.from(monthMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([, value]) => value),
+      series: Array.from(seriesMap.values()),
+    };
+  }, [firstTrimesterInsights?.districtMonthlyTrend, selectedDistrict, selectedRegion]);
   const selectedScopeLabel = selectedDistrict !== "All Districts"
     ? `${selectedDistrict} District`
     : selectedRegion !== "All Regions"
@@ -1242,6 +1283,39 @@ const Dashboard = () => {
                       ? `District comparison is scoped to ${selectedRegion} Region.`
                       : 'Showing top district performers nationally. Apply a region filter for a cleaner local comparison.'}
                   </div>
+                  {districtTrendChart.series.length > 0 && districtTrendChart.data.length > 0 && (
+                    <div className="rounded-lg border p-4">
+                      <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                        <div>
+                          <h3 className="font-medium">District Trend Comparison</h3>
+                          <p className="text-sm text-muted-foreground">Monthly early-registration rate trend for the top districts in the current scope.</p>
+                        </div>
+                        <div className="text-xs text-muted-foreground">Top districts by current-period ANC volume</div>
+                      </div>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={districtTrendChart.data}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" minTickGap={24} />
+                          <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                          <Tooltip
+                            formatter={(value: number, name: string) => [`${Number(value).toFixed(1)}%`, name]}
+                          />
+                          <Legend />
+                          {districtTrendChart.series.map((seriesName, index) => (
+                            <Line
+                              key={seriesName}
+                              type="monotone"
+                              dataKey={seriesName}
+                              stroke={COLORS[index % COLORS.length]}
+                              strokeWidth={2}
+                              dot={false}
+                              activeDot={{ r: 4 }}
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                   {topDistrictRows.length === 0 ? (
                     <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
                       No district early-registration data is available for the current filters.
