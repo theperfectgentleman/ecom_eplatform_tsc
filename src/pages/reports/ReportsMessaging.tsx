@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Play, Square, Volume2, Calendar } from "lucide-react";
 import { useAccessLevelFilter } from "@/hooks/useAccessLevelFilter";
+import { AccessLevel } from "@/types";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 
 // Mock data for voice messages - All 10 messages per region
@@ -480,23 +481,30 @@ const COLORS = {
 };
 
 const ReportsMessaging = () => {
-  const { userLocation } = useAccessLevelFilter();
+  const { userLocation, userAccessLevel, isNationalAccess } = useAccessLevelFilter();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const isDistrictScoped = userAccessLevel === AccessLevel.COMMUNITY
+    || userAccessLevel === AccessLevel.SUBDISTRICT
+    || userAccessLevel === AccessLevel.DISTRICT;
+  const isRegionScoped = userAccessLevel === AccessLevel.REGION;
+  const scopedRegion = isNationalAccess ? undefined : userLocation.region;
+  const scopedDistrict = isDistrictScoped ? userLocation.district : undefined;
+
   const datesList = useMemo(() => generateDatesList(), []);
   const visibleDistrictProfiles = useMemo(() => {
-    if (userLocation.district) {
-      return DISTRICT_PROFILES.filter((profile) => profile.district === userLocation.district);
+    if (scopedDistrict) {
+      return DISTRICT_PROFILES.filter((profile) => profile.district === scopedDistrict);
     }
 
-    if (userLocation.region) {
-      return DISTRICT_PROFILES.filter((profile) => profile.region === userLocation.region);
+    if (isRegionScoped && scopedRegion) {
+      return DISTRICT_PROFILES.filter((profile) => profile.region === scopedRegion);
     }
 
     return DISTRICT_PROFILES;
-  }, [userLocation.district, userLocation.region]);
+  }, [isRegionScoped, scopedDistrict, scopedRegion]);
 
   const districtDeliveryTrendData = useMemo(() => {
     return datesList.flatMap((date, index) => (
@@ -608,7 +616,7 @@ const ReportsMessaging = () => {
     const latestDistricts = districtDeliveryTrendData
       .filter((item) => item.date === latestDate)
       .sort((a, b) => b.total - a.total)
-      .slice(0, userLocation.district ? 1 : userLocation.region ? 4 : 5);
+      .slice(0, isDistrictScoped ? 1 : isRegionScoped ? 4 : 5);
 
     const topDistrictSet = new Set(latestDistricts.map((item) => `${item.region}::${item.district}`));
     const seriesMap = new Map<string, string>();
@@ -618,7 +626,7 @@ const ReportsMessaging = () => {
       const seriesKey = `${item.region}::${item.district}`;
       if (!topDistrictSet.has(seriesKey)) return;
 
-      const seriesLabel = userLocation.region || userLocation.district
+      const seriesLabel = isRegionScoped || isDistrictScoped
         ? item.district
         : `${item.district} (${item.region})`;
       seriesMap.set(seriesKey, seriesLabel);
@@ -654,7 +662,7 @@ const ReportsMessaging = () => {
       data,
       series: Array.from(seriesMap.values()),
     };
-  }, [deliveryTrendData, districtDeliveryTrendData, userLocation.district, userLocation.region]);
+  }, [deliveryTrendData, districtDeliveryTrendData, isDistrictScoped, isRegionScoped]);
   const latestMonthRollup = monthlyRollupData[monthlyRollupData.length - 1] ?? null;
   const firstMonthRollup = monthlyRollupData[0] ?? null;
   const bestMonthRollup = monthlyRollupData.reduce((best, current) => {
@@ -672,9 +680,9 @@ const ReportsMessaging = () => {
 
   // Filter messages by user's region
   const filteredMessages = useMemo(() => {
-    if (!userLocation.region) return mockVoiceMessages;
-    return mockVoiceMessages.filter(msg => msg.region === userLocation.region);
-  }, [userLocation.region]);
+    if (!scopedRegion) return mockVoiceMessages;
+    return mockVoiceMessages.filter(msg => msg.region === scopedRegion);
+  }, [scopedRegion]);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -767,10 +775,10 @@ const ReportsMessaging = () => {
         <h1 className="text-3xl font-bold tracking-tight">Messaging Analytics</h1>
         <p className="text-muted-foreground">
           Track scheduled voice messages and their delivery success rates across regions.
-          {userLocation.district
-            ? ` Showing data for ${userLocation.district} District.`
-            : userLocation.region
-              ? ` Showing data for ${userLocation.region}.`
+          {isDistrictScoped && scopedDistrict
+            ? ` Showing data for ${scopedDistrict} District.`
+            : isRegionScoped && scopedRegion
+              ? ` Showing data for ${scopedRegion}.`
               : ''}
         </p>
       </div>
@@ -907,9 +915,9 @@ const ReportsMessaging = () => {
                     </p>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {userLocation.district
+                    {isDistrictScoped
                       ? 'Single district view'
-                      : userLocation.region
+                      : isRegionScoped
                         ? 'Top districts in selected region'
                         : 'Top districts nationally'}
                   </div>
