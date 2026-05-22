@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip as InfoTooltip } from "@/components/ui/tooltip";
 import {
@@ -225,6 +226,10 @@ const TIMEFRAME_OPTIONS = [
   { value: 'all', label: 'All Available Data', days: 1460, weeks: 208 },
 ];
 
+const CUSTOM_TIMEFRAME_VALUE = 'custom';
+const DEFAULT_CUSTOM_TIMEFRAME_DAYS = 45;
+const MAX_CUSTOM_TIMEFRAME_DAYS = 3650;
+
 const PATIENT_LIMIT_OPTIONS = [
   { value: '200', label: 'Top 200 records' },
   { value: '500', label: 'Top 500 records' },
@@ -277,6 +282,8 @@ const Dashboard = () => {
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>(TIMEFRAME_OPTIONS[0].value);
+  const [customTimeframeDays, setCustomTimeframeDays] = useState<number>(DEFAULT_CUSTOM_TIMEFRAME_DAYS);
+  const [customTimeframeDraft, setCustomTimeframeDraft] = useState<string>(String(DEFAULT_CUSTOM_TIMEFRAME_DAYS));
   const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[4].value); // Default to 3000
 
   // Main aggregated data (1 API call)
@@ -320,8 +327,31 @@ const Dashboard = () => {
 
   // Build query parameters
   const timeframeConfig = useMemo(() => {
+    if (selectedTimeframe === CUSTOM_TIMEFRAME_VALUE) {
+      const safeDays = Math.max(1, customTimeframeDays);
+      return {
+        value: CUSTOM_TIMEFRAME_VALUE,
+        label: `Last ${safeDays} Days`,
+        days: safeDays,
+        weeks: Math.max(1, Math.ceil(safeDays / 7)),
+      };
+    }
+
     return TIMEFRAME_OPTIONS.find(option => option.value === selectedTimeframe) ?? TIMEFRAME_OPTIONS[0];
-  }, [selectedTimeframe]);
+  }, [customTimeframeDays, selectedTimeframe]);
+
+  const applyCustomTimeframe = () => {
+    const parsedValue = Number.parseInt(customTimeframeDraft, 10);
+    if (!Number.isFinite(parsedValue) || parsedValue < 1) {
+      setCustomTimeframeDraft(String(customTimeframeDays));
+      return;
+    }
+
+    const clampedDays = Math.min(parsedValue, MAX_CUSTOM_TIMEFRAME_DAYS);
+    setCustomTimeframeDays(clampedDays);
+    setCustomTimeframeDraft(String(clampedDays));
+    setSelectedTimeframe(CUSTOM_TIMEFRAME_VALUE);
+  };
 
   const baseQueryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -902,7 +932,7 @@ const Dashboard = () => {
           {/* Timeframe Filter */}
           <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select timeframe" />
+              <span>{timeframeConfig.label}</span>
             </SelectTrigger>
             <SelectContent>
               {TIMEFRAME_OPTIONS.map(option => (
@@ -910,8 +940,34 @@ const Dashboard = () => {
                   {option.label}
                 </SelectItem>
               ))}
+              <SelectItem value={CUSTOM_TIMEFRAME_VALUE}>
+                Custom Range
+              </SelectItem>
             </SelectContent>
           </Select>
+
+          {selectedTimeframe === CUSTOM_TIMEFRAME_VALUE && (
+            <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-2">
+              <Input
+                type="number"
+                min={1}
+                max={MAX_CUSTOM_TIMEFRAME_DAYS}
+                value={customTimeframeDraft}
+                onChange={(event) => setCustomTimeframeDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    applyCustomTimeframe();
+                  }
+                }}
+                className="h-8 w-24 border-0 px-2 py-1 shadow-none focus-visible:ring-0"
+                aria-label="Custom timeframe in days"
+              />
+              <span className="text-sm text-muted-foreground">days</span>
+              <Button type="button" variant="outline" size="sm" onClick={applyCustomTimeframe}>
+                Apply
+              </Button>
+            </div>
+          )}
 
           {/* Patient Limit */}
           <Select value={patientLimit} onValueChange={setPatientLimit}>
