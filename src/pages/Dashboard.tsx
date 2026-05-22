@@ -95,6 +95,12 @@ interface DashboardAggregates {
       'visits_21_28weeks': number;
       'visits_29plus': number;
     };
+    registrationsByGestation: {
+      'registrations_<=12weeks': number;
+      'registrations_13_20weeks': number;
+      'registrations_21_28weeks': number;
+      'registrations_29plus': number;
+    };
   };
   referrals: {
     totalAllTime: number;
@@ -783,6 +789,17 @@ const Dashboard = () => {
     ];
   }, [aggregates]);
 
+  const registrationGestationData = useMemo(() => {
+    if (!aggregates?.antenatal?.registrationsByGestation) return [];
+    const registrations = aggregates.antenatal.registrationsByGestation;
+    return [
+      { period: '≤12 weeks', registrations: registrations['registrations_<=12weeks'] },
+      { period: '13-20 weeks', registrations: registrations['registrations_13_20weeks'] },
+      { period: '21-28 weeks', registrations: registrations['registrations_21_28weeks'] },
+      { period: '29+ weeks', registrations: registrations['registrations_29plus'] }
+    ];
+  }, [aggregates]);
+
   const regionalData = useMemo(() => {
     if (!patientStats?.regionalBreakdown) return [];
 
@@ -808,6 +825,14 @@ const Dashboard = () => {
     const total = recent.reduce((sum, item) => sum + item.earlyRegistrationRate, 0);
     return total / recent.length;
   }, [firstTrimesterTrendData]);
+
+  const recentTrendWindowLabel = useMemo(() => {
+    if (firstTrimesterTrendData.length <= 1) {
+      return 'Current Month Average';
+    }
+
+    return `Recent ${Math.min(3, firstTrimesterTrendData.length)}-Month Average`;
+  }, [firstTrimesterTrendData.length]);
 
   const firstTrimesterBestMonth = useMemo(() => {
     if (!firstTrimesterTrendData.length) return null;
@@ -1220,14 +1245,14 @@ const Dashboard = () => {
             <CardTitleWithInfo
               title="Patient Age"
               className="text-sm font-medium"
-              info="Average and median age computed from patient date of birth for patient records in the current scope."
+              info="Average and median age computed from patient date of birth for patient records captured in the selected timeframe and current scope."
             />
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{Number(aggregates?.age.average ?? 0).toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">
-              Average age (median: {Number(aggregates?.age.median ?? 0).toFixed(1)})
+              {timeframeConfig.label} average age (median: {Number(aggregates?.age.median ?? 0).toFixed(1)})
             </p>
           </CardContent>
         </Card>
@@ -1323,36 +1348,66 @@ const Dashboard = () => {
 
       {/* Charts Section */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Registration Trends */}
+        {/* Gestation Charts */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitleWithInfo
-              title="Registration Trends"
-              info="Weekly ANC registration counts. This tracks the clinic ANC enrollment step, not the initial patient capture step."
+              title="Gestation Timing"
+              info="Compare gestational age distribution at ANC registration and during ANC visits for the selected timeframe and current scope."
             />
-            <CardDescription>Weekly ANC registrations over last {timeframeConfig.weeks} weeks</CardDescription>
+            <CardDescription>Gestation timing patterns for {timeframeConfig.label.toLowerCase()}</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <RechartsTooltip />
-                <Area type="monotone" dataKey="registrations" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Tabs defaultValue="visits-by-gestation" className="w-full">
+              <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+                <TabsTrigger value="visits-by-gestation" className="rounded-md border border-border bg-background px-4 py-2">
+                  Visits by Gestation
+                </TabsTrigger>
+                <TabsTrigger value="registration-gestation" className="rounded-md border border-border bg-background px-4 py-2">
+                  Gestation at ANC Registration
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="visits-by-gestation" className="mt-0 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  ANC visit counts grouped by gestational age recorded at the visit for {timeframeConfig.label.toLowerCase()}.
+                </p>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={gestationData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="period" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Bar dataKey="visits" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </TabsContent>
+
+              <TabsContent value="registration-gestation" className="mt-0 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  ANC registration counts grouped by gestational age at the time of registration for {timeframeConfig.label.toLowerCase()}.
+                </p>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={registrationGestationData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="period" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Bar dataKey="registrations" fill="#60a5fa" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
-        {/* Age Distribution */}
         <Card>
           <CardHeader>
             <CardTitleWithInfo
               title="Age Distribution"
-              info="Patient age buckets derived from date of birth on patient_bio records in the current scope."
+              info="Patient age buckets derived from date of birth on patient_bio records captured in the selected timeframe and current scope."
             />
-            <CardDescription>Patient demographics</CardDescription>
+            <CardDescription>Patient demographics for {timeframeConfig.label.toLowerCase()}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -1377,30 +1432,8 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Visits by Gestation Period */}
-        <Card>
-          <CardHeader>
-            <CardTitleWithInfo
-              title="Visits by Gestation"
-              info="ANC visit counts grouped by gestational age recorded at the visit. This shows when follow-up visits are happening in pregnancy."
-            />
-            <CardDescription>ANC visit timing distribution</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={gestationData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
-                <YAxis />
-                <RechartsTooltip />
-                <Bar dataKey="visits" fill="#82ca9d" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {/* Early Registration Insights */}
-        <Card className="md:col-span-2 lg:col-span-2">
+        <Card className="md:col-span-2 lg:col-span-3">
           <CardHeader>
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
@@ -1459,7 +1492,7 @@ const Dashboard = () => {
                       <div className="mt-1 text-xs text-muted-foreground">vs {firstTrimesterSummary?.previousPeriodLabel.toLowerCase()}</div>
                     </div>
                     <div className="rounded-lg border p-4">
-                      <div className="text-sm text-muted-foreground">Recent 3-Month Average</div>
+                      <div className="text-sm text-muted-foreground">{recentTrendWindowLabel}</div>
                       <div className="mt-2 text-3xl font-semibold">{firstTrimesterThreeMonthAverage.toFixed(1)}%</div>
                       <div className="mt-1 text-xs text-muted-foreground">Smooths short-term volatility</div>
                     </div>
@@ -1473,8 +1506,8 @@ const Dashboard = () => {
                   <div className="rounded-lg border p-4">
                     <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                       <div>
-                        <h3 className="font-medium">12-Month Early Registration Trend</h3>
-                        <p className="text-sm text-muted-foreground">Monthly 1st trimester registration rate, with counts available in the tooltip.</p>
+                        <h3 className="font-medium">Early Registration Trend</h3>
+                        <p className="text-sm text-muted-foreground">Monthly 1st trimester registration rate across {timeframeConfig.label.toLowerCase()}, with counts available in the tooltip.</p>
                       </div>
                       <div className="text-xs text-muted-foreground">Primary metric: % registered within first 12 weeks</div>
                     </div>
@@ -1549,7 +1582,7 @@ const Dashboard = () => {
                       <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                         <div>
                           <h3 className="font-medium">District Trend Comparison</h3>
-                          <p className="text-sm text-muted-foreground">Monthly early-registration rate trend for the top districts in the current scope.</p>
+                          <p className="text-sm text-muted-foreground">Monthly early-registration rate trend for the top districts in the selected timeframe and current scope.</p>
                         </div>
                         <div className="text-xs text-muted-foreground">Top districts by current-period ANC volume</div>
                       </div>
@@ -1853,31 +1886,62 @@ const Dashboard = () => {
                 <Card className="lg:col-span-2">
                   <CardHeader>
                     <CardTitleWithInfo
-                      title="Registration Trends by Region"
-                      info="Weekly patient_bio registration counts stacked by region. This is the community or facility patient capture step, not ANC enrollment."
+                      title="Registration Activity Trends"
+                      info="Compare weekly ANC registration volume with weekly patient capture activity by region. These are different care-pathway stages shown in one place."
                     />
-                    <CardDescription>Weekly registration patterns over last {timeframeConfig.weeks} weeks</CardDescription>
+                    <CardDescription>Weekly registration activity over last {timeframeConfig.weeks} weeks</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <AreaChart data={patientStats.weeklyTrends}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="week" />
-                        <YAxis />
-                        <RechartsTooltip />
-                        {patientStats.regions.map((region, index) => (
-                          <Area
-                            key={region}
-                            type="monotone"
-                            dataKey={region}
-                            stackId="1"
-                            stroke={COLORS[index % COLORS.length]}
-                            fill={COLORS[index % COLORS.length]}
-                            fillOpacity={0.6}
-                          />
-                        ))}
-                      </AreaChart>
-                    </ResponsiveContainer>
+                    <Tabs defaultValue="anc-volume" className="w-full">
+                      <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+                        <TabsTrigger value="anc-volume" className="rounded-md border border-border bg-background px-4 py-2">
+                          Weekly ANC Registration Volume
+                        </TabsTrigger>
+                        <TabsTrigger value="patient-capture" className="rounded-md border border-border bg-background px-4 py-2">
+                          Weekly Patient Capture by Region
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="anc-volume" className="mt-0 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Weekly ANC registration counts. This tracks the clinic ANC enrollment step within {timeframeConfig.label.toLowerCase()}.
+                        </p>
+                        <ResponsiveContainer width="100%" height={400}>
+                          <AreaChart data={trendData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="week" />
+                            <YAxis />
+                            <RechartsTooltip />
+                            <Area type="monotone" dataKey="registrations" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </TabsContent>
+
+                      <TabsContent value="patient-capture" className="mt-0 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Weekly patient_bio registrations stacked by region. This tracks the community or facility patient capture step within {timeframeConfig.label.toLowerCase()}.
+                        </p>
+                        <ResponsiveContainer width="100%" height={400}>
+                          <AreaChart data={patientStats.weeklyTrends}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="week" />
+                            <YAxis />
+                            <RechartsTooltip />
+                            {patientStats.regions.map((region, index) => (
+                              <Area
+                                key={region}
+                                type="monotone"
+                                dataKey={region}
+                                stackId="1"
+                                stroke={COLORS[index % COLORS.length]}
+                                fill={COLORS[index % COLORS.length]}
+                                fillOpacity={0.6}
+                              />
+                            ))}
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </TabsContent>
+                    </Tabs>
                   </CardContent>
                 </Card>
               </div>
