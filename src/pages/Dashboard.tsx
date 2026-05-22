@@ -552,9 +552,14 @@ const Dashboard = () => {
   // Compute patient stats
   const patientStats = useMemo(() => {
     if (!patients.length) return null;
+    const dayInMs = 24 * 60 * 60 * 1000;
+    const now = new Date();
 
-    // Apply client-side filters
-    const filteredPatients = patients.filter(p => {
+    const scopedPatients = patients.filter(p => {
+      if (selectedRegion !== "All Regions" && p.region !== selectedRegion) return false;
+      if (selectedDistrict !== "All Districts" && p.district !== selectedDistrict) return false;
+
+      // Apply client-side filters
       if (colFilters.region.length > 0 && !colFilters.region.includes(p.region)) return false;
       if (colFilters.district.length > 0 && !colFilters.district.includes(p.district)) return false;
       if (colFilters.subdistrict.length > 0 && (!p.subdistrict || !colFilters.subdistrict.includes(p.subdistrict))) return false;
@@ -562,44 +567,49 @@ const Dashboard = () => {
       return true;
     });
 
-    const now = new Date();
-    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const last24h = new Date(now.getTime() - dayInMs);
+    const lastWeek = new Date(now.getTime() - 7 * dayInMs);
+    const lastMonth = new Date(now.getTime() - 30 * dayInMs);
+    const periodStart = selectedTimeframe === 'all'
+      ? null
+      : new Date(now.getTime() - timeframeConfig.days * dayInMs);
+    const periodPatients = periodStart
+      ? scopedPatients.filter(p => new Date(p.registration_date) >= periodStart)
+      : scopedPatients;
 
-    const registrations24h = filteredPatients.filter(p => new Date(p.registration_date) >= last24h).length;
-    const registrationsWeek = filteredPatients.filter(p => new Date(p.registration_date) >= lastWeek).length;
-    const registrationsMonth = filteredPatients.filter(p => new Date(p.registration_date) >= lastMonth).length;
+    const registrations24h = scopedPatients.filter(p => new Date(p.registration_date) >= last24h).length;
+    const registrationsWeek = scopedPatients.filter(p => new Date(p.registration_date) >= lastWeek).length;
+    const registrationsMonth = scopedPatients.filter(p => new Date(p.registration_date) >= lastMonth).length;
 
-    const regionalBreakdown = filteredPatients.reduce((acc, p) => {
+    const regionalBreakdown = periodPatients.reduce((acc, p) => {
       acc[p.region] = (acc[p.region] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const usernameBreakdown = filteredPatients.reduce((acc, p) => {
+    const usernameBreakdown = periodPatients.reduce((acc, p) => {
       acc[p.username] = (acc[p.username] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Calculate average age, filtering out invalid/null/undefined ages
-    const validAges = filteredPatients
+    const validAges = periodPatients
       .map(p => p.age)
       .filter(age => age != null && !isNaN(Number(age)) && Number(age) > 0 && Number(age) < 120)
       .map(age => Number(age));
     const avgAge = validAges.length > 0 ? validAges.reduce((sum, age) => sum + age, 0) / validAges.length : 0;
 
-    // Create weekly trends by region for the last 12 weeks
-    const twelveWeeksAgo = new Date(now.getTime() - 12 * 7 * 24 * 60 * 60 * 1000);
-    const recentPatients = filteredPatients.filter(p => new Date(p.registration_date) >= twelveWeeksAgo);
+    // Create weekly trends by region for the selected trend window.
+    const trendWindowStart = new Date(now.getTime() - timeframeConfig.weeks * 7 * dayInMs);
+    const recentPatients = scopedPatients.filter(p => new Date(p.registration_date) >= trendWindowStart);
     
     // Get unique regions
-    const regions = [...new Set(filteredPatients.map(p => p.region))];
+    const regions = [...new Set(recentPatients.map(p => p.region))];
     
     // Create week labels
     const weeklyTrends = [];
-    for (let i = 11; i >= 0; i--) {
-      const weekStart = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
-      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    for (let i = timeframeConfig.weeks - 1; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - i * 7 * dayInMs);
+      const weekEnd = new Date(weekStart.getTime() + 7 * dayInMs);
       const weekLabel = `W${Math.ceil((weekStart.getTime() - new Date(weekStart.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))}`;
       
       const weekData: any = { week: weekLabel };
@@ -619,7 +629,7 @@ const Dashboard = () => {
     }
 
     // Create geographic breakdown
-    const geographicBreakdown = filteredPatients.reduce((acc, p) => {
+    const geographicBreakdown = periodPatients.reduce((acc, p) => {
       const key = `${p.region} > ${p.district}${p.subdistrict ? ` > ${p.subdistrict}` : ''}${p.community ? ` > ${p.community}` : ''}`;
       const existingEntry = acc.find(entry => entry.location === key);
       
@@ -667,7 +677,7 @@ const Dashboard = () => {
     });
 
     return {
-      totalPatients: filteredPatients.length,
+      totalPatients: periodPatients.length,
       registrations24h,
       registrationsWeek,
       registrationsMonth,
@@ -679,13 +689,14 @@ const Dashboard = () => {
       regions,
       geographicBreakdown,
     };
-  }, [patients, geoSortField, geoSortDirection, colFilters]);
+  }, [patients, geoSortField, geoSortDirection, colFilters, selectedDistrict, selectedRegion, selectedTimeframe, timeframeConfig]);
 
   const patientDataIsPartial = useMemo(() => {
+    if (selectedTimeframe !== 'all') return false;
     const total = aggregates?.overview.totalPatients ?? 0;
     if (!total || !patientLimitNumber) return false;
     return total > patientLimitNumber;
-  }, [aggregates?.overview.totalPatients, patientLimitNumber]);
+  }, [aggregates?.overview.totalPatients, patientLimitNumber, selectedTimeframe]);
 
   const uniquePatientsWithAnc = Number(aggregates?.antenatal.uniquePatientsWithAnc ?? 0);
 
@@ -741,18 +752,12 @@ const Dashboard = () => {
   }, [aggregates]);
 
   const regionalData = useMemo(() => {
-    if (!aggregates?.geo) return [];
-    
-    const regionCounts: Record<string, number> = {};
-    
-    aggregates.geo.forEach(item => {
-      regionCounts[item.region] = (regionCounts[item.region] || 0) + item.patients;
-    });
-    
-    return Object.entries(regionCounts)
+    if (!patientStats?.regionalBreakdown) return [];
+
+    return Object.entries(patientStats.regionalBreakdown)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [aggregates]);
+  }, [patientStats?.regionalBreakdown]);
 
   const firstTrimesterTrendData = useMemo(() => {
     if (!firstTrimesterInsights?.monthlyTrend) return [];
@@ -984,7 +989,7 @@ const Dashboard = () => {
       )}
 
       {/* Data Source Comparison - Only for National users to show reconciliation */}
-      {user && (isSuperUserType(user.user_type) || user.access_level === 4) && patients.length > 0 && aggregates?.overview.totalPatients !== patients.length && (
+      {user && selectedTimeframe === 'all' && (isSuperUserType(user.user_type) || user.access_level === 4) && patients.length > 0 && aggregates?.overview.totalPatients !== patients.length && (
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
@@ -1616,9 +1621,9 @@ const Dashboard = () => {
                   <CardHeader>
                     <CardTitleWithInfo
                       title="Regional Breakdown"
-                      info="Patient registrations grouped by region, with the chart showing each region's share of the loaded patient population."
+                      info="Patient registrations grouped by region for the selected timeframe, with the chart showing each region's share of the currently scoped patient registrations."
                     />
-                    <CardDescription>Registrations by region, alongside patient distribution by region</CardDescription>
+                    <CardDescription>Registrations by region for {timeframeConfig.label.toLowerCase()}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-6 lg:grid-cols-2">
@@ -1666,9 +1671,9 @@ const Dashboard = () => {
                   <CardHeader>
                     <CardTitleWithInfo
                       title="Geographic Distribution"
-                      info="Patient registrations grouped by region, district, subdistrict, and community. Table filters apply to the currently loaded patient sample."
+                      info="Patient registrations grouped by region, district, subdistrict, and community for the selected timeframe. Table filters apply to the currently scoped patient sample."
                     />
-                    <CardDescription>Patient registrations by region, district, and community</CardDescription>
+                    <CardDescription>Patient registrations by region, district, and community for {timeframeConfig.label.toLowerCase()}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="max-h-96 overflow-y-auto">
@@ -1788,7 +1793,7 @@ const Dashboard = () => {
                       title="Registration Trends by Region"
                       info="Weekly patient_bio registration counts stacked by region. This is the community or facility patient capture step, not ANC enrollment."
                     />
-                    <CardDescription>Weekly registration patterns over last 12 weeks</CardDescription>
+                    <CardDescription>Weekly registration patterns over last {timeframeConfig.weeks} weeks</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={400}>
