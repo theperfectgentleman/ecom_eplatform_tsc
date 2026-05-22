@@ -30,9 +30,12 @@ import {
   TrendingUp,
   Heart,
   AlertTriangle,
+  FileText,
   ChevronDown,
   ChevronUp,
   Info,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import {
   XAxis,
@@ -254,6 +257,11 @@ const formatSignedCount = (value: number) => {
   const numericValue = Number(value || 0);
   const sign = numericValue > 0 ? '+' : '';
   return `${sign}${numericValue.toLocaleString()}`;
+};
+
+const calculatePercentage = (numerator: number, denominator: number) => {
+  if (!denominator) return 0;
+  return (numerator / denominator) * 100;
 };
 
 const dashboardTabTriggerClassName = 'rounded-md border border-border bg-background px-4 py-2 text-foreground transition-colors hover:border-primary/40 hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm';
@@ -839,13 +847,40 @@ const Dashboard = () => {
       .sort((a, b) => b.value - a.value);
   }, [patientStats?.regionalBreakdown]);
 
+  const firstTrimesterSummary = firstTrimesterInsights?.summary;
+
+  const firstTrimesterSummaryMetrics = useMemo(() => {
+    const currentEarlyRegistrations = Number(firstTrimesterSummary?.current.earlyRegistrations ?? aggregates?.antenatal.earlyRegistrationsLastPeriod ?? 0);
+    const currentTotalRegistrations = Number(firstTrimesterSummary?.current.totalRegistrations ?? aggregates?.antenatal.registrationsLastPeriod ?? 0);
+    const previousEarlyRegistrations = Number(firstTrimesterSummary?.previous.earlyRegistrations ?? 0);
+    const previousTotalRegistrations = Number(firstTrimesterSummary?.previous.totalRegistrations ?? 0);
+
+    const currentRate = calculatePercentage(currentEarlyRegistrations, currentTotalRegistrations);
+    const previousRate = calculatePercentage(previousEarlyRegistrations, previousTotalRegistrations);
+
+    return {
+      currentEarlyRegistrations,
+      currentTotalRegistrations,
+      currentRate,
+      previousRate,
+      deltaRate: currentRate - previousRate,
+    };
+  }, [
+    aggregates?.antenatal.earlyRegistrationsLastPeriod,
+    aggregates?.antenatal.registrationsLastPeriod,
+    firstTrimesterSummary,
+  ]);
+
   const firstTrimesterTrendData = useMemo(() => {
     if (!firstTrimesterInsights?.monthlyTrend) return [];
     return firstTrimesterInsights.monthlyTrend.map((item) => ({
       month: item.month_label,
-      earlyRegistrationRate: Number(item.early_registration_rate ?? 0),
       earlyRegistrations: Number(item.early_registrations ?? 0),
       totalRegistrations: Number(item.total_registrations ?? 0),
+      earlyRegistrationRate: calculatePercentage(
+        Number(item.early_registrations ?? 0),
+        Number(item.total_registrations ?? 0)
+      ),
     }));
   }, [firstTrimesterInsights]);
 
@@ -853,8 +888,9 @@ const Dashboard = () => {
     if (!firstTrimesterTrendData.length) return 0;
     const recent = firstTrimesterTrendData.slice(-3);
     if (!recent.length) return 0;
-    const total = recent.reduce((sum, item) => sum + item.earlyRegistrationRate, 0);
-    return total / recent.length;
+    const earlyRegistrations = recent.reduce((sum, item) => sum + item.earlyRegistrations, 0);
+    const totalRegistrations = recent.reduce((sum, item) => sum + item.totalRegistrations, 0);
+    return calculatePercentage(earlyRegistrations, totalRegistrations);
   }, [firstTrimesterTrendData]);
 
   const recentTrendWindowLabel = useMemo(() => {
@@ -874,8 +910,6 @@ const Dashboard = () => {
       return best;
     }, null as (typeof firstTrimesterTrendData)[number] | null);
   }, [firstTrimesterTrendData]);
-
-  const firstTrimesterSummary = firstTrimesterInsights?.summary;
   const topDistrictRows = (firstTrimesterInsights?.districts || []).slice(0, 10);
   const topSubdistrictRows = (firstTrimesterInsights?.subdistricts || []).slice(0, 10);
   const districtTrendChart = useMemo(() => {
@@ -957,7 +991,7 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">EnComPAS Dashboard</h1>
-          <p className="text-muted-foreground">Comprehensive maternal health insights • Optimized for performance</p>
+          <p className="text-muted-foreground">Comprehensive maternal health insights</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -1048,19 +1082,24 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Performance Indicator */}
+      {/* Dashboard Status */}
       {token && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${aggregatesLoading ? 'bg-yellow-500 animate-pulse' : aggregatesError ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`}></div>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/40">
+                  {aggregatesLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+                  ) : aggregatesError ? (
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  )}
+                </div>
                 <span className="text-sm font-medium">
-                  {aggregatesLoading ? 'Loading Dashboard...' : aggregatesError ? 'Dashboard Error' : 'Optimized Dashboard Active'}
+                  {aggregatesLoading ? 'Loading dashboard' : aggregatesError ? 'Dashboard issue' : 'Dashboard ready'}
                 </span>
-                <Badge variant="outline" className={aggregatesLoading ? "text-yellow-700" : aggregatesError ? "text-red-700" : "text-green-700"}>
-                  {aggregatesLoading ? 'Loading...' : aggregatesError ? 'Error' : '3 API Calls • Fast Performance'}
-                </Badge>
               </div>
               {aggregatesError && (
                 <div className="flex flex-col items-end">
@@ -1213,6 +1252,8 @@ const Dashboard = () => {
                 <>
                   Share of ANC registration records in the selected period that were captured at 12 gestation weeks or earlier.
                   <br />
+                  The displayed percentage is calculated directly from the numerator and denominator shown below so the card reconciles after rounding.
+                  <br />
                   Overall, {uniquePatientsWithAnc.toLocaleString()} unique patients have reached ANC in this scope.
                 </>
               }
@@ -1220,18 +1261,18 @@ const Dashboard = () => {
             <Baby className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Number(firstTrimesterSummary?.current.earlyRegistrationRate ?? aggregates?.antenatal.earlyRegistrationPercent ?? 0).toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{firstTrimesterSummaryMetrics.currentRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              {Number(firstTrimesterSummary?.current.earlyRegistrations ?? aggregates?.antenatal.earlyRegistrationsLastPeriod ?? 0).toLocaleString()}
+              {firstTrimesterSummaryMetrics.currentEarlyRegistrations.toLocaleString()}
               {' / '}
-              {Number(firstTrimesterSummary?.current.totalRegistrations ?? aggregates?.antenatal.registrationsLastPeriod ?? 0).toLocaleString()} ANC registrations in {selectedScopeLabel.toLowerCase()}
+              {firstTrimesterSummaryMetrics.currentTotalRegistrations.toLocaleString()} ANC registrations in {selectedScopeLabel.toLowerCase()}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {uniquePatientsWithAnc.toLocaleString()} unique patients have reached ANC
             </p>
             {firstTrimesterSummary && (
-              <p className={`mt-1 text-xs ${firstTrimesterSummary.delta.earlyRegistrationRate >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                {formatDelta(firstTrimesterSummary.delta.earlyRegistrationRate, ' pts')} vs {firstTrimesterSummary.previousPeriodLabel.toLowerCase()}
+              <p className={`mt-1 text-xs ${firstTrimesterSummaryMetrics.deltaRate >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {formatDelta(firstTrimesterSummaryMetrics.deltaRate, ' pts')} vs {firstTrimesterSummary.previousPeriodLabel.toLowerCase()}
               </p>
             )}
           </CardContent>
@@ -1240,16 +1281,16 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitleWithInfo
-              title="Kit Usage"
+              title="Kit Reconciliation"
               className="text-sm font-medium"
-              info="Confirmed kit usage as a share of all distributed kits. Kit metrics are sourced from the national kit logs rather than the current location filter."
+              info="Operational reconciliation signal comparing kit usage records against logged distribution entries. This can exceed 100% when kits are used before the related distribution is backfilled, so read it as a logging and completeness flag rather than a utilization rate. Kit metrics are sourced from the national kit logs rather than the current location filter."
             />
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{Number(aggregates?.kits.usageRatePercent ?? 0).toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              {aggregates?.kits.totalUsed || 0}/{aggregates?.kits.totalDistributed || 0} kits used
+              {aggregates?.kits.totalUsed || 0}/{aggregates?.kits.totalDistributed || 0} usage records vs logged distribution
             </p>
           </CardContent>
         </Card>
@@ -1257,16 +1298,16 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitleWithInfo
-              title="High Priority"
+              title="Referrals"
               className="text-sm font-medium"
-              info="Referral case files with a priority level recorded. These are the cases most likely to need follow-up attention."
+              info="Total referral case files recorded in the current scope, regardless of priority category. This headline intentionally avoids implying a severity breakdown."
             />
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{aggregates?.referrals.withPriorityCount || 0}</div>
+            <div className="text-2xl font-bold">{aggregates?.referrals.totalAllTime || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Cases requiring attention
+              Referral case files recorded
             </p>
           </CardContent>
         </Card>
@@ -1369,9 +1410,12 @@ const Dashboard = () => {
               <div className="text-xs text-slate-600">Total ANC visit events recorded across all visits.</div>
             </div>
             <div className="rounded-lg bg-slate-50 p-3 text-sm">
-              <div className="text-xs uppercase tracking-wide text-slate-500">Avg Visits per ANC Registration</div>
+              <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-slate-500">
+                <span>Avg Visits per Registration With Visits</span>
+                <StatInfoButton content="Calculated only among ANC registration records that have at least one ANC visit logged. Registrations with zero visits are excluded from this average." />
+              </div>
               <div className="mt-1 text-xl font-semibold text-slate-900">{Number(aggregates?.antenatal.avgVisitsPerRegistration ?? 0).toFixed(1)}</div>
-              <div className="text-xs text-slate-600">Average visit volume for each ANC registration record.</div>
+              <div className="text-xs text-slate-600">Average visit volume among ANC registrations that have at least one visit recorded.</div>
             </div>
           </div>
         </CardContent>
@@ -1511,7 +1555,7 @@ const Dashboard = () => {
               <div>
                 <CardTitleWithInfo
                   title="Early Registration Insights"
-                  info="Compares current and previous ANC periods to show how many registrations are happening at 12 gestation weeks or earlier, plus district and subdistrict variation."
+                  info="Compares current and previous ANC periods to show how many registrations are happening at 12 gestation weeks or earlier, plus district and subdistrict variation. Headline rates are calculated directly from raw counts, and recent averages are volume-weighted so low-volume months do not distort the summary."
                 />
                 <CardDescription>
                   1st trimester registration performance for {selectedScopeLabel.toLowerCase()} with trend and geography drill-downs
@@ -1520,8 +1564,8 @@ const Dashboard = () => {
               {firstTrimesterSummary && (
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline">{firstTrimesterSummary.currentPeriodLabel}</Badge>
-                  <Badge className={firstTrimesterSummary.delta.earlyRegistrationRate >= 0 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'}>
-                    {formatDelta(firstTrimesterSummary.delta.earlyRegistrationRate, ' pts')}
+                  <Badge className={firstTrimesterSummaryMetrics.deltaRate >= 0 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'}>
+                    {formatDelta(firstTrimesterSummaryMetrics.deltaRate, ' pts')}
                   </Badge>
                   <Badge variant="outline">{formatSignedCount(firstTrimesterSummary.delta.earlyRegistrations)} early</Badge>
                 </div>
@@ -1553,20 +1597,20 @@ const Dashboard = () => {
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-lg border p-4">
                       <div className="text-sm text-muted-foreground">Current Early Rate</div>
-                      <div className="mt-2 text-3xl font-semibold">{Number(firstTrimesterSummary?.current.earlyRegistrationRate ?? 0).toFixed(1)}%</div>
+                      <div className="mt-2 text-3xl font-semibold">{firstTrimesterSummaryMetrics.currentRate.toFixed(1)}%</div>
                       <div className="mt-1 text-xs text-muted-foreground">{firstTrimesterSummary?.currentPeriodLabel}</div>
                     </div>
                     <div className="rounded-lg border p-4">
                       <div className="text-sm text-muted-foreground">Rate Change</div>
-                      <div className={`mt-2 text-3xl font-semibold ${Number(firstTrimesterSummary?.delta.earlyRegistrationRate ?? 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        {formatDelta(firstTrimesterSummary?.delta.earlyRegistrationRate ?? 0, ' pts')}
+                      <div className={`mt-2 text-3xl font-semibold ${firstTrimesterSummaryMetrics.deltaRate >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        {formatDelta(firstTrimesterSummaryMetrics.deltaRate, ' pts')}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">vs {firstTrimesterSummary?.previousPeriodLabel.toLowerCase()}</div>
                     </div>
                     <div className="rounded-lg border p-4">
                       <div className="text-sm text-muted-foreground">{recentTrendWindowLabel}</div>
                       <div className="mt-2 text-3xl font-semibold">{firstTrimesterThreeMonthAverage.toFixed(1)}%</div>
-                      <div className="mt-1 text-xs text-muted-foreground">Smooths short-term volatility</div>
+                      <div className="mt-1 text-xs text-muted-foreground">Volume-weighted across the most recent months</div>
                     </div>
                     <div className="rounded-lg border p-4">
                       <div className="text-sm text-muted-foreground">Best Month</div>
