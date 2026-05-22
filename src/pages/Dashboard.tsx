@@ -256,6 +256,8 @@ const formatSignedCount = (value: number) => {
   return `${sign}${numericValue.toLocaleString()}`;
 };
 
+const dashboardTabTriggerClassName = 'rounded-md border border-border bg-background px-4 py-2 text-foreground transition-colors hover:border-primary/40 hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm';
+
 const StatInfoButton = ({ content }: { content: React.ReactNode }) => (
   <InfoTooltip content={<div className="max-w-xs leading-relaxed">{content}</div>}>
     <button
@@ -292,6 +294,7 @@ const Dashboard = () => {
   const [customTimeframeDays, setCustomTimeframeDays] = useState<number>(DEFAULT_CUSTOM_TIMEFRAME_DAYS);
   const [customTimeframeDraft, setCustomTimeframeDraft] = useState<string>(String(DEFAULT_CUSTOM_TIMEFRAME_DAYS));
   const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[4].value); // Default to 3000
+  const [gestationDisplayMode, setGestationDisplayMode] = useState<'count' | 'percentage'>('count');
 
   // Main aggregated data (1 API call)
   const [aggregates, setAggregates] = useState<DashboardAggregates | null>(null);
@@ -781,24 +784,52 @@ const Dashboard = () => {
   const gestationData = useMemo(() => {
     if (!aggregates?.antenatal?.visitsByGestation) return [];
     const visits = aggregates.antenatal.visitsByGestation;
-    return [
+    const rows = [
       { period: '≤12 weeks', visits: visits['visits_<=12weeks'] },
       { period: '13-20 weeks', visits: visits['visits_13_20weeks'] },
       { period: '21-28 weeks', visits: visits['visits_21_28weeks'] },
       { period: '29+ weeks', visits: visits['visits_29plus'] }
     ];
+
+    const totalVisits = rows.reduce((sum, row) => sum + row.visits, 0);
+    return rows.map((row) => ({
+      ...row,
+      share: totalVisits > 0 ? (row.visits / totalVisits) * 100 : 0,
+    }));
   }, [aggregates]);
 
   const registrationGestationData = useMemo(() => {
     if (!aggregates?.antenatal?.registrationsByGestation) return [];
     const registrations = aggregates.antenatal.registrationsByGestation;
-    return [
+    const rows = [
       { period: '≤12 weeks', registrations: registrations['registrations_<=12weeks'] },
       { period: '13-20 weeks', registrations: registrations['registrations_13_20weeks'] },
       { period: '21-28 weeks', registrations: registrations['registrations_21_28weeks'] },
       { period: '29+ weeks', registrations: registrations['registrations_29plus'] }
     ];
+
+    const totalRegistrations = rows.reduce((sum, row) => sum + row.registrations, 0);
+    return rows.map((row) => ({
+      ...row,
+      share: totalRegistrations > 0 ? (row.registrations / totalRegistrations) * 100 : 0,
+    }));
   }, [aggregates]);
+
+  const gestationYAxisFormatter = (value: number) => {
+    if (gestationDisplayMode === 'percentage') {
+      return `${Number(value).toFixed(0)}%`;
+    }
+
+    return Number(value).toLocaleString();
+  };
+
+  const gestationTooltipFormatter = (value: number, name: string) => {
+    if (gestationDisplayMode === 'percentage') {
+      return [`${Number(value).toFixed(1)}%`, name];
+    }
+
+    return [Number(value).toLocaleString(), name];
+  };
 
   const regionalData = useMemo(() => {
     if (!patientStats?.regionalBreakdown) return [];
@@ -1359,41 +1390,82 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="visits-by-gestation" className="w-full">
-              <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
-                <TabsTrigger value="visits-by-gestation" className="rounded-md border border-border bg-background px-4 py-2">
-                  Visits by Gestation
-                </TabsTrigger>
-                <TabsTrigger value="registration-gestation" className="rounded-md border border-border bg-background px-4 py-2">
-                  Gestation at ANC Registration
-                </TabsTrigger>
-              </TabsList>
+              <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0 md:w-auto md:flex-1">
+                  <TabsTrigger value="visits-by-gestation" className={dashboardTabTriggerClassName}>
+                    Visits by Gestation
+                  </TabsTrigger>
+                  <TabsTrigger value="registration-gestation" className={dashboardTabTriggerClassName}>
+                    Gestation at ANC Registration
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="inline-flex items-center gap-2 self-start rounded-md border bg-muted/20 p-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={gestationDisplayMode === 'count' ? 'default' : 'ghost'}
+                    className="h-8 px-3"
+                    onClick={() => setGestationDisplayMode('count')}
+                  >
+                    Counts
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={gestationDisplayMode === 'percentage' ? 'default' : 'ghost'}
+                    className="h-8 px-3"
+                    onClick={() => setGestationDisplayMode('percentage')}
+                  >
+                    Percentages
+                  </Button>
+                </div>
+              </div>
 
               <TabsContent value="visits-by-gestation" className="mt-0 space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  ANC visit counts grouped by gestational age recorded at the visit for {timeframeConfig.label.toLowerCase()}.
+                  {gestationDisplayMode === 'percentage'
+                    ? `ANC visit share grouped by gestational age recorded at the visit for ${timeframeConfig.label.toLowerCase()}.`
+                    : `ANC visit counts grouped by gestational age recorded at the visit for ${timeframeConfig.label.toLowerCase()}.`}
                 </p>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={gestationData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="period" />
-                    <YAxis />
-                    <RechartsTooltip />
-                    <Bar dataKey="visits" fill="#82ca9d" />
+                    <YAxis
+                      tickFormatter={gestationYAxisFormatter}
+                      domain={gestationDisplayMode === 'percentage' ? [0, 100] : undefined}
+                    />
+                    <RechartsTooltip formatter={gestationTooltipFormatter} />
+                    <Bar
+                      dataKey={gestationDisplayMode === 'percentage' ? 'share' : 'visits'}
+                      name={gestationDisplayMode === 'percentage' ? 'Visits Share' : 'Visits'}
+                      fill="#82ca9d"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </TabsContent>
 
               <TabsContent value="registration-gestation" className="mt-0 space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  ANC registration counts grouped by gestational age at the time of registration for {timeframeConfig.label.toLowerCase()}.
+                  {gestationDisplayMode === 'percentage'
+                    ? `ANC registration share grouped by gestational age at the time of registration for ${timeframeConfig.label.toLowerCase()}.`
+                    : `ANC registration counts grouped by gestational age at the time of registration for ${timeframeConfig.label.toLowerCase()}.`}
                 </p>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={registrationGestationData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="period" />
-                    <YAxis />
-                    <RechartsTooltip />
-                    <Bar dataKey="registrations" fill="#60a5fa" />
+                    <YAxis
+                      tickFormatter={gestationYAxisFormatter}
+                      domain={gestationDisplayMode === 'percentage' ? [0, 100] : undefined}
+                    />
+                    <RechartsTooltip formatter={gestationTooltipFormatter} />
+                    <Bar
+                      dataKey={gestationDisplayMode === 'percentage' ? 'share' : 'registrations'}
+                      name={gestationDisplayMode === 'percentage' ? 'Registration Share' : 'Registrations'}
+                      fill="#60a5fa"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </TabsContent>
@@ -1471,10 +1543,10 @@ const Dashboard = () => {
             ) : (
               <Tabs defaultValue="trend" className="w-full">
                 <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
-                  <TabsTrigger value="trend" className="rounded-md border border-border bg-background px-4 py-2">Trend</TabsTrigger>
-                  <TabsTrigger value="districts" className="rounded-md border border-border bg-background px-4 py-2">Districts</TabsTrigger>
-                  <TabsTrigger value="subdistricts" className="rounded-md border border-border bg-background px-4 py-2">Subdistricts</TabsTrigger>
-                  <TabsTrigger value="volunteers" className="rounded-md border border-border bg-background px-4 py-2">Volunteers</TabsTrigger>
+                  <TabsTrigger value="trend" className={dashboardTabTriggerClassName}>Trend</TabsTrigger>
+                  <TabsTrigger value="districts" className={dashboardTabTriggerClassName}>Districts</TabsTrigger>
+                  <TabsTrigger value="subdistricts" className={dashboardTabTriggerClassName}>Subdistricts</TabsTrigger>
+                  <TabsTrigger value="volunteers" className={dashboardTabTriggerClassName}>Volunteers</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="trend" className="mt-6 space-y-6">
@@ -1894,10 +1966,10 @@ const Dashboard = () => {
                   <CardContent>
                     <Tabs defaultValue="anc-volume" className="w-full">
                       <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
-                        <TabsTrigger value="anc-volume" className="rounded-md border border-border bg-background px-4 py-2">
+                        <TabsTrigger value="anc-volume" className={dashboardTabTriggerClassName}>
                           Weekly ANC Registration Volume
                         </TabsTrigger>
-                        <TabsTrigger value="patient-capture" className="rounded-md border border-border bg-background px-4 py-2">
+                        <TabsTrigger value="patient-capture" className={dashboardTabTriggerClassName}>
                           Weekly Patient Capture by Region
                         </TabsTrigger>
                       </TabsList>
