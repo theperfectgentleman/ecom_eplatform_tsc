@@ -19,6 +19,7 @@ import {
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip as InfoTooltip } from "@/components/ui/tooltip";
 import {
   Users,
   Baby,
@@ -30,12 +31,13 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  Info,
 } from "lucide-react";
 import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -81,6 +83,8 @@ interface DashboardAggregates {
     earlyRegistrationsLastPeriod: number;
     earlyRegistrationPercent: number;
     totalRegistrationsAllTime: number;
+    uniquePatientsWithAnc: number;
+    uniquePatientsWithVisit: number;
     avgVisitsPerRegistration: number;
     percentRegistrationsWithVisit: number;
     avgDaysToFirstVisit: number;
@@ -240,6 +244,33 @@ const formatSignedCount = (value: number) => {
   const sign = numericValue > 0 ? '+' : '';
   return `${sign}${numericValue.toLocaleString()}`;
 };
+
+const StatInfoButton = ({ content }: { content: React.ReactNode }) => (
+  <InfoTooltip content={<div className="max-w-xs leading-relaxed">{content}</div>}>
+    <button
+      type="button"
+      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+      aria-label="Explain this statistic"
+    >
+      <Info className="h-3.5 w-3.5" />
+    </button>
+  </InfoTooltip>
+);
+
+const CardTitleWithInfo = ({
+  title,
+  info,
+  className,
+}: {
+  title: string;
+  info: React.ReactNode;
+  className?: string;
+}) => (
+  <div className="flex items-center gap-2">
+    <CardTitle className={className}>{title}</CardTitle>
+    <StatInfoButton content={info} />
+  </div>
+);
 
 const Dashboard = () => {
   const { token, user } = useAuth();
@@ -656,11 +687,32 @@ const Dashboard = () => {
     return total > patientLimitNumber;
   }, [aggregates?.overview.totalPatients, patientLimitNumber]);
 
+  const uniquePatientsWithAnc = Number(aggregates?.antenatal.uniquePatientsWithAnc ?? 0);
+
+  const ancFunnel = useMemo(() => {
+    const totalPatients = Number(aggregates?.overview.totalPatients ?? 0);
+    const ancPatients = Number(aggregates?.antenatal.uniquePatientsWithAnc ?? 0);
+    const visitPatients = Number(aggregates?.antenatal.uniquePatientsWithVisit ?? 0);
+
+    const capturedToAncPercent = totalPatients === 0 ? 0 : (ancPatients / totalPatients) * 100;
+    const ancToVisitPercent = ancPatients === 0 ? 0 : (visitPatients / ancPatients) * 100;
+    const capturedToVisitPercent = totalPatients === 0 ? 0 : (visitPatients / totalPatients) * 100;
+
+    return {
+      totalPatients,
+      ancPatients,
+      visitPatients,
+      capturedToAncPercent,
+      ancToVisitPercent,
+      capturedToVisitPercent,
+    };
+  }, [aggregates?.antenatal.uniquePatientsWithAnc, aggregates?.antenatal.uniquePatientsWithVisit, aggregates?.overview.totalPatients]);
+
   // Process chart data
   const trendData = useMemo(() => {
     if (!aggregates?.trends?.registrationsByWeek) return [];
     return aggregates.trends.registrationsByWeek.map(item => ({
-      week: item.week.replace('2024-W', 'W').replace('2025-W', 'W'),
+      week: item.week.replace(/^\d{4}-W/, 'W'),
       registrations: item.cnt
     }));
   }, [aggregates]);
@@ -959,7 +1011,11 @@ const Dashboard = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
+            <CardTitleWithInfo
+              title="Total Patients"
+              className="text-sm font-medium"
+              info={`Unique patient records captured in ${selectedScopeLabel.toLowerCase()}. This is the first patient_bio capture step before ANC enrollment.`}
+            />
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -972,7 +1028,11 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <CardTitleWithInfo
+              title="Last 30 Days"
+              className="text-sm font-medium"
+              info="New patient_bio records created during the rolling last 30 days in the selected scope."
+            />
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -985,7 +1045,11 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Week</CardTitle>
+            <CardTitleWithInfo
+              title="Last 7 Days"
+              className="text-sm font-medium"
+              info="New patient_bio records created during the rolling last 7 days in the selected scope."
+            />
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -998,7 +1062,11 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last 24 Hours</CardTitle>
+            <CardTitleWithInfo
+              title="Last 24 Hours"
+              className="text-sm font-medium"
+              info="New patient_bio records created during the last 24 hours in the selected scope."
+            />
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1014,7 +1082,17 @@ const Dashboard = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">1st Trimester Reg.</CardTitle>
+            <CardTitleWithInfo
+              title="1st Trimester Reg."
+              className="text-sm font-medium"
+              info={
+                <>
+                  Share of ANC registration records in the selected period that were captured at 12 gestation weeks or earlier.
+                  <br />
+                  Overall, {uniquePatientsWithAnc.toLocaleString()} unique patients have reached ANC in this scope.
+                </>
+              }
+            />
             <Baby className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1023,6 +1101,9 @@ const Dashboard = () => {
               {Number(firstTrimesterSummary?.current.earlyRegistrations ?? aggregates?.antenatal.earlyRegistrationsLastPeriod ?? 0).toLocaleString()}
               {' / '}
               {Number(firstTrimesterSummary?.current.totalRegistrations ?? aggregates?.antenatal.registrationsLastPeriod ?? 0).toLocaleString()} ANC registrations in {selectedScopeLabel.toLowerCase()}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {uniquePatientsWithAnc.toLocaleString()} unique patients have reached ANC
             </p>
             {firstTrimesterSummary && (
               <p className={`mt-1 text-xs ${firstTrimesterSummary.delta.earlyRegistrationRate >= 0 ? 'text-green-700' : 'text-red-700'}`}>
@@ -1034,7 +1115,11 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kit Usage</CardTitle>
+            <CardTitleWithInfo
+              title="Kit Usage"
+              className="text-sm font-medium"
+              info="Confirmed kit usage as a share of all distributed kits. Kit metrics are sourced from the national kit logs rather than the current location filter."
+            />
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1047,7 +1132,11 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">High Priority</CardTitle>
+            <CardTitleWithInfo
+              title="High Priority"
+              className="text-sm font-medium"
+              info="Referral case files with a priority level recorded. These are the cases most likely to need follow-up attention."
+            />
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1060,7 +1149,11 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Patient Age</CardTitle>
+            <CardTitleWithInfo
+              title="Patient Age"
+              className="text-sm font-medium"
+              info="Average and median age computed from patient date of birth for patient records in the current scope."
+            />
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1072,13 +1165,104 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitleWithInfo
+            title="ANC Funnel Summary"
+            info="A patient-based progression view: unique patients captured in patient_bio, unique patients who reached ANC registration, and unique patients with at least one ANC visit recorded."
+          />
+          <CardDescription>Follow the care pathway from first capture to ANC follow-up for {selectedScopeLabel.toLowerCase()}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">1. Patient Captured</div>
+                  <div className="mt-2 text-3xl font-semibold">{ancFunnel.totalPatients.toLocaleString()}</div>
+                </div>
+                <Users className="h-8 w-8 text-slate-500" />
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Unique patient_bio records created in the current scope.
+              </p>
+            </div>
+
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">2. Reached ANC</div>
+                  <div className="mt-2 text-3xl font-semibold">{ancFunnel.ancPatients.toLocaleString()}</div>
+                </div>
+                <Baby className="h-8 w-8 text-blue-500" />
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                {ancFunnel.capturedToAncPercent.toFixed(1)}% of captured patients have an ANC registration.
+              </p>
+            </div>
+
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">3. ANC Visit Logged</div>
+                  <div className="mt-2 text-3xl font-semibold">{ancFunnel.visitPatients.toLocaleString()}</div>
+                </div>
+                <Heart className="h-8 w-8 text-rose-500" />
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                {ancFunnel.ancToVisitPercent.toFixed(1)}% of ANC patients have at least one visit recorded.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-dashed p-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Capture to ANC</div>
+              <div className="mt-1 text-xl font-semibold">{ancFunnel.capturedToAncPercent.toFixed(1)}%</div>
+              <div className="text-xs text-muted-foreground">Patients captured who later reached ANC</div>
+            </div>
+            <div className="rounded-lg border border-dashed p-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">ANC to Visit</div>
+              <div className="mt-1 text-xl font-semibold">{ancFunnel.ancToVisitPercent.toFixed(1)}%</div>
+              <div className="text-xs text-muted-foreground">ANC patients with at least one visit logged</div>
+            </div>
+            <div className="rounded-lg border border-dashed p-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Capture to Visit</div>
+              <div className="mt-1 text-xl font-semibold">{ancFunnel.capturedToVisitPercent.toFixed(1)}%</div>
+              <div className="text-xs text-muted-foreground">Captured patients with at least one ANC visit</div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg bg-slate-50 p-3 text-sm">
+              <div className="text-xs uppercase tracking-wide text-slate-500">ANC Registration Records</div>
+              <div className="mt-1 text-xl font-semibold text-slate-900">{Number(aggregates?.antenatal.totalRegistrationsAllTime ?? 0).toLocaleString()}</div>
+              <div className="text-xs text-slate-600">Raw ANC registration rows, including repeat registrations if they exist.</div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3 text-sm">
+              <div className="text-xs uppercase tracking-wide text-slate-500">ANC Visits Logged</div>
+              <div className="mt-1 text-xl font-semibold text-slate-900">{Number(aggregates?.overview.totalAncVisits ?? 0).toLocaleString()}</div>
+              <div className="text-xs text-slate-600">Total ANC visit events recorded across all visits.</div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3 text-sm">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Avg Visits per ANC Registration</div>
+              <div className="mt-1 text-xl font-semibold text-slate-900">{Number(aggregates?.antenatal.avgVisitsPerRegistration ?? 0).toFixed(1)}</div>
+              <div className="text-xs text-slate-600">Average visit volume for each ANC registration record.</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Charts Section */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Registration Trends */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Registration Trends</CardTitle>
-            <CardDescription>Weekly ANC registrations over last 12 weeks</CardDescription>
+            <CardTitleWithInfo
+              title="Registration Trends"
+              info="Weekly ANC registration counts. This tracks the clinic ANC enrollment step, not the initial patient capture step."
+            />
+            <CardDescription>Weekly ANC registrations over last {timeframeConfig.weeks} weeks</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -1086,7 +1270,7 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="week" />
                 <YAxis />
-                <Tooltip />
+                <RechartsTooltip />
                 <Area type="monotone" dataKey="registrations" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
               </AreaChart>
             </ResponsiveContainer>
@@ -1096,7 +1280,10 @@ const Dashboard = () => {
         {/* Age Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Age Distribution</CardTitle>
+            <CardTitleWithInfo
+              title="Age Distribution"
+              info="Patient age buckets derived from date of birth on patient_bio records in the current scope."
+            />
             <CardDescription>Patient demographics</CardDescription>
           </CardHeader>
           <CardContent>
@@ -1116,7 +1303,7 @@ const Dashboard = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <RechartsTooltip />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -1125,7 +1312,10 @@ const Dashboard = () => {
         {/* Visits by Gestation Period */}
         <Card>
           <CardHeader>
-            <CardTitle>Visits by Gestation</CardTitle>
+            <CardTitleWithInfo
+              title="Visits by Gestation"
+              info="ANC visit counts grouped by gestational age recorded at the visit. This shows when follow-up visits are happening in pregnancy."
+            />
             <CardDescription>ANC visit timing distribution</CardDescription>
           </CardHeader>
           <CardContent>
@@ -1134,7 +1324,7 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
                 <YAxis />
-                <Tooltip />
+                <RechartsTooltip />
                 <Bar dataKey="visits" fill="#82ca9d" />
               </BarChart>
             </ResponsiveContainer>
@@ -1146,7 +1336,10 @@ const Dashboard = () => {
           <CardHeader>
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <CardTitle>Early Registration Insights</CardTitle>
+                <CardTitleWithInfo
+                  title="Early Registration Insights"
+                  info="Compares current and previous ANC periods to show how many registrations are happening at 12 gestation weeks or earlier, plus district and subdistrict variation."
+                />
                 <CardDescription>
                   1st trimester registration performance for {selectedScopeLabel.toLowerCase()} with trend and geography drill-downs
                 </CardDescription>
@@ -1222,7 +1415,7 @@ const Dashboard = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" />
                         <YAxis unit="%" />
-                        <Tooltip
+                          <RechartsTooltip
                           formatter={(value: number, name: string) => {
                             if (name === 'Early Registration Rate') {
                               return [`${Number(value).toFixed(1)}%`, name];
@@ -1297,7 +1490,7 @@ const Dashboard = () => {
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" minTickGap={24} />
                           <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                          <Tooltip
+                          <RechartsTooltip
                             formatter={(value: number, name: string) => [`${Number(value).toFixed(1)}%`, name]}
                           />
                           <Legend />
@@ -1421,7 +1614,10 @@ const Dashboard = () => {
                 {/* Regional Breakdown */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Regional Breakdown</CardTitle>
+                    <CardTitleWithInfo
+                      title="Regional Breakdown"
+                      info="Patient registrations grouped by region, with the chart showing each region's share of the loaded patient population."
+                    />
                     <CardDescription>Registrations by region, alongside patient distribution by region</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1456,7 +1652,7 @@ const Dashboard = () => {
                                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                               </Pie>
-                              <Tooltip />
+                              <RechartsTooltip />
                             </PieChart>
                           </ResponsiveContainer>
                         )}
@@ -1468,7 +1664,10 @@ const Dashboard = () => {
                 {/* Geographic Breakdown */}
                 <Card className="lg:col-span-2">
                   <CardHeader>
-                    <CardTitle>Geographic Distribution</CardTitle>
+                    <CardTitleWithInfo
+                      title="Geographic Distribution"
+                      info="Patient registrations grouped by region, district, subdistrict, and community. Table filters apply to the currently loaded patient sample."
+                    />
                     <CardDescription>Patient registrations by region, district, and community</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1585,7 +1784,10 @@ const Dashboard = () => {
                 {/* Regional Trends Chart */}
                 <Card className="lg:col-span-2">
                   <CardHeader>
-                    <CardTitle>Registration Trends by Region</CardTitle>
+                    <CardTitleWithInfo
+                      title="Registration Trends by Region"
+                      info="Weekly patient_bio registration counts stacked by region. This is the community or facility patient capture step, not ANC enrollment."
+                    />
                     <CardDescription>Weekly registration patterns over last 12 weeks</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1594,7 +1796,7 @@ const Dashboard = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="week" />
                         <YAxis />
-                        <Tooltip />
+                        <RechartsTooltip />
                         {patientStats.regions.map((region, index) => (
                           <Area
                             key={region}
