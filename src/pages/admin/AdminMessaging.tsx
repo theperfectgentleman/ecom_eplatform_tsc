@@ -523,7 +523,7 @@ const AdminMessaging = () => {
       const formData = new FormData();
       formData.append('voice_file', file);
       validRecipients.forEach((r) => formData.append('recipients[]', r));
-      
+
       if (selectedDistrict && selectedDistrict !== 'All Districts') {
         formData.append('district', selectedDistrict);
       }
@@ -648,10 +648,10 @@ const AdminMessaging = () => {
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* LEFT COLUMN: Filters & Statistics */}
         <div className="lg:col-span-5 space-y-6">
-          
+
           {/* Target Audience Filters */}
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="pb-3">
@@ -723,14 +723,12 @@ const AdminMessaging = () => {
                 <button
                   type="button"
                   onClick={() => setFilterInvalidContacts(!filterInvalidContacts)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    filterInvalidContacts ? 'bg-primary' : 'bg-slate-200'
-                  }`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${filterInvalidContacts ? 'bg-primary' : 'bg-slate-200'
+                    }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      filterInvalidContacts ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${filterInvalidContacts ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -749,17 +747,15 @@ const AdminMessaging = () => {
                 <div className="inline-flex rounded-md shadow-sm border border-slate-200 p-0.5 bg-slate-50">
                   <button
                     onClick={() => setStatsToggle('count')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                      statsToggle === 'count' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'
-                    }`}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsToggle === 'count' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'
+                      }`}
                   >
                     Count
                   </button>
                   <button
                     onClick={() => setStatsToggle('percent')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                      statsToggle === 'percent' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'
-                    }`}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsToggle === 'percent' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'
+                      }`}
                   >
                     %
                   </button>
@@ -777,7 +773,7 @@ const AdminMessaging = () => {
                 </div>
 
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-center">
-                  <span className="text-xs font-medium text-slate-500 block mb-1">Contacts Reached</span>
+                  <span className="text-xs font-medium text-slate-500 block mb-1">Contacts Reachable</span>
                   <div className="text-3xl font-extrabold text-primary">
                     {statsToggle === 'count' ? stats.validContactCount : `${stats.percentContacts}%`}
                   </div>
@@ -796,7 +792,7 @@ const AdminMessaging = () => {
                   </div>
                   <p className="text-sm font-semibold text-slate-800 line-clamp-1">{selectedAudio.topic}</p>
                   <p className="text-xs text-slate-600 italic line-clamp-2">"{selectedAudio.message}"</p>
-                  
+
                   {/* Active Playback visualization inside the card */}
                   {playingAudioFile === selectedAudio.audioFile && (
                     <div className="flex items-center gap-2 py-1 text-primary justify-end">
@@ -873,11 +869,10 @@ const AdminMessaging = () => {
                     <div
                       key={msg.id}
                       onClick={() => setSelectedAudioId(msg.id)}
-                      className={`cursor-pointer border p-4 rounded-xl transition-all duration-200 relative group ${
-                        isSelected
+                      className={`cursor-pointer border p-4 rounded-xl transition-all duration-200 relative group ${isSelected
                           ? 'border-primary bg-blue-50/20 shadow-md ring-1 ring-primary'
                           : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50/50'
-                      }`}
+                        }`}
                     >
                       <div className="flex justify-between items-start gap-4">
                         <div className="space-y-1 flex-1">
@@ -902,11 +897,10 @@ const AdminMessaging = () => {
                             e.stopPropagation(); // prevent card selection
                             handlePlayAudio(msg.audioFile, msg.region);
                           }}
-                          className={`rounded-full shrink-0 ${
-                            isPlaying
+                          className={`rounded-full shrink-0 ${isPlaying
                               ? 'bg-rose-50 hover:bg-rose-100 text-rose-600'
                               : 'bg-blue-50 hover:bg-blue-100 text-primary'
-                          }`}
+                            }`}
                         >
                           {isPlaying ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
                         </Button>
@@ -945,7 +939,7 @@ const AdminMessaging = () => {
                 Complete list of patient records matching the active filters above.
               </CardDescription>
             </div>
-            
+
             {/* Search Input */}
             <div className="relative w-full sm:w-[300px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
