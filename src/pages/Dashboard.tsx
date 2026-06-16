@@ -309,6 +309,7 @@ const Dashboard = () => {
   const [customTimeframeDraft, setCustomTimeframeDraft] = useState<string>(String(DEFAULT_CUSTOM_TIMEFRAME_DAYS));
   const [patientLimit, setPatientLimit] = useState<string>(PATIENT_LIMIT_OPTIONS[4].value); // Default to 3000
   const [gestationDisplayMode, setGestationDisplayMode] = useState<'count' | 'percentage'>('count');
+  const [registrarDisplayMode, setRegistrarDisplayMode] = useState<'count' | 'percentage'>('count');
 
   // Main aggregated data (1 API call)
   const [aggregates, setAggregates] = useState<DashboardAggregates | null>(null);
@@ -798,13 +799,33 @@ const Dashboard = () => {
   const registrarData = useMemo(() => {
     if (!aggregates?.registrar) return [];
     const reg = aggregates.registrar;
-    return [
+    const rows = [
       { name: 'Clinician', value: reg.clinician },
       { name: 'Volunteer (CHV)', value: reg.volunteer },
       { name: 'Other Staff', value: reg.other },
       { name: 'Unassigned', value: reg.unassigned }
     ].filter(item => item.value > 0);
+
+    const total = rows.reduce((sum, row) => sum + row.value, 0);
+    return rows.map((row) => ({
+      ...row,
+      share: total > 0 ? (row.value / total) * 100 : 0,
+    }));
   }, [aggregates]);
+
+  const registrarYAxisFormatter = (value: number) => {
+    if (registrarDisplayMode === 'percentage') {
+      return `${Number(value).toFixed(0)}%`;
+    }
+    return Number(value).toLocaleString();
+  };
+
+  const registrarTooltipFormatter = (value: number, name: string) => {
+    if (registrarDisplayMode === 'percentage') {
+      return [`${Number(value).toFixed(1)}%`, name];
+    }
+    return [Number(value).toLocaleString(), name];
+  };
 
   const gestationData = useMemo(() => {
     if (!aggregates?.antenatal?.visitsByGestation) return [];
@@ -1536,10 +1557,32 @@ const Dashboard = () => {
 
         <Card className="flex flex-col">
           <CardHeader>
-            <CardTitleWithInfo
-              title="Registrar Breakdown"
-              info="Breakdown of unique patient registrations by the type of user who registered them (Clinician vs Volunteer/CHV)."
-            />
+            <div className="flex items-center justify-between">
+              <CardTitleWithInfo
+                title="Registrar Breakdown"
+                info="Breakdown of unique patient registrations by the type of user who registered them (Clinician vs Volunteer/CHV)."
+              />
+              <div className="inline-flex items-center gap-1 rounded-md border bg-muted/20 p-0.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={registrarDisplayMode === 'count' ? 'default' : 'ghost'}
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setRegistrarDisplayMode('count')}
+                >
+                  Counts
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={registrarDisplayMode === 'percentage' ? 'default' : 'ghost'}
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setRegistrarDisplayMode('percentage')}
+                >
+                  %
+                </Button>
+              </div>
+            </div>
             <CardDescription>Registration source for {timeframeConfig.label.toLowerCase()}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 items-center justify-center min-h-[260px]">
@@ -1549,23 +1592,29 @@ const Dashboard = () => {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={registrarData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
+                <BarChart data={registrarData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tickLine={false} />
+                  <YAxis
+                    tickFormatter={registrarYAxisFormatter}
+                    tickLine={false}
+                    axisLine={false}
+                    domain={registrarDisplayMode === 'percentage' ? [0, 100] : undefined}
+                  />
+                  <RechartsTooltip
+                    cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
+                    formatter={registrarTooltipFormatter}
+                  />
+                  <Bar
+                    dataKey={registrarDisplayMode === 'percentage' ? 'share' : 'value'}
+                    name={registrarDisplayMode === 'percentage' ? 'Registrations Share' : 'Registrations'}
+                    radius={[4, 4, 0, 0]}
                   >
                     {registrarData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
-                  </Pie>
-                  <RechartsTooltip />
-                </PieChart>
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
