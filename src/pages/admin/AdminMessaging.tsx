@@ -434,7 +434,7 @@ const AdminMessaging = () => {
     }
 
     const regionFolder = region === 'North East' ? 'east' : 'west';
-    const audioPath = `/src/assets/audio/${regionFolder}/${audioFile}`;
+    const audioPath = `/audio/${regionFolder}/${audioFile}`;
 
     const audio = new Audio(audioPath);
     audioRef.current = audio;
@@ -497,7 +497,7 @@ const AdminMessaging = () => {
     try {
       // 1. Fetch file as Blob from frontend assets
       const regionFolder = selectedAudio.region === 'North East' ? 'east' : 'west';
-      const audioPath = `/src/assets/audio/${regionFolder}/${selectedAudio.audioFile}`;
+      const audioPath = `/audio/${regionFolder}/${selectedAudio.audioFile}`;
 
       const response = await fetch(audioPath);
       if (!response.ok) {

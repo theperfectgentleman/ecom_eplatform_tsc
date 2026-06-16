@@ -786,7 +786,7 @@ const ReportsMessaging = () => {
     }
 
     const regionFolder = region === "North East" ? "east" : "west";
-    const audioPath = `/src/assets/audio/${regionFolder}/${audioFile}`;
+    const audioPath = `/audio/${regionFolder}/${audioFile}`;
     
     const audio = new Audio(audioPath);
     audioRef.current = audio;
