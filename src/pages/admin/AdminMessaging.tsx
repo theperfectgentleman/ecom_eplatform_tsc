@@ -610,15 +610,15 @@ const AdminMessaging = () => {
       `}</style>
 
       {/* Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-2xl p-6 shadow-lg">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-indigo-900 to-indigo-950 pointer-events-none"></div>
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl p-6 shadow-lg">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-blue-900 to-blue-950 pointer-events-none"></div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-3">
-              <Activity className="h-8 w-8 animate-pulse text-indigo-200" />
+              <Activity className="h-8 w-8 animate-pulse text-blue-200" />
               Broadcast Messaging Console
             </h1>
-            <p className="text-indigo-100 mt-2 text-sm sm:text-base max-w-2xl">
+            <p className="text-blue-100 mt-2 text-sm sm:text-base max-w-2xl">
               Target and dispatch pre-recorded local language voice messages directly to patient cohorts.
             </p>
           </div>
@@ -644,7 +644,7 @@ const AdminMessaging = () => {
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-5 w-5 text-indigo-600" />
+                <SlidersHorizontal className="h-5 w-5 text-primary" />
                 <CardTitle className="text-lg">Filter Cohorts</CardTitle>
               </div>
               <CardDescription>Scope patients geographically and demographically.</CardDescription>
@@ -709,7 +709,7 @@ const AdminMessaging = () => {
             <CardHeader className="pb-2">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Users className="h-5 w-5 text-indigo-600" />
+                  <Users className="h-5 w-5 text-primary" />
                   Campaign Summary
                 </CardTitle>
                 {/* Percentage / Count Toggle */}
@@ -745,7 +745,7 @@ const AdminMessaging = () => {
 
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-center">
                   <span className="text-xs font-medium text-slate-500 block mb-1">Contacts Reached</span>
-                  <div className="text-3xl font-extrabold text-indigo-600">
+                  <div className="text-3xl font-extrabold text-primary">
                     {statsToggle === 'count' ? stats.validContactCount : `${stats.percentContacts}%`}
                   </div>
                   <span className="text-[10px] text-slate-400 mt-1">have valid numbers</span>
@@ -754,25 +754,25 @@ const AdminMessaging = () => {
 
               {/* Selected message details */}
               {selectedAudio ? (
-                <div className="border border-indigo-100 bg-indigo-50/50 rounded-xl p-4 space-y-3">
+                <div className="border border-blue-100 bg-blue-50/50 rounded-xl p-4 space-y-3">
                   <div className="flex justify-between items-center">
-                    <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+                    <Badge className="bg-primary hover:bg-primary/90 text-white font-semibold">
                       Selected Audio
                     </Badge>
-                    <span className="text-xs font-semibold text-indigo-700">Code: {selectedAudio.refCode}</span>
+                    <span className="text-xs font-semibold text-blue-700">Code: {selectedAudio.refCode}</span>
                   </div>
                   <p className="text-sm font-semibold text-slate-800 line-clamp-1">{selectedAudio.topic}</p>
                   <p className="text-xs text-slate-600 italic line-clamp-2">"{selectedAudio.message}"</p>
                   
                   {/* Active Playback visualization inside the card */}
                   {playingAudioFile === selectedAudio.audioFile && (
-                    <div className="flex items-center gap-2 py-1 text-indigo-600 justify-end">
+                    <div className="flex items-center gap-2 py-1 text-primary justify-end">
                       <span className="text-xs font-semibold">Playing Preview</span>
                       <div className="flex items-end gap-0.5 h-6">
                         {visualizerBars.map((bar) => (
                           <div
                             key={bar}
-                            className={`w-1 bg-indigo-600 rounded-full animate-soundwave soundwave-bar-${bar}`}
+                            className={`w-1 bg-primary rounded-full animate-soundwave soundwave-bar-${bar}`}
                           />
                         ))}
                       </div>
@@ -789,7 +789,7 @@ const AdminMessaging = () => {
               <Button
                 onClick={handleBroadcast}
                 disabled={isBroadcasting || !selectedAudio || stats.validContactCount === 0}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-6 text-base shadow-md transition-all duration-200 rounded-xl flex items-center justify-center gap-2 group"
+                className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 text-base shadow-md transition-all duration-200 rounded-xl flex items-center justify-center gap-2 group"
               >
                 {isBroadcasting ? (
                   <>
@@ -813,11 +813,11 @@ const AdminMessaging = () => {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <Music className="h-5 w-5 text-indigo-600" />
+                  <Music className="h-5 w-5 text-primary" />
                   <CardTitle className="text-lg">Pre-recorded Script Catalog</CardTitle>
                 </div>
                 {activeAudioRegion && (
-                  <Badge variant="outline" className="border-indigo-200 bg-indigo-50/50 text-indigo-700">
+                  <Badge variant="outline" className="border-blue-200 bg-blue-50/50 text-blue-700">
                     Scoped to {activeAudioRegion}
                   </Badge>
                 )}
@@ -842,7 +842,7 @@ const AdminMessaging = () => {
                       onClick={() => setSelectedAudioId(msg.id)}
                       className={`cursor-pointer border p-4 rounded-xl transition-all duration-200 relative group ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/20 shadow-md ring-1 ring-indigo-500'
+                          ? 'border-primary bg-blue-50/20 shadow-md ring-1 ring-primary'
                           : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50/50'
                       }`}
                     >
@@ -872,7 +872,7 @@ const AdminMessaging = () => {
                           className={`rounded-full shrink-0 ${
                             isPlaying
                               ? 'bg-rose-50 hover:bg-rose-100 text-rose-600'
-                              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600'
+                              : 'bg-blue-50 hover:bg-blue-100 text-primary'
                           }`}
                         >
                           {isPlaying ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
@@ -905,7 +905,7 @@ const AdminMessaging = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-indigo-600" />
+                <UserCheck className="h-5 w-5 text-primary" />
                 Target Audience Cohort Details ({filteredPatients.length})
               </CardTitle>
               <CardDescription>
