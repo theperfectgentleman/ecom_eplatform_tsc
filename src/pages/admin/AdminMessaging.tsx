@@ -205,6 +205,12 @@ const calculateAge = (dobString?: string): number | null => {
   return age;
 };
 
+const isReachableNumber = (num?: string): boolean => {
+  if (!num) return false;
+  const digits = num.replace(/[^0-9]/g, '');
+  return digits.length >= 9 && digits.length <= 15 && !/^0+$/.test(digits);
+};
+
 const AdminMessaging = () => {
   const { request } = useApi();
   const { user } = useAuth();
@@ -222,6 +228,7 @@ const AdminMessaging = () => {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All Districts');
   const [selectedAgeRange, setSelectedAgeRange] = useState<string>('All Ages');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterInvalidContacts, setFilterInvalidContacts] = useState<boolean>(true);
 
   // Audio catalog states
   const [selectedAudioId, setSelectedAudioId] = useState<number | null>(null);
@@ -372,9 +379,14 @@ const AdminMessaging = () => {
         }
       }
 
+      // 5. Filter Invalid Contacts
+      if (filterInvalidContacts && !isReachableNumber(patient.contact_number)) {
+        return false;
+      }
+
       return true;
     });
-  }, [patients, selectedRegion, selectedDistrict, selectedAgeRange, searchTerm]);
+  }, [patients, selectedRegion, selectedDistrict, selectedAgeRange, searchTerm, filterInvalidContacts]);
 
   // Determine active region for pre-recorded audios
   const activeAudioRegion = useMemo(() => {
@@ -478,7 +490,7 @@ const AdminMessaging = () => {
 
     const validRecipients = filteredPatients
       .map((p) => p.contact_number)
-      .filter((num): num is string => typeof num === 'string' && num.trim().length > 0);
+      .filter((num): num is string => isReachableNumber(num));
 
     if (validRecipients.length === 0) {
       toast({
@@ -565,7 +577,7 @@ const AdminMessaging = () => {
     const totalCount = patients.length;
     const filteredCount = filteredPatients.length;
     const validContactCount = filteredPatients.filter(
-      (p) => p.contact_number && p.contact_number.trim().length > 0
+      (p) => isReachableNumber(p.contact_number)
     ).length;
 
     const percentTarget = totalCount > 0 ? ((filteredCount / totalCount) * 100).toFixed(1) : '0.0';
@@ -700,6 +712,27 @@ const AdminMessaging = () => {
                     <SelectItem value="45+">45 and above</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Filter Invalid Contacts Toggle */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2">
+                <div className="flex flex-col gap-0.5 max-w-[80%]">
+                  <span className="text-sm font-medium text-slate-700">Filter Invalid Contacts</span>
+                  <span className="text-xs text-slate-400">Excludes numbers with only zeros (e.g. 000-000-0000)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFilterInvalidContacts(!filterInvalidContacts)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    filterInvalidContacts ? 'bg-primary' : 'bg-slate-200'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      filterInvalidContacts ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -962,7 +995,7 @@ const AdminMessaging = () => {
                 ) : (
                   paginatedPatients.map((p) => {
                     const age = calculateAge(p.dob);
-                    const hasContact = p.contact_number && p.contact_number.trim().length > 0;
+                    const isReachable = isReachableNumber(p.contact_number);
 
                     return (
                       <TableRow key={p.patient_id} className="hover:bg-slate-50/50">
@@ -976,9 +1009,14 @@ const AdminMessaging = () => {
                         <TableCell>{p.district || 'N/A'}</TableCell>
                         <TableCell className="text-center">{age ?? 'N/A'}</TableCell>
                         <TableCell>
-                          {hasContact ? (
+                          {isReachable ? (
                             <span className="flex items-center gap-1.5 font-medium text-slate-800">
                               <PhoneCall className="h-3 w-3 text-emerald-500" />
+                              {p.contact_number}
+                            </span>
+                          ) : p.contact_number ? (
+                            <span className="flex items-center gap-1.5 font-medium text-slate-400 line-through">
+                              <VolumeX className="h-3 w-3 text-rose-400" />
                               {p.contact_number}
                             </span>
                           ) : (
@@ -989,7 +1027,7 @@ const AdminMessaging = () => {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          {hasContact ? (
+                          {isReachable ? (
                             <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200">
                               Reachable
                             </Badge>
