@@ -126,6 +126,12 @@ interface DashboardAggregates {
       '45+': number;
     };
   };
+  registrar: {
+    clinician: number;
+    volunteer: number;
+    other: number;
+    unassigned: number;
+  };
   meta: {
     filtered: boolean;
     filter_level: 'national' | 'region' | 'district' | 'subdistrict';
@@ -787,6 +793,17 @@ const Dashboard = () => {
       { group: '35-44', count: dist['35-44'] },
       { group: '45+', count: dist['45+'] }
     ];
+  }, [aggregates]);
+
+  const registrarData = useMemo(() => {
+    if (!aggregates?.registrar) return [];
+    const reg = aggregates.registrar;
+    return [
+      { name: 'Clinician', value: reg.clinician },
+      { name: 'Volunteer (CHV)', value: reg.volunteer },
+      { name: 'Other Staff', value: reg.other },
+      { name: 'Unassigned', value: reg.unassigned }
+    ].filter(item => item.value > 0);
   }, [aggregates]);
 
   const gestationData = useMemo(() => {
@@ -1519,13 +1536,38 @@ const Dashboard = () => {
 
         <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle>KPI1</CardTitle>
-            <CardDescription>Placeholder card</CardDescription>
+            <CardTitleWithInfo
+              title="Registrar Breakdown"
+              info="Breakdown of unique patient registrations by the type of user who registered them (Clinician vs Volunteer/CHV)."
+            />
+            <CardDescription>Registration source for {timeframeConfig.label.toLowerCase()}</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-1 items-center justify-center">
-            <div className="rounded-lg border border-dashed p-8 w-full h-full flex items-center justify-center bg-muted/5 min-h-[260px]">
-              <span className="text-2xl font-bold text-muted-foreground tracking-wider">KPI1</span>
-            </div>
+          <CardContent className="flex flex-1 items-center justify-center min-h-[260px]">
+            {registrarData.length === 0 ? (
+              <div className="flex h-[260px] w-full items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+                No registrar distribution data available.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={registrarData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {registrarData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
