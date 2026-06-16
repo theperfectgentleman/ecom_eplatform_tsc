@@ -1517,34 +1517,15 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
-            <CardTitleWithInfo
-              title="Age Distribution"
-              info="Patient age buckets derived from date of birth on patient_bio records captured in the selected timeframe and current scope."
-            />
-            <CardDescription>Patient demographics for {timeframeConfig.label.toLowerCase()}</CardDescription>
+            <CardTitle>KPI1</CardTitle>
+            <CardDescription>Placeholder card</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={ageData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ group, percent }) => `${group} ${(((percent ?? 0) * 100)).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {ageData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <RechartsTooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <CardContent className="flex flex-1 items-center justify-center">
+            <div className="rounded-lg border border-dashed p-8 w-full h-full flex items-center justify-center bg-muted/5 min-h-[260px]">
+              <span className="text-2xl font-bold text-muted-foreground tracking-wider">KPI1</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -1828,55 +1809,107 @@ const Dashboard = () => {
 
                 {/* Key Stats Grid - Removed as moved to top */}
                 
-                {/* Regional Breakdown */}
-                <Card>
-                  <CardHeader>
-                    <CardTitleWithInfo
-                      title="Regional Breakdown"
-                      info="Patient registrations grouped by region for the selected timeframe, with the chart showing each region's share of the currently scoped patient registrations."
-                    />
-                    <CardDescription>Registrations by region for {timeframeConfig.label.toLowerCase()}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="space-y-2">
-                        {Object.entries(patientStats.regionalBreakdown).map(([region, count]) => (
-                          <div key={region} className="flex justify-between">
-                            <span>{region}</span>
-                            <Badge variant="secondary">{count}</Badge>
-                          </div>
-                        ))}
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Regional Breakdown */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitleWithInfo
+                        title="Regional Breakdown"
+                        info="Patient registrations grouped by region for the selected timeframe, with the chart showing each region's share of the currently scoped patient registrations."
+                      />
+                      <CardDescription>Registrations by region for {timeframeConfig.label.toLowerCase()}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-6 lg:grid-cols-2">
+                        <div className="space-y-2">
+                          {Object.entries(patientStats.regionalBreakdown).map(([region, count]) => (
+                            <div key={region} className="flex justify-between">
+                              <span>{region}</span>
+                              <Badge variant="secondary">{count}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          {regionalData.length === 0 ? (
+                            <div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+                              No regional distribution data available.
+                            </div>
+                          ) : (
+                            <ResponsiveContainer width="100%" height={260}>
+                              <PieChart>
+                                <Pie
+                                  data={regionalData}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={false}
+                                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                                  outerRadius={80}
+                                  fill="#8884d8"
+                                  dataKey="value"
+                                >
+                                  {regionalData.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                  ))}
+                                </Pie>
+                                <RechartsTooltip />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        {regionalData.length === 0 ? (
-                          <div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-                            No regional distribution data available.
-                          </div>
-                        ) : (
-                          <ResponsiveContainer width="100%" height={260}>
-                            <PieChart>
-                              <Pie
-                                data={regionalData}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                              >
-                                {regionalData.map((_, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <RechartsTooltip />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Age Distribution */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitleWithInfo
+                        title="Age Distribution"
+                        info="Patient age buckets derived from date of birth on patient_bio records captured in the selected timeframe and current scope."
+                      />
+                      <CardDescription>Patient demographics for {timeframeConfig.label.toLowerCase()}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-6 lg:grid-cols-2">
+                        <div className="space-y-2">
+                          {ageData.map(({ group, count }) => (
+                            <div key={group} className="flex justify-between">
+                              <span>{group}</span>
+                              <Badge variant="secondary">{count}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          {ageData.length === 0 ? (
+                            <div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+                              No age distribution data available.
+                            </div>
+                          ) : (
+                            <ResponsiveContainer width="100%" height={260}>
+                              <PieChart>
+                                <Pie
+                                  data={ageData}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={false}
+                                  label={({ group, percent }) => `${group} ${(((percent ?? 0) * 100)).toFixed(0)}%`}
+                                  outerRadius={80}
+                                  fill="#8884d8"
+                                  dataKey="count"
+                                >
+                                  {ageData.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                  ))}
+                                </Pie>
+                                <RechartsTooltip />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
 
                 {/* Geographic Breakdown */}
                 <Card className="lg:col-span-2">
