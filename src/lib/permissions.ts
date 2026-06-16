@@ -263,6 +263,7 @@ export const PAGE_PERMISSIONS: Record<string, Permission> = {
   '/kit-distribution': Permission.VIEW_KIT_DISTRIBUTION,
   '/feedback': Permission.VIEW_FEEDBACK,
   '/admin': Permission.VIEW_ADMIN,
+  '/admin/messaging': Permission.VIEW_ADMIN,
   '/admin/settings': Permission.VIEW_ADMIN,
   '/admin/docs': Permission.VIEW_ADMIN,
   '/admin/implementation': Permission.VIEW_ADMIN,

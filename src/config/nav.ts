@@ -81,6 +81,11 @@ export const navConfig: NavItem[] = [
         icon: Users,
       },
       {
+        title: 'Broadcast Messaging',
+        href: '/admin/messaging',
+        icon: MessageSquare,
+      },
+      {
         title: 'System Settings',
         href: '/admin/settings',
         icon: Settings,

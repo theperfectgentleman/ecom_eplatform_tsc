@@ -20,6 +20,8 @@ import DownloadPage from '@/pages/Download';
 import TechnicalDocs from '@/pages/admin/TechnicalDocs';
 import ImplementationGuide from '@/pages/admin/ImplementationGuide';
 import AdminSettings from '@/pages/admin/AdminSettings';
+// Broadcast Messaging component for administrators
+import AdminMessaging from '@/pages/admin/AdminMessaging';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SessionProvider } from '@/contexts/SessionContext';
 import { ToastProvider } from '@/components/ui/toast/ToastContext';
@@ -54,6 +56,7 @@ const App = () => {
                     <Route path="/kit-distribution" element={<RouteGuard><KitDistributionPage /></RouteGuard>} />
                     <Route path="/antenatal-care" element={<RouteGuard><AntenatalCarePage /></RouteGuard>} />
                     <Route path="/admin" element={<RouteGuard><Admin /></RouteGuard>} />
+                    <Route path="/admin/messaging" element={<RouteGuard><AdminMessaging /></RouteGuard>} />
                     <Route path="/admin/settings" element={<RouteGuard><AdminSettings /></RouteGuard>} />
                     <Route path="/admin/docs" element={<RouteGuard><TechnicalDocs /></RouteGuard>} />
                     <Route path="/admin/implementation" element={<RouteGuard><ImplementationGuide /></RouteGuard>} />
