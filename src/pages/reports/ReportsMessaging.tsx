@@ -333,6 +333,7 @@ const DISTRICT_MONTH_SIGNATURES: Record<string, Record<string, number>> = {
     "2026-02": -0.008,
     "2026-03": -0.003,
     "2026-04": -0.005,
+    "2026-05": -0.006,
   },
   "Upper West::Wa West": {
     "2025-10": 0.007,
@@ -342,6 +343,7 @@ const DISTRICT_MONTH_SIGNATURES: Record<string, Record<string, number>> = {
     "2026-02": 0.007,
     "2026-03": 0.009,
     "2026-04": 0.004,
+    "2026-05": 0.005,
   },
 };
 
@@ -354,6 +356,7 @@ const FOCUS_DISTRICT_MONTHLY_TRENDS: Record<string, Record<string, number>> = {
     "2026-02": 21.4,
     "2026-03": 27.8,
     "2026-04": 33.6,
+    "2026-05": 36.2,
   },
   "Upper West::Wa West": {
     "2025-10": 17.2,
@@ -363,14 +366,15 @@ const FOCUS_DISTRICT_MONTHLY_TRENDS: Record<string, Record<string, number>> = {
     "2026-02": 22.4,
     "2026-03": 29.4,
     "2026-04": 33.3,
+    "2026-05": 35.8,
   },
 };
 
-// Generate mock dates from Oct 1, 2025 to Apr 10, 2026 with the same 3-4 day cadence.
+// Generate mock dates from Oct 1, 2025 to May 31, 2026 with the same 3-4 day cadence.
 const generateDatesList = () => {
   const dates: string[] = [];
   const startDate = new Date("2025-10-01");
-  const endDate = new Date("2026-04-10");
+  const endDate = new Date("2026-05-31");
   const intervalPattern = [3, 4, 3, 4, 4, 3];
   
   let currentDate = new Date(startDate);
@@ -403,6 +407,7 @@ const getDeliveryConditionAdjustments = (
     "2026-02": -0.024,
     "2026-03": -0.009,
     "2026-04": 0.003,
+    "2026-05": 0.005,
   };
 
   const weekBand = Math.min(4, Math.floor((date.getDate() - 1) / 7));

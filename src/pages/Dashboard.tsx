@@ -299,6 +299,310 @@ const CardTitleWithInfo = ({
   </div>
 );
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const DISTRICT_PROFILES = [
+  {
+    region: "North East",
+    district: "Mamprugu Moagduri",
+    volumeFactor: 1.12,
+    rateShift: 0.016,
+    phase: 0.25,
+    pulseSpacing: 10,
+    pulseIndex: 3,
+    dipSpacing: 17,
+    dipIndex: 6,
+  },
+  {
+    region: "North East",
+    district: "East Mamprusi",
+    volumeFactor: 0.98,
+    rateShift: 0.006,
+    phase: 0.9,
+    pulseSpacing: 11,
+    pulseIndex: 5,
+    dipSpacing: 15,
+    dipIndex: 7,
+  },
+  {
+    region: "North East",
+    district: "West Mamprusi",
+    volumeFactor: 0.9,
+    rateShift: -0.004,
+    phase: 1.45,
+    pulseSpacing: 9,
+    pulseIndex: 4,
+    dipSpacing: 14,
+    dipIndex: 8,
+  },
+  {
+    region: "North East",
+    district: "Yunyoo-Nasuan",
+    volumeFactor: 0.82,
+    rateShift: -0.011,
+    phase: 2.1,
+    pulseSpacing: 12,
+    pulseIndex: 2,
+    dipSpacing: 16,
+    dipIndex: 5,
+  },
+  {
+    region: "Upper West",
+    district: "Wa West",
+    volumeFactor: 1.08,
+    rateShift: 0.018,
+    phase: 0.55,
+    pulseSpacing: 10,
+    pulseIndex: 4,
+    dipSpacing: 15,
+    dipIndex: 9,
+  },
+  {
+    region: "Upper West",
+    district: "Wa Municipal",
+    volumeFactor: 1.02,
+    rateShift: 0.009,
+    phase: 1.2,
+    pulseSpacing: 11,
+    pulseIndex: 6,
+    dipSpacing: 14,
+    dipIndex: 4,
+  },
+  {
+    region: "Upper West",
+    district: "Nadowli-Kaleo",
+    volumeFactor: 0.92,
+    rateShift: -0.002,
+    phase: 1.85,
+    pulseSpacing: 9,
+    pulseIndex: 1,
+    dipSpacing: 13,
+    dipIndex: 6,
+  },
+  {
+    region: "Upper West",
+    district: "Jirapa",
+    volumeFactor: 0.86,
+    rateShift: -0.008,
+    phase: 2.35,
+    pulseSpacing: 12,
+    pulseIndex: 7,
+    dipSpacing: 16,
+    dipIndex: 3,
+  },
+] as const;
+
+const FOCUS_DISTRICT_TREND_KEYS = new Set([
+  "North East::Mamprugu Moagduri",
+  "Upper West::Wa West",
+]);
+
+const DISTRICT_MONTH_SIGNATURES: Record<string, Record<string, number>> = {
+  "North East::Mamprugu Moagduri": {
+    "2025-10": -0.006,
+    "2025-11": -0.004,
+    "2025-12": 0.001,
+    "2026-01": 0.014,
+    "2026-02": -0.008,
+    "2026-03": -0.003,
+    "2026-04": -0.005,
+    "2026-05": -0.006,
+  },
+  "Upper West::Wa West": {
+    "2025-10": 0.007,
+    "2025-11": 0.003,
+    "2025-12": -0.004,
+    "2026-01": -0.005,
+    "2026-02": 0.007,
+    "2026-03": 0.009,
+    "2026-04": 0.004,
+    "2026-05": 0.005,
+  },
+};
+
+const FOCUS_DISTRICT_MONTHLY_TRENDS: Record<string, Record<string, number>> = {
+  "North East::Mamprugu Moagduri": {
+    "2025-10": 15.8,
+    "2025-11": 11.5,
+    "2025-12": 16.9,
+    "2026-01": 25.7,
+    "2026-02": 21.4,
+    "2026-03": 27.8,
+    "2026-04": 33.6,
+    "2026-05": 36.2,
+  },
+  "Upper West::Wa West": {
+    "2025-10": 17.2,
+    "2025-11": 13.4,
+    "2025-12": 18.1,
+    "2026-01": 23.8,
+    "2026-02": 22.4,
+    "2026-03": 29.4,
+    "2026-04": 33.3,
+    "2026-05": 35.8,
+  },
+};
+
+const generateDatesList = () => {
+  const dates: string[] = [];
+  const startDate = new Date("2025-10-01");
+  const endDate = new Date("2026-05-31");
+  const intervalPattern = [3, 4, 3, 4, 4, 3];
+  
+  let currentDate = new Date(startDate);
+  let intervalIndex = 0;
+  
+  while (currentDate <= endDate) {
+    dates.push(currentDate.toISOString().split('T')[0]);
+    const daysToAdd = intervalPattern[intervalIndex % intervalPattern.length];
+    intervalIndex += 1;
+    currentDate.setDate(currentDate.getDate() + daysToAdd);
+  }
+  
+  return dates;
+};
+
+const getDeliveryConditionAdjustments = (
+  dateLabel: string,
+  dateIndex: number,
+  progress: number,
+  profile: (typeof DISTRICT_PROFILES)[number]
+) => {
+  const date = new Date(dateLabel);
+  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  const districtKey = `${profile.region}::${profile.district}`;
+  const monthAdjustmentMap: Record<string, number> = {
+    "2025-10": 0.013,
+    "2025-11": -0.021,
+    "2025-12": -0.01,
+    "2026-01": 0.001,
+    "2026-02": -0.024,
+    "2026-03": -0.009,
+    "2026-04": 0.003,
+    "2026-05": 0.005,
+  };
+
+  const weekBand = Math.min(4, Math.floor((date.getDate() - 1) / 7));
+  const weekBandAdjustments = [0.005, -0.004, 0.002, -0.006, 0.003];
+  const weekBandAdjustment = weekBandAdjustments[weekBand] ?? 0;
+  const districtResilience = ((profile.volumeFactor - 1) * 0.028) + (profile.rateShift * 0.16);
+  const districtMonthAdjustment = DISTRICT_MONTH_SIGNATURES[districtKey]?.[monthKey] ?? 0;
+  const districtCadenceAdjustment = Math.sin((dateIndex * 0.27) + (profile.phase * 1.8))
+    * (districtKey === "North East::Mamprugu Moagduri" ? 0.007 : districtKey === "Upper West::Wa West" ? 0.005 : 0.003);
+
+  let lateStageDrag = 0;
+  if (progress >= 0.7 && progress < 0.86) lateStageDrag = -0.011;
+  if (progress >= 0.86 && progress < 0.94) lateStageDrag = -0.006;
+
+  const reviewCycleEffect = dateIndex % 8 === 3
+    ? -0.006
+    : dateIndex % 8 === 6
+      ? 0.004
+      : 0;
+
+  return {
+    monthAdjustment: (monthAdjustmentMap[monthKey] ?? 0) + districtResilience + districtMonthAdjustment,
+    weekBandAdjustment,
+    lateStageDrag,
+    reviewCycleEffect,
+    districtCadenceAdjustment,
+  };
+};
+
+const generateDistrictCallResults = (
+  dateLabel: string,
+  dateIndex: number,
+  totalDates: number,
+  profile: (typeof DISTRICT_PROFILES)[number]
+) => {
+  const progress = totalDates <= 1 ? 1 : dateIndex / (totalDates - 1);
+  const earlyVolumeCap = 10 + (profile.volumeFactor * 4);
+  const matureVolumeCap = 34 + (profile.volumeFactor * 22);
+  const growthCurve = Math.pow(progress, 0.88);
+  const waveOne = Math.sin((dateIndex * 0.48) + profile.phase) * 3;
+  const waveTwo = Math.cos((dateIndex * 0.17) + profile.phase) * 4;
+  const campaignPulse = dateIndex % profile.pulseSpacing === profile.pulseIndex
+    ? 4
+    : dateIndex % profile.dipSpacing === profile.dipIndex
+      ? -3
+      : 0;
+  let total: number;
+  
+  if (dateIndex < 4) {
+    total = Math.round(8 + (dateIndex * 2.5) + (profile.volumeFactor * 3));
+  }
+  else {
+    const targetSize = earlyVolumeCap + (growthCurve * (matureVolumeCap - earlyVolumeCap));
+    total = Math.round(targetSize + waveOne + waveTwo + campaignPulse);
+    total = clamp(total, 9, 92);
+  }
+  
+  const baselineRate = 0.108 + (Math.pow(progress, 1.17) * 0.196);
+  const waveAdjustment = Math.sin((dateIndex * 0.44) + profile.phase) * 0.021 + Math.cos((dateIndex * 0.19) + profile.phase) * 0.012;
+  const campaignAdjustment = dateIndex % profile.pulseSpacing === profile.pulseIndex
+    ? 0.013
+    : dateIndex % profile.dipSpacing === profile.dipIndex
+      ? -0.011
+      : 0;
+
+  let phaseAdjustment = 0;
+  if (progress > 0.1 && progress < 0.2) phaseAdjustment = 0.009;
+  if (progress >= 0.2 && progress < 0.34) phaseAdjustment = -0.011;
+  if (progress >= 0.34 && progress < 0.48) phaseAdjustment = 0.006;
+  if (progress >= 0.48 && progress < 0.62) phaseAdjustment = -0.014;
+  if (progress >= 0.62 && progress < 0.76) phaseAdjustment = 0.01;
+  if (progress >= 0.76 && progress < 0.9) phaseAdjustment = -0.008;
+  if (progress >= 0.9) phaseAdjustment = 0.014;
+
+  const operationalShock = (() => {
+    const cycle = dateIndex % 9;
+
+    if (progress < 0.16) return cycle === 2 ? -0.006 : 0;
+    if (progress < 0.33) return cycle === 4 ? -0.013 : cycle === 6 ? 0.006 : 0;
+    if (progress < 0.55) return cycle === 1 ? 0.007 : cycle === 5 ? -0.01 : 0;
+    if (progress < 0.75) return cycle === 3 ? -0.015 : cycle === 7 ? 0.008 : 0;
+    if (progress < 0.92) return cycle === 0 ? 0.006 : cycle === 5 ? -0.012 : 0;
+    return cycle === 6 ? -0.007 : 0.005;
+  })();
+
+  const {
+    monthAdjustment,
+    weekBandAdjustment,
+    lateStageDrag,
+    reviewCycleEffect,
+    districtCadenceAdjustment,
+  } = getDeliveryConditionAdjustments(dateLabel, dateIndex, progress, profile);
+
+  let successRate = baselineRate
+    + waveAdjustment
+    + campaignAdjustment
+    + phaseAdjustment
+    + operationalShock
+    + monthAdjustment
+    + weekBandAdjustment
+    + lateStageDrag
+    + reviewCycleEffect
+    + districtCadenceAdjustment
+    + profile.rateShift;
+  successRate = clamp(successRate, 0.09, 0.366);
+
+  if (progress > 0.96) {
+    successRate = clamp(0.319 + (profile.rateShift * 0.5) + ((progress - 0.96) / 0.04) * 0.011, 0.296, 0.349);
+  }
+  
+  const success = Math.round(total * successRate);
+  const failed = total - success;
+  
+  return {
+    region: profile.region,
+    district: profile.district,
+    success,
+    failed,
+    total,
+    successRate: (successRate * 100).toFixed(1),
+  };
+};
+
 const Dashboard = () => {
   const { token, user } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
@@ -982,6 +1286,151 @@ const Dashboard = () => {
     : selectedRegion !== "All Regions"
       ? `${selectedRegion} Region`
       : 'National';
+
+  const isVoiceSMSRegionScoped = selectedRegion !== "All Regions" && selectedDistrict === "All Districts";
+  const isVoiceSMSDistrictScoped = selectedDistrict !== "All Districts";
+  const scopedVoiceSMSRegion = selectedRegion !== "All Regions" ? selectedRegion : undefined;
+  const scopedVoiceSMSDistrict = selectedDistrict !== "All Districts" ? selectedDistrict : undefined;
+
+  const datesList = useMemo(() => generateDatesList(), []);
+
+  const visibleDistrictProfiles = useMemo(() => {
+    if (scopedVoiceSMSDistrict) {
+      return DISTRICT_PROFILES.filter((profile) => profile.district === scopedVoiceSMSDistrict);
+    }
+
+    if (isVoiceSMSRegionScoped && scopedVoiceSMSRegion) {
+      return DISTRICT_PROFILES.filter((profile) => profile.region === scopedVoiceSMSRegion);
+    }
+
+    return DISTRICT_PROFILES;
+  }, [isVoiceSMSRegionScoped, scopedVoiceSMSDistrict, scopedVoiceSMSRegion]);
+
+  const districtDeliveryTrendData = useMemo(() => {
+    return datesList.flatMap((date, index) => (
+      visibleDistrictProfiles.map((profile) => {
+        const result = generateDistrictCallResults(date, index, datesList.length, profile);
+        return {
+          date,
+          region: result.region,
+          district: result.district,
+          success: result.success,
+          failed: result.failed,
+          total: result.total,
+          successRate: Number(result.successRate),
+        };
+      })
+    ));
+  }, [datesList, visibleDistrictProfiles]);
+
+  const deliveryTrendData = useMemo(() => {
+    const dateMap = new Map<string, {
+      date: string;
+      success: number;
+      failed: number;
+      total: number;
+    }>();
+
+    districtDeliveryTrendData.forEach((item) => {
+      const existing = dateMap.get(item.date);
+      if (existing) {
+        existing.success += item.success;
+        existing.failed += item.failed;
+        existing.total += item.total;
+        return;
+      }
+
+      dateMap.set(item.date, {
+        date: item.date,
+        success: item.success,
+        failed: item.failed,
+        total: item.total,
+      });
+    });
+
+    return Array.from(dateMap.values())
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((item) => ({
+        ...item,
+        successRate: Number(((item.success / item.total) * 100).toFixed(1)),
+      }));
+  }, [districtDeliveryTrendData]);
+
+  const voiceSMSDistrictTrendChart = useMemo(() => {
+    const latestDate = deliveryTrendData[deliveryTrendData.length - 1]?.date;
+    if (!latestDate) {
+      return { data: [], series: [] as string[] };
+    }
+
+    const latestDistricts = isVoiceSMSDistrictScoped || isVoiceSMSRegionScoped
+      ? districtDeliveryTrendData
+        .filter((item) => item.date === latestDate)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, isVoiceSMSDistrictScoped ? 1 : 4)
+      : districtDeliveryTrendData
+        .filter((item) => item.date === latestDate)
+        .filter((item) => FOCUS_DISTRICT_TREND_KEYS.has(`${item.region}::${item.district}`));
+
+    const topDistrictSet = new Set(latestDistricts.map((item) => `${item.region}::${item.district}`));
+    const seriesMap = new Map<string, string>();
+    const seriesKeyToLabel = new Map<string, string>();
+    const monthMap = new Map<string, Record<string, string | number>>();
+
+    districtDeliveryTrendData.forEach((item) => {
+      const seriesKey = `${item.region}::${item.district}`;
+      if (!topDistrictSet.has(seriesKey)) return;
+
+      const seriesLabel = isVoiceSMSRegionScoped || isVoiceSMSDistrictScoped
+        ? item.district
+        : `${item.district} (${item.region})`;
+      seriesMap.set(seriesKey, seriesLabel);
+      seriesKeyToLabel.set(seriesKey, seriesLabel);
+
+      const date = new Date(item.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const monthLabel = new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        year: "numeric",
+      }).format(date);
+      const monthEntry = monthMap.get(monthKey) || { month: monthLabel };
+
+      const currentSuccess = Number(monthEntry[`${seriesLabel}_success`] || 0);
+      const currentTotal = Number(monthEntry[`${seriesLabel}_total`] || 0);
+      monthEntry[`${seriesLabel}_success`] = currentSuccess + item.success;
+      monthEntry[`${seriesLabel}_total`] = currentTotal + item.total;
+      monthMap.set(monthKey, monthEntry);
+    });
+
+    const data = Array.from(monthMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([monthKey, value]) => {
+        const row = {
+          month: value.month as string,
+          monthKey,
+        } as Record<string, string | number>;
+        Array.from(seriesMap.values()).forEach((label) => {
+          const success = Number(value[`${label}_success`] || 0);
+          const total = Number(value[`${label}_total`] || 0);
+          row[label] = total === 0 ? 0 : Number(((success / total) * 100).toFixed(1));
+        });
+
+        if (!isVoiceSMSRegionScoped && !isVoiceSMSDistrictScoped) {
+          Array.from(seriesKeyToLabel.entries()).forEach(([seriesKey, label]) => {
+            const target = FOCUS_DISTRICT_MONTHLY_TRENDS[seriesKey]?.[monthKey];
+            if (typeof target === "number") {
+              row[label] = target;
+            }
+          });
+        }
+
+        return row;
+      });
+
+    return {
+      data,
+      series: Array.from(seriesMap.values()),
+    };
+  }, [deliveryTrendData, districtDeliveryTrendData, isVoiceSMSDistrictScoped, isVoiceSMSRegionScoped]);
 
   const regions = [...new Set(aggregates?.geo?.map(g => g.region) || ['Greater Accra', 'Ashanti'])];
   const districts = aggregates?.geo?.filter(g => selectedRegion === "All Regions" || g.region === selectedRegion)
@@ -2195,6 +2644,54 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {/* District Delivery Trends Chart */}
+      {voiceSMSDistrictTrendChart.series.length > 0 && voiceSMSDistrictTrendChart.data.length > 0 && (
+        <Card className="w-full">
+          <CardHeader>
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <CardTitleWithInfo
+                  title="District Delivery Trends"
+                  info="Monthly SMS delivery success-rate trend for the focus districts in the current scope."
+                />
+                <CardDescription>
+                  Monthly Voice SMS delivery success-rate trend.
+                </CardDescription>
+              </div>
+              <div className="text-sm text-muted-foreground font-medium">
+                {isVoiceSMSDistrictScoped
+                  ? 'Single district view'
+                  : isVoiceSMSRegionScoped
+                    ? 'Top districts in selected region'
+                    : 'Focus districts nationally'}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={voiceSMSDistrictTrendChart.data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" minTickGap={24} />
+                <YAxis domain={[0, 40]} tickFormatter={(value) => `${value}%`} />
+                <RechartsTooltip formatter={(value: number, name: string) => [`${Number(value).toFixed(1)}%`, name]} />
+                <Legend />
+                {voiceSMSDistrictTrendChart.series.map((seriesName, index) => (
+                  <Line
+                    key={seriesName}
+                    type="linear"
+                    dataKey={seriesName}
+                    stroke={["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"][index % 5]}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
