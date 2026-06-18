@@ -22,6 +22,7 @@ import ImplementationGuide from '@/pages/admin/ImplementationGuide';
 import AdminSettings from '@/pages/admin/AdminSettings';
 // Broadcast Messaging component for administrators
 import AdminMessaging from '@/pages/admin/AdminMessaging';
+import BackMigration from '@/pages/admin/BackMigration';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SessionProvider } from '@/contexts/SessionContext';
 import { ToastProvider } from '@/components/ui/toast/ToastContext';
@@ -60,6 +61,7 @@ const App = () => {
                     <Route path="/admin/settings" element={<RouteGuard><AdminSettings /></RouteGuard>} />
                     <Route path="/admin/docs" element={<RouteGuard><TechnicalDocs /></RouteGuard>} />
                     <Route path="/admin/implementation" element={<RouteGuard><ImplementationGuide /></RouteGuard>} />
+                    <Route path="/admin/back-migration" element={<RouteGuard><BackMigration /></RouteGuard>} />
                     <Route path="/guide" element={<RouteGuard><GuidePage /></RouteGuard>} />
                     <Route path="/feedback" element={<RouteGuard><FeedbackPage /></RouteGuard>} />
                   </Route>

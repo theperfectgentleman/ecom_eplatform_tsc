@@ -267,6 +267,7 @@ export const PAGE_PERMISSIONS: Record<string, Permission> = {
   '/admin/settings': Permission.VIEW_ADMIN,
   '/admin/docs': Permission.VIEW_ADMIN,
   '/admin/implementation': Permission.VIEW_ADMIN,
+  '/admin/back-migration': Permission.VIEW_ADMIN,
   '/download': Permission.VIEW_DASHBOARD, // Allow access to download page for all users
   '/guide': Permission.VIEW_DASHBOARD, // Allow access to guide page for all users
 };
